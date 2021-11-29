@@ -1,0 +1,298 @@
+TASK 'The basic operations of XPress-Teacher'
+
+QUESTION
+'    Welcome to XPress-Teacher - Math Test Assesments system' 
+'    including Formula Editor, Tutor, Training and Test modules! '
+'    Press Help key to get instructions and to see the examples. '
+
+CALC      
+INIT
+RAND( a =[6..34] 2)
+
+METHOD
+'XPress-Teacher presents a user a series of Math'
+'problems in 3 modes of operation: Learn, Train'
+'and Test.'
+' '
+'In Learn mode a student can either solve a'
+'problem in his way, and the system will check an'
+'answer, or he can follow the steps of recommended'
+'solution, and see the result of each step.'
+'  ' 
+'In Train mode, a student gets 4 possibile results'
+'of each step of proposed solution, and in order to'
+'proceed he must choose the correct answer.'
+'In Train mode the number of trials is unlimited.'
+' '
+'In Test mode a student gets 4 possibile answers'
+'(the results of the last step of the solution), and'
+'he must choose a correct one.'
+'It should be remembered that in Test mode only'
+'one attempt to submit an answer is allowed!'   
+' '
+'The problems include random parameters that'
+'are changed automaticly at every new appearance'
+'of the problem, or they can be changed manually'
+'by clicking on "New" button.'    
+' '
+'A student is expected to write his solution in Edit'
+'window and submit every intemediate result (as'
+'well as a final answer) to XPress-Teacher for'
+'system`s evaluation.'  
+' '
+'If the submitted expression is correct, the system'
+'reacts with a comment, otherwise with a question'
+'mark (?).'
+' '
+'In Learn and Train modes the correct results of'
+'each step of the solution and the final answer'
+'can be seen by clicking on "Hint" button.'
+' '
+'XPress-Teacher enables to Edit math expressions'
+'using a keyboard for English letters, Symbols'
+'icons for Greek letters and special Math symbols'
+'(located at the upper tool bar), and the templates'
+'from the appropriate folder in Edit Keys panel.'
+        '  '
+'The expression also can be copied into a text'
+'document in Word or other format, e-mail'
+'message or "Paint" or other graphical program.'
+        '    '
+'The detailed explanation to each step of solution'
+'is presented by clicking on a proper Steps/'
+'Operation button on the right of this window.'
+        ' '
+'The result of a nearest unsolved step of the'
+'solution appears when clicking on a "Hint" button.'
+
+COMMENT 'The instructions have been completed successfully!'
+
+STEP1 '     System Keys     '
+METH1 
+'The folders of the panel "Editor Keys" contain System'
+'buttons enabling to navigate through different stages of'
+'problem`s solution, and Editor keys, enabling to write'
+'math expression containing special symbols.'
+'  '
+'The folder "Main" contains System buttons and three'
+'Edit buttons for most frequently used math templates.'
+' '
+'The System buttons include: '
+'"Help" - general help to the problem`s soluttion;'
+'"Hint"  - result of the nearest unsolved step;'
+'"New" - reset new values to the variables of the'
+'            current problem;'          
+'"Edit" -  Edit previously created task (for advanced users);  '
+'"Exit" -  close the program and exit.' 
+' '
+'The Edit buttons include:' 
+'"Fraction", "Square root" and "Power".'     
+
+RESULT1  EXPR(1)    
+FALSE1.1  EXPR( 1 )
+FALSE1.2  EXPR( 1 )
+FALSE1.3  EXPR( 1)
+COMM1 'Correct!'
+
+STEP2 'Learn'
+METH2
+'In Learn mode a problem appears in Question window'
+'and a student can try solve it. ' 
+'He can write and submit an answer or the intermediate'
+'results of the solution by clicking Enter key on a keyboard.'
+' '
+'If the submitted expression coinsides with the result of'
+'one of the recommended steps (or with the final answer),'
+'the system will recognize it and respond with a comment.'
+'If the submitted expression is not correct, the system '
+'reacts with the question mark (?).'
+'  '
+'A student can see the recommended solution by clicking'
+'on "Help" button. The Help panel consists of two windows:'
+'General Description and the List of Steps.'
+' '
+'Clicking on any step button opens a window with a '
+'description of the corresponding step.' 
+'The student can use this help and try again, or he can push'
+'"Hint" button and see the correct result of a next unsolved'
+'step of the solution.'
+'  '
+'In Learn mode a student can repeat his attempts'
+'unlimited number of times at every step of solution.'
+ 
+RESULT2   EXPR("Hint not available to this step")    
+FALSE2.1  EXPR( 1 )
+FALSE2.2  EXPR( 1 )
+FALSE2.3  EXPR( 1)
+COMM2 'Correct!'    
+
+STEP3 '   Train   '
+METH3
+'The difference between Train and Learn modes is that in'
+'Learn mode a student can see the correct result of each step'
+'of the solution, whereas in Train mode a student gets 4 possibile'
+'results of each step, and in order to proceed he must choose'
+'a correct answer.'
+'In Train mode the number of trials is also unlimited, like '
+'in Learn mode.'
+RESULT3   EXPR("Hint not available to this step")    
+FALSE3.1  EXPR( 1 )
+FALSE3.2  EXPR( 1 )
+FALSE3.3  EXPR( 1)
+COMM3 'Correct!'    
+
+STEP4 '    Test    '
+METH4
+'There are two main differences between Test and Train modes:'
+'1) In Test mode Help and Hint are unawailable; ' 
+'2) in Test mode only one attempt to submit an answer is allowed!'   
+' '
+'If a student is not definite in his guess, he can leave the Test'
+'by clicking on "Exit" button, and return later on.'
+' '
+'However, there are no more then two attempts to enter Test again!'
+
+RESULT4   EXPR("Hint not available to this step")    
+FALSE4.1  EXPR( 1 )
+FALSE4.2  EXPR( 1 )
+FALSE4.3  EXPR( 1)
+COMM4 'Correct!'    
+
+STEP5 '    Editing Math Expression    '
+METH5
+PICT (EdKeysN1)
+ ' To edit an expression, type it using a keyboard for English letters,'
+ ' or open the Symbol icons at the upper tool bar for typing Greek'
+ ' letters and Math symbols.'
+  '  '
+ ' To edit expressions consisting of special Math objects like fractions,'
+ ' roots, integrals, matrices, limits etc., use templates from the Editor Keys tabs.'
+ '   '
+ ' There are 4 tabs consisting the the templates for editing math expression:'
+ ' "Main", "Algebra-I", "Algebra-II" and "Math".'
+  ' '
+ ' For editing open the proper tab and press the key you need. '
+ ' For instance, to edit the following expression:' 
+  '                                       'EXPR ((x+4)/(y^2 - ( (x-(7))~2)) )
+PICT (EdKeys3)
+  ' use 3 templates: Fraction, Square Root and Power from the tab "Main".'
+' '
+ ' You should first click on the template "Fraction", and fill in the numerator (x+4),'
+ ' then go down to the denominator using mouse or the arrows keys, and edit'
+ ' it using the templates for a power and a square root.' 
+ '                 '
+PICT (EdKeys4)
+ ' You can also use the scientific notation for editing  the same expression:'
+'                              (x+4)/(y^2-(x-7)~2))   '
+'         '
+' To check yourself, press Enter after finishing the editing.'
+
+PICT (EdKeys6) 
+RESULT5   EXPR ( (x+4)/(y^2 - ( (x-(7))~2)) )    
+FALSE5.1  EXPR( 1 )
+FALSE5.2  EXPR( 1 )
+FALSE5.3  EXPR( 1)
+COMM5 'Correct!'
+
+STEP6 'Copying to Word editor'
+METH6
+' After finishing editing, press Enter, and the expression will be moved'
+' to the Worksheet.'
+'  '
+' There it will be displayed as a record of your activity. You can also '
+' copy it into a word processor, in order to create documents consisting '
+' of text and formulas, such as homework, tests etc.'
+'   '
+PICT (Cop2Word1)
+' To do that, select the expression to be copied as follows: point the mouse'
+' at the upper left corner of the expression, click the left mouse button and'
+' drag it to the bottom right of the expression.'
+'    '
+' Now click the right mouse button, select Copy, and the expression will be'
+' stored in a buffer, from which it can be retrieved into a Word document'
+' using the Paste command.'
+'   '
+' You can Cancel the current choice by clicking a right button, and repeat'
+' the procedure for another expression.'
+'  '
+'                       Copying expression without syntax check '
+'       '
+' The program performs a syntax check of the expression, and does not permit'
+PICT (Cop2Word2)
+' to moove an incorrect expression into the Worksheet. '
+'   '
+' However, if for some reason you are interested in copying such "wrong" '
+' expression to the word document, you can do it directly from the Edit '
+' window, by the same technique as for copying from the Worksheet. '
+'        '
+PICT (Cop2Word3)
+' You can change the Math Font size and colors, as well as background'
+' colors of the Edit and Worksheet windows separately, by pressing the '
+' right button of the mouse and choosing an appropriate option.'
+' '
+' Press HINT, to observe the example expression, and try to edit,'
+' copy and paste it to Word, or to change the font and background'
+' settings.'
+RESULT6   EXPR((1)/(1+(((1)/(1+(((1)/(1+((1+(x))~2)))))))))
+FALSE6.1  EXPR( 1)
+FALSE6.2  EXPR( 1 )
+FALSE6.3  EXPR(1 )
+COMM6 'Very good!'
+
+STEP7  'Editing Table' 
+METH7
+PICT (Table2)
+' To create a table, click the button "Table" '
+' of the folder "Algebra-I".'
+'  '
+' The control panel "Creating of Table" that'
+' will appear allowes to set the numbers of '
+PICT (Table1)
+' the raws and colomns using the arrows or '
+' by direct writing into the corresponding '
+' windows.'
+' '
+' After a template of a table was created,'
+' its cels can be filled with the required'
+' names of variables, numbers or algebraic'
+PICT (Table3)  
+' expressions.'
+RESULT7  EXPR(1)    
+FALSE7.1  EXPR( 1 )
+FALSE7.2  EXPR( 1 )
+FALSE7.3  EXPR( 1)
+COMM7 'Correct!'
+
+STEP8 'Editing Chart'
+METH8 
+PICT (Chart1)
+' Two types of charts can be created: '
+' 1. Chart of colomns'
+' 2. Chart of bars'
+' To design a chart, click on a on the button "Chart"'
+' of the folder "Algebra-II".'
+PICT (Chart2)
+' A control panel that will appear allowes'
+' to set the numbers of colomns, a scale'
+' and a type of a chart. '
+' '
+' After a template of a chart was created,'
+' it can be edited by filling the names'
+' of the variables (axes) in the left colomn' 
+' and the values (at the lower raw) at the specified'
+' points in a case of colomns - at the upper raw.'
+PICT (Chart4)
+' In a case of bar chart, the intervals '
+' where the Y-values are constant, should'
+' be defined in the cells of an upper raw,'
+PICT (Chart3)  
+' and the corresonding values should be'
+' written into the cells of the lower raw.'
+PICT (Chart5)  
+PICT (Chart6)
+'                            Good Luck!'
+RESULT8  EXPR(1)    
+FALSE8.1  EXPR( 1 )
+FALSE8.2  EXPR( 1 )
+FALSE8.3  EXPR( 1)
+COMM8 'Correct!'

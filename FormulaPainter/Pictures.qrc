@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Resources/ThickChart.png</file>
+        <file>Resources/ThinChart.png</file>
+        <file>Resources/Settings.eng</file>
+        <file>Resources/Settings.heb</file>
+        <file>Resources/Settings.rus</file>
+    </qresource>
+</RCC>

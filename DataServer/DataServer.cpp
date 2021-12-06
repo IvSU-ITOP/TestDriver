@@ -127,12 +127,12 @@ void Thread::run()
         {
         Parms[prmPassword] = s_PWD;
         iHiperRef = 1;
-        if(Ref.left(9) != "GET /Task") return;
+        if(Ref.left(9) != "GET /Task") throw ErrParser( "Error; Bad task", ParserErr::peNewErr );
         int iSpace = Ref.indexOf(" ", 9);
-        if(iSpace == -1) return;
+        if(iSpace == -1) throw ErrParser( "Error; Bad task", ParserErr::peNewErr );
         sTskId = Ref.mid(10, iSpace - 10);
         int iTskId = sTskId.toInt();
-        if(iTskId <= 0) return;
+        if(iTskId <= 0) throw ErrParser( "Error; Bad task", ParserErr::peNewErr );
         DB.setDatabaseName( "pictures" );
         DB.setUserName( "root" );
         DB.setHostName( "localhost" );
@@ -142,9 +142,9 @@ void Thread::run()
         QSqlQuery Query( DB );
         QString Q( "Select Type, Formula, Name From pictures Where Id=" + sTskId );
         Query.exec( Q );
-        if(Query.size() <= 0) return;
+        if(Query.size() <= 0) throw ErrParser( "Error; Bad Query", ParserErr::peNewErr );
         Query.next();
-        if(Query.value( 0 ).toByteArray() != "Task") return;
+        if(Query.value( 0 ).toByteArray() != "Task") throw ErrParser( "Error; Bad data base task record", ParserErr::peNewErr );
         QByteArray BaseTask(Query.value( 1 ).toByteArray());
         int Offset = 0;
         for( int iPos = BaseTask.indexOf("#H:"); iPos != -1; iPos = BaseTask.indexOf("#H:", Offset ) )
@@ -187,19 +187,19 @@ void Thread::run()
       else
         {
         int iSlash = Ref.lastIndexOf('/');
-        if(iSlash == -1) return;
+        if(iSlash == -1) throw ErrParser( "Error; Bad list answers", ParserErr::peNewErr );
         int iPrevSlash = Ref.lastIndexOf('/', iSlash - 1);
-        if(iPrevSlash == -1) return;
+        if(iPrevSlash == -1) throw ErrParser( "Error; Bad list answers", ParserErr::peNewErr );
         QByteArray P, PP(Parms[1]);
         for(int i = PP.length() - 1; i >= 0; P += PP[i--] );
         Parms[prmPassword] = P;
         Parms[prmPathFile] = Parms[2] + Ref;
         QFile F(Parms[prmPathFile]);
-        if( !F.open(QIODevice::ReadOnly) ) return;
+        if( !F.open(QIODevice::ReadOnly) ) throw ErrParser( "Error; Can't open task file", ParserErr::peNewErr );
         Task = F.readAll();
         F.close();
         int iTask = Task.indexOf("TASK");
-        if(iTask == -1) return;
+        if(iTask == -1) throw ErrParser( "Error; Bad task file", ParserErr::peNewErr );
         TaskName = Ref.mid(iSlash + 1);
         sTskId = Ref.mid(iPrevSlash + 1, iSlash - iPrevSlash - 1);
         iHiperRef = 2;
@@ -266,48 +266,67 @@ void Thread::run()
           }
         qDebug() << "Start to compare" << m_SocketDescriptor << " Compared formulas" << Formulas << " Connections Count : "
           << ++s_pDataServer->m_ConnectionsCount;
-        TStr::sm_Server = true;
-        MathExpr Expr = MathExpr( Parser::StrToExpr( Parms[0] ) );
-        TStr::sm_Server = false;
-        if( s_GlobalInvalid || Expr.IsEmpty() ) throw ErrParser( "Syntax Error in: " + Parms[0], ParserErr::peNewErr );
+        QString Text;
+        MathExpr Expr;
+        if(Parms[0].left(3) == "\"##")
+          {
+          Text = Parms[0];
+          if(Text.right(5) == "0000\"")
+            Text.remove(Text.length() - 5, 4);
+          }
+        else
+          {
+          TStr::sm_Server = true;
+          Expr = MathExpr( Parser::StrToExpr( Parms[0] ) );
+          TStr::sm_Server = false;
+          }
+        if( s_GlobalInvalid || ( Expr.IsEmpty() && Text.isEmpty() ) ) throw ErrParser( "Syntax Error in: " + Parms[0], ParserErr::peNewErr );
 #ifdef DEBUG_TASK
-        qDebug() << "Contents " << CastPtr( TExpr, Expr )->m_Contents;
+        qDebug() << "Contents " << (Expr.IsEmpty() ? Text : CastPtr( TExpr, Expr )->m_Contents);
 #endif
         int iEqual = 1;
         for( ; iEqual < Parms.count(); iEqual++ )
           {
-          QByteArray  Parm(Parms[iEqual]), Formula;
-          TStr::sm_Server = true;
-          for( int iStartPack = Parm.indexOf("##"); iStartPack != -1; iStartPack = Parm.indexOf("##") )
+          QByteArray  Parm(Parms[iEqual]);
+          if(Expr.IsEmpty())
             {
-            Formula += Parm.left(iStartPack);
-            QByteArray S(TStr::UnpackValue(Parm.mid(iStartPack)));
-            Formula += S;
-            Parm = Parm.mid(iStartPack + S.length() * 4 + 6);
+            if(Parm == Text) break;
             }
-          TStr::sm_Server = false;
-          Formula += Parm;
-          QByteArrayList Formuls(Formula.split( '#' ));
-          int i = 0;
-          for( ; i < Formuls.count(); i++ )
+          else
             {
-            if( Formuls[i].isEmpty() ) continue;
-            MathExpr ExprT = MathExpr( Parser::StrToExpr( Formuls[i] ) );
-            if( s_GlobalInvalid || ExprT.IsEmpty() ) throw ErrParser( "Error; Bad task, formula: " + Formuls[i], ParserErr::peNewErr );
+            TStr::sm_Server = true;
+            QByteArray Formula;
+            for( int iStartPack = Parm.indexOf("##"); iStartPack != -1; iStartPack = Parm.indexOf("##") )
+              {
+              Formula += Parm.left(iStartPack);
+              QByteArray S(TStr::UnpackValue(Parm.mid(iStartPack)));
+              Formula += S;
+              Parm = Parm.mid(iStartPack + S.length() * 4 + 6);
+              }
+            TStr::sm_Server = false;
+            Formula += Parm;
+            QByteArrayList Formuls(Formula.split( '#' ));
+            int i = 0;
+            for( ; i < Formuls.count(); i++ )
+              {
+              if( Formuls[i].isEmpty()) continue;
+              MathExpr ExprT = MathExpr( Parser::StrToExpr( Formuls[i] ) );
+              if( s_GlobalInvalid || ExprT.IsEmpty() ) throw ErrParser( "Error; Bad task, formula: " + Formuls[i], ParserErr::peNewErr );
           //        m_pSocket->write( Expr.WriteE() + ";;" + ExprT.WriteE() + "\n\n" );
           //        m_pSocket->flush();
           //        return;
 #ifdef DEBUG_TASK
-            qDebug() << "Contents expT" << CastPtr( TExpr, ExprT )->m_Contents;
+              qDebug() << "Contents expT" << CastPtr( TExpr, ExprT )->m_Contents;
 #endif
 
-            double Precision = TExpr::sm_Precision;
-            TExpr::sm_Precision = 0.01;
-            bool bResult = Expr.Equal( ExprT );
-            TExpr::sm_Precision = Precision;
-            if( bResult ) break;
-            }
+              double Precision = TExpr::sm_Precision;
+              TExpr::sm_Precision = 0.01;
+              bool bResult = Expr.Equal( ExprT );
+              TExpr::sm_Precision = Precision;
+              if( bResult ) break;
+              }
             if( i < Formuls.count() ) break;
+             }
           }
 #ifdef DEBUG_TASK
         qDebug() << "Soket " << m_SocketDescriptor << " Count " << Parms.count() << " Equal " << iEqual;

@@ -256,7 +256,7 @@ QByteArray TStr::PackValue() const
   QByteArray Val( itoa( Count, Buf, 16 ) );
   if( Val.length() < 4 ) Val = QByteArray( 4 - Val.length(), '0' ) + Val;
   QByteArray Result = "##" + Val;
-  for( int i = 0; i < Count; i++ )
+  for( int i = 1; i < Count; i++ )
     {
     QByteArray Val( itoa( pS[i], Buf, 16 ) );
     if( Val.length() < 4 ) Val = QByteArray( 4 - Val.length(), '0' ) + Val;

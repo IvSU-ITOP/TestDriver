@@ -304,6 +304,8 @@ QSize RichTextWindow::GetMinSize()
   if( S.height() > WS.height() ) S.setHeight( WS.height() );
   if( S.width() > WS.width() ) S.setWidth( WS.width() );
   if( minimumHeight() > S.height() ) setMinimumHeight( S.height() );
+  S.setWidth( max(S.width(), 700) );
+  S.setHeight(max(S.height(), 200));
   return S;
   }
 
@@ -375,7 +377,10 @@ HelpTaskWindow::HelpTaskWindow( QWidget *pParent, const QString& Label, PStepLis
   pLabel->setAlignment( Qt::AlignCenter );
   pMainLayout->addWidget( pLabel );
   m_pPanelLayout = new QHBoxLayout;
-  m_pPanelLayout->addWidget( new HelpPanelWindow( this, m_pRichWindow, X_Str( "CMethod", "General Description" ) ) );
+  HelpPanelWindow *pHPW = new HelpPanelWindow( this, m_pRichWindow, X_Str( "CMethod", "General Description" ));
+  m_pPanelLayout->addWidget( pHPW );
+  int WinWidth = WinTesting::sm_pMainWindow->width();
+  int WihHeight = WinTesting::sm_pMainWindow->height();
   QScrollArea *pPanelArea = new QScrollArea;
   pPanelArea->setWidget( m_pButtonsWindow );
   pPanelArea->setAlignment( Qt::AlignCenter );
@@ -398,8 +403,6 @@ HelpTaskWindow::HelpTaskWindow( QWidget *pParent, const QString& Label, PStepLis
   connect( m_pBtnOK, SIGNAL( clicked() ), SLOT( accept() ) );
   pMainLayout->addWidget( m_pBtnOK );
   setLayout( pMainLayout );
-  int WinWidth = WinTesting::sm_pMainWindow->width();
-  int WihHeight = WinTesting::sm_pMainWindow->height();
   pLabel->adjustSize();
   m_pRichWindow->SetContent( pDescrList );
   int ButtonHeight = m_pButtonsWindow->GetMinHeight();
@@ -413,14 +416,16 @@ HelpTaskWindow::HelpTaskWindow( QWidget *pParent, const QString& Label, PStepLis
   if( ButtonHeight > Height ) m_pButtonsWindow->setFixedHeight( ButtonHeight );
   if( s_TaskEditorOn )
     {
-    int iLeft = WinWidth - WinWidth * 0.75;
-    QRect R( iLeft, 20, WinWidth * 0.75, Height );
+    int iLeft = WinWidth - WinWidth * 0.9;
+    pHPW->setFixedWidth(WinWidth/3);
+    QRect R( iLeft, 50, WinWidth * 0.7, Height );
     setGeometry( R );
     }
   else
     {
     int iLeft = WinTesting::sm_pPanel->width();
-    QRect R( iLeft, ( WihHeight - Height ) / 2, ( WinWidth - iLeft ) * 0.8, Height );
+    QRect R( iLeft, ( WihHeight - Height ) / 2, ( WinWidth - iLeft ) * 0.7, Height );
+    pHPW->setFixedWidth(WinWidth/4);
     setGeometry( R );
     }
   WinTesting::sm_TranslateObjects.AddObject( this );
@@ -785,6 +790,8 @@ void MarkEd::Edit(int i)
   WinTesting::SaveEnable( this );
   }
 
+
+/*
 TemplEdit::TemplEdit( PStepMemb pStep ) : m_pTemplate( pStep->m_pAnswerTemplate )
   {
   setStyleSheet( "QLineEdit {font-size:12pt}" );
@@ -853,6 +860,7 @@ void TemplEdit::Edit()
     m_pTemplate->m_pFirst->m_Content = EdStr::sm_pCodec->fromUnicode( text() );
   WinTesting::SaveEnable( this );
   }
+*/
 
 StepEdit::StepEdit( HelpButton *pOwnerButton ) : QDialog( ( QWidget* ) pOwnerButton->parent(), Qt::WindowSystemMenuHint ), 
   m_pButton( pOwnerButton ), m_pShowUnarMinus( new QCheckBox ), m_pHideUnarMinus( new QCheckBox ), m_pNoHint(new QCheckBox),
@@ -1033,8 +1041,16 @@ StepEdit::StepEdit( HelpButton *pOwnerButton ) : QDialog( ( QWidget* ) pOwnerBut
   pVBox->addWidget(m_pBtnEdCommentF3);
   pHBox = new  QHBoxLayout;
   pHBox->addWidget( new QLabel( "Template" ) );
-  TemplEdit *pTemplEdit = new TemplEdit( pStep );
-  pHBox->addWidget( pTemplEdit );
+  if( pStep->m_pAnswerTemplate->m_pFirst == nullptr )
+    {
+    QByteArray EmptyTemplate(" ");
+    pPanel = new ExprPanel( &EmptyTemplate, "#dceff5" );
+    }
+  else
+    pPanel = new ExprPanel( &pStep->m_pAnswerTemplate->m_pFirst->m_Content, "#dceff5" );
+//  TemplEdit *pTemplEdit = new TemplEdit( pStep );
+//  pHBox->addWidget( pTemplEdit );
+  pHBox->addWidget(pPanel);
   pVBox->addLayout( pHBox );
   pHBox = new  QHBoxLayout;
   QPushButton *pButton = new QPushButton( "OK");
@@ -1288,7 +1304,7 @@ QByteArray NationalTextEditor::GetText()
       }
     }
   else
-    Result = FromLang(m_TextEditor->toPlainText()).replace('"', msPrime).replace('{', msDoublePrime).replace('}', msTriplePrime).replace('\n', msCharNewLine);
+    Result += FromLang(m_TextEditor->toPlainText()).replace('"', msPrime).replace('{', msDoublePrime).replace('}', msTriplePrime).replace('\n', msCharNewLine);
   if (Result.endsWith(msCharNewLine)) Result.remove(Result.count() - 1, 1);
   return Result  + '"';
   }

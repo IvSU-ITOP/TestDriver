@@ -98,7 +98,7 @@ MathExpr TSolutionChain::GetChain()
       LResult.Addexp( *pExpr );
       LResult.Last()->m_Visi = false;
       }
-    LResult.Addexp( new TStr(EdStr::sm_pCodec->fromUnicode( X_Str( "MAllNumbersExpr", "Solution set: all real numbers" ) ) ) );
+    LResult.Addexp( new TStr(EdStr::sm_pCodec->fromUnicode( X_Str( "MAcceptablisSetExpr", "Solution set" ) ) ) );
     LResult.Last()->m_Visi = false;
     return MathExpr(LResult);
     };
@@ -114,7 +114,9 @@ MathExpr TSolutionChain::GetChain()
       List.Last()->m_Visi = false;     
       if( P.m_FinalResult ) Final.append( P.m_Exprs );
       if( m_Comments[i].isEmpty() ) continue;
-      List.Addexp( new TStr( FromLang( m_Comments[i] ) ) );
+//      if( m_Comments[i].isEmpty() || i == m_Chains.count() - 1) continue;
+//      List.Addexp( new TStr( FromLang( m_Comments[i] ) ) );
+      List.Addexp( new TStr( m_Comments[i].toUtf8() ) );
       List.Last()->m_Visi = false;
       }
     Solver::m_OldExpr.Clear();
@@ -135,7 +137,8 @@ MathExpr TSolutionChain::GetChain()
       List.Last()->m_Visi = false;
       if( m_Comments[i] != "$Break" )
         {
-        List.Addexp( new TStr( FromLang( m_Comments[i] ) ) );
+        List.Addexp( new TStr( m_Comments[i].toUtf8() ) );
+//        List.Addexp( new TStr( FromLang( m_Comments[i] ) ) );
         List.Last()->m_Visi = false;
         }
       iExpCount = 0;

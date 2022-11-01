@@ -4,9 +4,11 @@
 #include <QPen>
 #include <QWidget>
 
+/*
 namespace Ui {
 class OptionMenuPlotter;
 }
+*/
 
 class SettingsChart
 {
@@ -26,7 +28,7 @@ class OptionMenuPlotter : public QWidget
 
 public:
     explicit OptionMenuPlotter(QWidget *parent = nullptr);
-    ~OptionMenuPlotter();
+//    ~OptionMenuPlotter();
     SettingsChart ChartToSet;
     bool InProgress=true;
 
@@ -36,13 +38,13 @@ private slots:
     void on_cancel_btn_clicked();
     void on_font_box_currentFontChanged(const QFont &f);
     void on_thinkness_valueChanged(const QString &arg1);
-    void on_object_to_set_currentIndexChanged(int index);
+//    void on_object_to_set_currentIndexChanged(int index);
 
 signals:
     void sendDataClass(void);
 private:
-    void HideAllSettings();
-    Ui::OptionMenuPlotter *ui;
+//    void HideAllSettings();
+//    Ui::OptionMenuPlotter *ui;
     int m_SelectColorToSet{};
 };
 

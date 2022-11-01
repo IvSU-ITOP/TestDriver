@@ -89,8 +89,17 @@ bool CalcSysInEqXY( const QByteArray& UserTask )
         if( s_isZLPSol )
           {
           Lexp Sol = new TLexp;
-          Sol.Addexp( new TBinar( '=', new TVariable( false, "x" ), Constant( s_Poligon[s_Solution].X ) ) );
-          Sol.Addexp( new TBinar( '=', new TVariable( false, "y" ), Constant( s_Poligon[s_Solution].Y ) ) );
+          MathExpr X = Constant( s_Poligon[s_Solution].X );
+          MathExpr Y = Constant( s_Poligon[s_Solution].Y );
+          Sol.Addexp( new TBinar( '=', new TVariable( false, "x" ), X ) );
+          Sol.Addexp( new TBinar( '=', new TVariable( false, "y" ), Y ) );
+          PExMemb f = CastPtr(TL2exp, ex)->First();
+          uchar Sign;
+          MathExpr op1, op2;
+          f->m_Memb.Binar_(Sign, op1, op2);
+          op1 = op1.Substitute("x", X).Substitute("y", Y);
+          op1 = op1.Reduce();
+          Sol.Addexp( new TBinar( '=', new TVariable( false, "F" ), op1 ) );
           TSolutionChain::sm_SolutionChain.AddExpr( Sol );
           if( s_PutAnswer ) s_Answer = Sol;
           }

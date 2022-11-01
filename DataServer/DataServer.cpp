@@ -3,6 +3,9 @@
 #include <qsqldatabase.h>
 #include <QSqlQuery>
 #include <QSqlError>
+#include "../Mathematics/Algebra.h"
+#include "../Mathematics/SolChain.h"
+#include "../Mathematics/Analysis.h"
 
 const int s_FontSize = 16;
 const int s_PowDecrease = 5;
@@ -100,7 +103,191 @@ void Thread::run()
   exec(); //4
   }
 
-  void Thread::ReadyRead()
+void Thread::Solve( Solver *pS)
+  {
+  auto Final = [&]()
+    {
+    delete pS;
+    return;
+    };
+  try
+    {
+    TExpr::sm_CalcOnly = true;
+    ExpStore::sm_pExpStore->Init_var();
+    pS->SetExpression( m_Expression );
+    TExpr::sm_CalcOnly = false;
+    if (s_GlobalInvalid) return Final();
+    }
+  catch( ErrParser )
+    {
+    TExpr::sm_CalcOnly = false;
+    return Final();
+    }
+  MathExpr Result = pS->Result();
+  if( Result.IsEmpty() ) return Final();
+  bool V;
+  if( Result.Boolean_( V ) )
+    {
+    if( !V ) return Final();
+    }
+  else
+    if( !pS->Success() ) return Final();
+  m_SolvIndexes.append(pS->Code());
+  return Final();
+  }
+
+void Thread::SearchSolve(QByteArray& Formula)
+  {
+  if( Formula.isEmpty() ) return;
+  s_GlobalInvalid = false;
+  m_Expression = Parser::StrToExpr( Formula );
+  if( m_Expression.IsEmpty() || s_GlobalInvalid ) return;
+//    {
+//    WinTesting::sm_pOutWindow->AddComm( X_Str( "MsyntaxErr", "Syntax error!" ) );
+//    return;
+//    }
+  TSolutionChain::sm_SolutionChain.Clear();
+  TSolutionChain::sm_SolutionChain.m_Accumulate = false;
+
+  QString Prompt;
+//  auto Final = [&] ( bool Solve )
+  auto Final = [&] ()
+    {
+    TSolutionChain::sm_SolutionChain.m_Accumulate = true;
+//    if (m_pButtonBox->m_ButtonCount > 0) m_pButtonBox->m_pPrompt->setText( Prompt );
+//    if( !Solve ) return;
+//    if( !m_pButtonBox->SolveDefault() )
+//    WinTesting::sm_pOutWindow->AddComm( X_Str( "MNotSuitableExpr", "Not suitable expression!" ) );
+    };
+  m_Formula = Formula;
+  if( m_Expression.ConstExpr() || m_Expression.HasComplex() || m_Expression.HasMatrix() )
+    {
+    if( IsType( TConstant, m_Expression ) )
+      {
+      Solve( new TSin );
+      Solve( new TCos );
+      Solve( new TTan );
+      Solve( new TLg );
+      Solve( new TLn );
+      Solve( new TDegRad );
+      Solve( new TRadDeg );
+      Solve( new TSciCalc );
+      Prompt = X_Str( "MCanEvaluate", "For this value you can calculate:" );
+      return Final();
+      }
+    Solve( new TSciCalc );
+    return Final();
+    }
+
+  bool TestNumerical = false;
+  auto SearchSystem = [&] ( const MathExpr& Ex )
+    {
+    PExMemb pMemb;
+    if( !Ex.Listex( pMemb ) ) return false;
+    MathExpr Left, Right;
+    uchar Sign;
+    if( !pMemb->m_Memb.Binar_( Sign, Left, Right ) ) return true;
+    if( Sign != '=' )
+      {
+      Solve( new SysInEqXY );
+      Solve( new SysInEq );
+      Prompt = X_Str( "MCanAlsoCalculate", "You can also calculate:" );
+      return true;
+      }
+    PExMemb pNext = pMemb->m_pNext;
+    if( pNext.isNull() ) return true;
+    if( TestNumerical && pNext->m_Memb.IsNumerical() )
+      {
+      pNext = pNext->m_pNext;
+      if( pNext.isNull() || !pNext->m_Memb.IsNumerical() ) return true;
+      Solve( new TSolvCalcEquation );
+      return true;
+      }
+    if( !pNext->m_Memb.Binar( '=', Left, Right ) ) return true;
+    Solve( new MakeSubstitution );
+    Solve( new MakeExchange );
+    Solve( new SolveLinear );
+    Prompt = X_Str( "MCanAlsoCalculate", "You can also calculate:" );
+    return true;
+    };
+
+  MathExpr SysExpr;
+  if( m_Expression.Syst_( SysExpr ) )
+    {
+    SearchSystem( SysExpr );
+    return Final();
+    }
+
+  TestNumerical = true;
+  if( SearchSystem( m_Expression ) ) return Final();
+
+  MathExpr Left, Right;
+  uchar Sign;
+  if( m_Expression.Binar_( Sign, Left, Right ) )
+    {
+    if( Sign != '=' )
+      {
+      Solve( new RatInEq );
+      Solve( new SysInEq );
+      Prompt = X_Str( "MCanAlsoCalculate", "You can also calculate:" );
+      return Final();
+      }
+    Solve( new TSolvDetLinEqu );
+    if( m_SolvIndexes.count() == 1) return Final();
+
+    Prompt = X_Str( "MCanAlsoCalculate", "You can also calculate:" );
+    Solve( new TSolvDetQuaEqu );
+    Solve( new TSolvDisQuaEqu );
+    Solve( new TSolvDetVieEqu );
+    Solve( new TSolvQuaEqu );
+    if( m_SolvIndexes.count() > 0 ) return Final();
+
+    Solve( new TSolvCalcPolinomEqu );
+    Solve( new Log1Eq );
+    Solve( new ExpEq );
+    Solve( new TSolvCalcDetBiQuEqu );
+    Solve( new TSolvFractRatEq );
+    Solve( new TSolvCalcIrratEq );
+    if( Formula.indexOf( "sin" ) != -1 )
+      Solve( new TSolvCalcSimpleTrigoEq );
+    if( Formula.indexOf( "tan" ) != -1 )
+      Solve( new TSolvCalcSimpleTrigoEq );
+    if( Formula.indexOf( "cos" ) != -1 )
+      Solve( new TSolvCalcSimpleTrigoEq );
+    if( Formula.indexOf( "cot" ) != -1 )
+      Solve( new TSolvCalcSimpleTrigoEq );
+    Solve( new TSolvCalcSinCosEqu );
+    Solve( new TSolvCalcTrigoEqu );
+    Solve( new TSolvFractRatEq );
+    Solve( new TSolvCalcHomogenTrigoEqu );
+    return Final();
+    }
+  Prompt = X_Str( "MCanAlsoCalculate", "You can also calculate:" );
+  int PosPow = Formula.indexOf( '^' );
+  if( PosPow != -1 )
+    {
+    if( Formula.indexOf( '^', PosPow + 1 ) != -1 )
+      {
+      Solve( new TSolvSubSqr );
+      Solve( new TSolvSumCub );
+      Solve( new TSolvSubCub );
+      if( m_SolvIndexes.count() > 0 ) return Final();
+      }
+    else
+      {
+      Solve( new TSolvSqrSubSum );
+      Solve( new TSolvCubSubSum );
+      }
+    }
+  Solve( new TSolvReToMult );
+  Solve( new TSolvExpand );
+  Solve( new TTrinom );
+//  if( m_SolvIndexes.count() > 0 ) return Final();
+  Solve( new Alg1Calculator );
+  Final();
+  }
+
+void Thread::ReadyRead()
   {
   QByteArrayList Parms( m_pSocket->readAll().split( '&' ) );
   QMutexLocker locker(&s_Critical);
@@ -257,6 +444,302 @@ void Thread::run()
     else
       if( Parms.count() < prmCharset + 1 )
         {
+        QByteArrayList CalcParms = Parms[0].split('#');
+        if(CalcParms[0] =="SearchSolve")
+          {
+          TStr::sm_Server = true;
+          SearchSolve(Parms[1]);
+          TStr::sm_Server = false;
+          QByteArray Result;
+          int N = m_SolvIndexes.count();
+          if( N == 0 )
+            Result = "0";
+          else
+            for(int i = 0; i < N; i++)
+              {
+              QByteArray Code = QByteArray::number(m_SolvIndexes[i]);
+              if(i == 0)
+                Result = Code;
+              else
+                Result += '#' + Code;
+              }
+          m_pSocket->write(Result + "\n\n");
+          m_pSocket->flush();
+          return;
+          }
+        if(CalcParms[0] == "Calc")
+          {
+          s_CalcOnly = false;
+          Solvers ESolv = (Solvers) CalcParms[1].toInt();
+          double OldPrecision = TExpr::sm_Accuracy;
+          TExpr::sm_Accuracy = CalcParms[2].toDouble();
+          if(CalcParms[3] == "Degree")
+            TExpr::sm_TrigonomSystem = TExpr::tsDeg;
+          else
+            TExpr::sm_TrigonomSystem = TExpr::tsRad;
+          Solver *pSolv = nullptr;
+          switch(ESolv)
+            {
+            case ESolvReToMult:
+              pSolv = new TSolvReToMult;
+              break;
+            case ESolvSubSqr:
+              pSolv = new TSolvSubSqr;
+              break;
+            case ESolvExpand:
+              pSolv = new TSolvExpand;
+              break;
+            case ESolvSqrSubSum:
+              pSolv = new TSolvSqrSubSum;
+              break;
+            case ESolvSumCub:
+              pSolv = new TSolvSumCub;
+              break;
+            case ETrinom:
+              pSolv = new TTrinom;
+              break;
+            case ESolvCubSubSum:
+              pSolv = new TSolvCubSubSum;
+              break;
+            case ESolvSubCub:
+              pSolv = new TSolvSubCub;
+              break;
+            case EAlg1Calculator:
+              pSolv = new Alg1Calculator;
+              break;
+            case ELg:
+              pSolv = new TLg;
+              break;
+            case ELog1Eq:
+              pSolv = new Log1Eq;
+              break;
+            case ESysInEq:
+              pSolv = new SysInEq;
+              break;
+            case ERatInEq:
+              pSolv = new RatInEq;
+              break;
+            case EExpEq:
+              pSolv = new ExpEq;
+              break;
+            case EMakeSubstitution:
+              pSolv = new MakeSubstitution;
+              break;
+            case ESolveLinear:
+              pSolv = new SolveLinear;
+              break;
+            case EMakeExchange:
+              pSolv = new MakeExchange;
+              break;
+            case ESolvDetLinEqu:
+              pSolv = new TSolvDetLinEqu;
+              break;
+            case ESolvQuaEqu:
+              pSolv = new TSolvQuaEqu;
+              break;
+            case ESolvDetQuaEqu:
+              pSolv = new TSolvDetQuaEqu;
+              break;
+            case ESolvDisQuaEqu:
+              pSolv = new TSolvDisQuaEqu;
+              break;
+            case ESolvDetVieEqu:
+              pSolv = new TSolvDetVieEqu;
+              break;
+            case ESolvCalcDetBiQuEqu:
+              pSolv = new TSolvCalcDetBiQuEqu;
+              break;
+            case EAlgFrEquat:
+              pSolv = new TSolvFractRatEq;
+              break;
+            case ESqLogEq:
+              pSolv = new TSolvCalcIrratEq;
+              break;
+            case ESolvCalcPolinomEqu:
+              pSolv = new TSolvCalcPolinomEqu;
+              break;
+            case ESolvCalcSimpleTrigoEq:
+              pSolv = new TSolvCalcSimpleTrigoEq;
+              break;
+            case ESinCosEq:
+              pSolv = new TSolvCalcSinCosEqu;
+              break;
+            case ESolvCalcTrigoEqu:
+              pSolv = new TSolvCalcTrigoEqu;
+              break;
+            case ESolvCalcHomogenTrigoEqu:
+              pSolv = new TSolvCalcHomogenTrigoEqu;
+              break;
+            case ESolvCalcEquation:
+              pSolv = new TSolvCalcEquation;
+              break;
+            case ESin:
+              pSolv = new TSin;
+              break;
+            case ECos:
+              pSolv = new TCos;
+              break;
+            case ETan:
+              pSolv = new TTan;
+              break;
+            case ECotan:
+              pSolv = new TCotan;
+              break;
+            case ELn:
+              pSolv = new TLn;
+              break;
+            case EDegRad:
+              pSolv = new TDegRad;
+              break;
+            case ERadDeg:
+              pSolv = new TRadDeg;
+              break;
+            case ESciCalc:
+              pSolv = new TSciCalc;
+              break;
+            case EDeriv:
+              pSolv = new TDerivative;
+              break;
+            case EIndefInt:
+              pSolv = new TIndefIntegr;
+              break;
+            case EDefInt:
+              pSolv = new TDefIntegrate;
+              break;
+            case EDerivFun:
+              pSolv = new TDiff;
+              break;
+            case EEigenVals:
+              pSolv = new TEigen;
+              break;
+            case EDeterminant:
+              pSolv = new TDeterminant;
+              break;
+            case ETranspose:
+              pSolv = new TTransposer;
+              break;
+            case EMatrixInv:
+              pSolv = new TInverter;
+              break;
+            case EAngle2:
+              pSolv = new TAngle2;
+              break;
+            case EAngle3:
+              pSolv = new TAngle3;
+              break;
+            case ETan2:
+              pSolv = new TTan2;
+              break;
+            case EAlpha2:
+              pSolv = new TAlpha2;
+              break;
+            case EPriv:
+              pSolv = new TPriv;
+              break;
+            case ETrigoOfSumma:
+              pSolv = new TTrigoOfSumma;
+              break;
+            case ESumm_Mult:
+              pSolv = new TSumm_Mult;
+              break;
+            case ETrigo_Summ:
+              pSolv = new TTrigo_Summ;
+              break;
+            case EPermutations:
+              pSolv = new Permutations;
+              break;
+            case EBinomCoeff:
+              pSolv = new BinomCoeff;
+              break;
+            case EAccomodations:
+              pSolv = new Accomodations;
+              break;
+            case EStatistics:
+              pSolv = new Statistics;
+              break;
+            case ECorrelation:
+              pSolv = new Correlation;
+              break;
+            case ELineProg:
+              pSolv = new SysInEqXY;
+              break;
+            case EAlgToTrigo:
+              pSolv = new AlgToTrigo;
+              break;
+            case EComplexOper:
+              pSolv = new ComplexOper;
+              break;
+            }
+          /*
+                          EAlg2InEqXYGrph,
+                          ESqLogEq??,
+                          ESinEq?, ETanEq,  ECosEq, ECtnEq, ETrigoBiQudrEq, EAlgFrEq,
+                          EPi,
+                          ELimit, EDerivFun, EEigenVals, EDeterminant, ETranspose, EMatrixInv
+EAngle2, EAngle3, ETan2,
+  EAlpha2, EPriv, ETrigoOfSumma, ESumm_Mult, ETrigo_Summ, EPermutations, EBinomCoeff,
+  EAccomodations, EStatistics, ECorrelation, ELineProg, EAlgToTrigo, EComplexOper
+          */
+//          TStr::sm_Server = true;
+          QByteArray Result;
+          auto Final = [&] ()
+            {
+            delete pSolv;
+            s_CalcOnly = true;
+            TExpr::sm_Accuracy = OldPrecision;
+            Result = Result.replace("\\neq", "\\seq").replace("\\newline", "\\sewline");
+            m_pSocket->write(Result.replace( '\\', "\\\\\\\\" ).replace( '\n', "\\\\n" ).replace( '\'', "\\'" ) + "\n\n" );
+            m_pSocket->flush();
+            };
+          try {
+              ExpStore::sm_pExpStore->Init_var();
+              TSolutionChain::sm_SolutionChain.Clear();
+              if(pSolv == nullptr ) throw ErrParser( "Error; Undefined Solv Type", ParserErr::peNewErr );
+              if(Parms[1].isEmpty() ) throw ErrParser( "Error; Undefined Task", ParserErr::peNewErr );
+              pSolv->SetExpression(Parms[1]);
+              }
+          catch (ErrParser& Err)
+            {
+            MathExpr EResult;
+            if(pSolv != nullptr ) EResult = pSolv->Result();
+            MathExpr StepsResult = TSolutionChain::sm_SolutionChain.GetChain();
+            if( !StepsResult.IsEmpty() )
+              Result = "Exp#" + StepsResult.SWrite() + '#' ;
+            if( EResult.IsEmpty() )
+              Result += "ED";
+            else
+              Result += "Exp#" + EResult.SWrite() ;
+            Result += '#' + Err.Message();
+            return Final();
+            }
+          MathExpr EResult = pSolv->Result();
+          QString Comment = TSolutionChain::sm_SolutionChain.GetLastComment();
+          if( EResult.IsEmpty() )
+            {
+            Result = s_LastError.toUtf8();
+            return Final();
+            }
+          bool V;
+          if( EResult.Boolean_( V ) )
+            {
+            EResult = TSolutionChain::sm_SolutionChain.GetChain();
+            if( EResult.IsEmpty() )
+              Result = X_Str( "MNotSuitableExpr", "Not suitable expression!" ).toUtf8();
+            else
+              Result = "Exp&" + EResult.SWrite();
+            if(!Comment.isEmpty())
+              Result += '&' + Comment.toUtf8();
+            return Final();
+            }
+          QString Comm;
+          Result = "Exp&" + EResult.SWrite();
+          if( pSolv->Success() )
+            Comm = s_XPStatus.GetCurrentMessage();
+          else
+            Comm = s_LastError;
+          Result += "&" + Comm.toUtf8();
+          return Final();
+          }
         DataTask Task;
         QByteArray Formulas;
         for( int i = 0; i < Parms.count(); i++ )
@@ -282,7 +765,7 @@ void Thread::run()
           }
         if( s_GlobalInvalid || ( Expr.IsEmpty() && Text.isEmpty() ) ) throw ErrParser( "Syntax Error in: " + Parms[0], ParserErr::peNewErr );
 #ifdef DEBUG_TASK
-        qDebug() << "Contents " << (Expr.IsEmpty() ? Text : CastPtr( TExpr, Expr )->m_Contents);
+        qDebug() << "Contents Expr" << (Expr.IsEmpty() ? Text : CastPtr( TExpr, Expr )->m_Contents);
 #endif
         int iEqual = 1;
         for( ; iEqual < Parms.count(); iEqual++ )
@@ -295,36 +778,74 @@ void Thread::run()
           else
             {
             TStr::sm_Server = true;
-            QByteArray Formula;
-            for( int iStartPack = Parm.indexOf("##"); iStartPack != -1; iStartPack = Parm.indexOf("##") )
+            QByteArrayList Formuls;
+            if(Parm.left(6) == "Table(")
               {
-              Formula += Parm.left(iStartPack);
-              QByteArray S(TStr::UnpackValue(Parm.mid(iStartPack)));
-              Formula += S;
-              Parm = Parm.mid(iStartPack + S.length() * 4 + 6);
+              int iTable = 0;
+              while(true)
+                {
+                int iNextTable = Parm.indexOf("#Table", iTable);
+                if(iNextTable == -1)
+                  {
+                  Formuls.append(Parm.mid(iTable));
+                  break;
+                  }
+                Formuls.append(Parm.mid(iTable, iNextTable - iTable));
+                iTable = iNextTable + 1;
+                }
               }
-            TStr::sm_Server = false;
-            Formula += Parm;
-            QByteArrayList Formuls(Formula.split( '#' ));
+            else
+              {
+              QByteArray Formula;
+              for( int iStartPack = Parm.indexOf("##"); iStartPack != -1; iStartPack = Parm.indexOf("##") )
+                {
+                Formula += Parm.left(iStartPack);
+                try
+                  {
+                  QByteArray S(TStr::UnpackValue(Parm.mid(iStartPack)));
+                  Formula += S;
+                  Parm = Parm.mid(iStartPack + S.length() * 4 + 6);
+                  }
+                catch( ErrParser& ErrMsg )
+                  {
+                  Parm = Formula = "";
+                  break;
+                  }
+                }
+              Formula += Parm;
+              Formuls = Formula.split( '#' );
+              }
             int i = 0;
             for( ; i < Formuls.count(); i++ )
               {
               if( Formuls[i].isEmpty()) continue;
+              Text = "Error";
               MathExpr ExprT = MathExpr( Parser::StrToExpr( Formuls[i] ) );
               if( s_GlobalInvalid || ExprT.IsEmpty() ) throw ErrParser( "Error; Bad task, formula: " + Formuls[i], ParserErr::peNewErr );
-          //        m_pSocket->write( Expr.WriteE() + ";;" + ExprT.WriteE() + "\n\n" );
-          //        m_pSocket->flush();
-          //        return;
 #ifdef DEBUG_TASK
               qDebug() << "Contents expT" << CastPtr( TExpr, ExprT )->m_Contents;
 #endif
-
               double Precision = TExpr::sm_Precision;
-              TExpr::sm_Precision = 0.01;
-              bool bResult = Expr.Equal( ExprT );
+              TExpr::sm_Precision = TExpr::sm_Accuracy;
+              bool bResult;
+              if(Task.ExactCompare())
+                bResult = Expr.Eq( ExprT );
+              else
+                {
+                bool OldNoReduceByCompare = MathExpr::sm_NoReduceByCompare;
+                try {
+                bResult = Expr.Equal( ExprT );
+                }  catch (ErrParser)
+                  {
+                  bResult = false;
+                  }
+                MathExpr::sm_NoReduceByCompare = false;
+                MathExpr::sm_NoReduceByCompare = OldNoReduceByCompare;
+                }
               TExpr::sm_Precision = Precision;
               if( bResult ) break;
               }
+            TStr::sm_Server = false;
             if( i < Formuls.count() ) break;
              }
           }
@@ -443,9 +964,16 @@ void Thread::run()
       PrevDot = InstDots++;
       QDir().mkpath( m_TempPath );
       ContentCreator CC( m_TempPath );
-      Query.addBindValue( CC.GetContent( Task.m_pQuestion ) );
+      QByteArray Help(CC.GetContent( Task.m_pQuestion ));
+//      QFile FHelp("C:\\Files\\Temp\\Help.htm");
+//      FHelp.open( QIODevice::WriteOnly );
+//      FHelp.write(Help);
+//      FHelp.close();
+      Query.addBindValue( Help );
+//      Query.addBindValue( CC.GetContent( Task.m_pQuestion ) );
       if( !Query.exec() )
         throw ErrParser( "Error; Cant't add Content for QuestionWindow, topic: " + Parms[prmTopic], ParserErr::peNewErr );
+      int iHelp = 0;
       for( Task.m_pTrack->m_SelectedTrack = Task.m_pTrack->m_MultyTrack ? 1 : 0; Task.m_pTrack->m_SelectedTrack <= Task.m_pTrack->m_NameOfTrack.count(); Task.m_pTrack->m_SelectedTrack++ )
         {
         Task.ClearTrackDependent();
@@ -458,7 +986,13 @@ void Thread::run()
         if( Parms[prmTaskType] != "wrkExam" )
           {
           Query.prepare( "Update HelpTask Set HelpText = ? where idHelpTask = " + Query.lastInsertId().toByteArray() );
-          Query.addBindValue( CC.GetContent( Task.m_pMethodL ) );
+          QByteArray Help(CC.GetContent( Task.m_pMethodL ));
+//          QFile FHelp("C:\\Files\\Temp\\Help" + QByteArray::number(++iHelp) + ".htm");
+//          FHelp.open( QIODevice::WriteOnly );
+//          FHelp.write(Help);
+//          FHelp.close();
+          Query.addBindValue( Help );
+//          Query.addBindValue( CC.GetContent( Task.m_pMethodL ) );
           if( !Query.exec() )
             throw ErrParser( "Error; Cant't add Content for HelpTask, topic: " + Parms[prmTopic] + " Step = 0", ParserErr::peNewErr );
           }
@@ -471,7 +1005,13 @@ void Thread::run()
           if( TaskType != "wrkExam" )
             {
             Query.prepare( "Update HelpTask Set HelpText = ? where idHelpTask = " + Query.lastInsertId().toByteArray() );
-            Query.addBindValue( CC.GetContent( pStep->m_pMethodL ) );
+            QByteArray Help(CC.GetContent( pStep->m_pMethodL, true ));
+//            QFile FHelp("C:\\Files\\Temp\\HelPStep" + QByteArray::number(iStep) + ".htm");
+//            FHelp.open( QIODevice::WriteOnly );
+//            FHelp.write(Help);
+//            FHelp.close();
+            Query.addBindValue( Help );
+//            Query.addBindValue( CC.GetContent( pStep->m_pMethodL, true ) );
             if( !Query.exec() )
               throw ErrParser( "Error; Cant't add Content for HelpTask, topic: " + Parms[prmTopic] + " Step = " + iStep, ParserErr::peNewErr );
             }
@@ -498,12 +1038,12 @@ void Thread::run()
           if( Answer.isEmpty() ) throw ErrParser( "Error; Bad task, all content is empty", ParserErr::peNewErr );
           QByteArray EdFormula( Expr.SWrite() );
           XPInEdit InEd( EdFormula, *BaseTask::sm_pEditSets, CC.ViewSettings() );
-          if( Expr.HasStr() )
-            {
+//          if( Expr.HasStr() )
+//            {
             TStr::sm_Server = true;
             EdFormula = Expr.SWrite();
             TStr::sm_Server = false;
-            }
+//            }
           QByteArray FormulaPic;
           QBuffer Buffer( &FormulaPic );
           Buffer.open( QIODevice::WriteOnly );
@@ -517,6 +1057,33 @@ void Thread::run()
             throw ErrParser( "Error; Cant't add Formula, Query: " + Q, ParserErr::peNewErr );
           return LastId;
           };
+
+         auto GetFalseComment = [&] (const PDescrMemb& pMemb)
+           {
+           QString Comment;
+           for( PDescrMemb pM = pMemb; !pM.isNull(); pM = pM->m_pNext )
+             {
+             if( pM->m_Content.isEmpty() )
+               {
+               if(!Comment.isEmpty())
+                 Comment += "<br>";
+               continue;
+               }
+             if( pM->m_Kind == tXDexpress )
+               {
+               MathExpr AExpr = MathExpr( Parser::StrToExpr( pM->m_Content ) );
+               if( s_GlobalInvalid || AExpr.IsEmpty() ) throw ErrParser( "Error; Bad task, formula: " + pM->m_Content, ParserErr::peNewErr );
+               TStr::sm_Server = true;
+               Comment += '#' + AExpr.SWrite().replace( '\\', "\\\\" ).replace( '\n', "\\n" ).replace( '\'', "\\'" );
+               TStr::sm_Server = false;
+               }
+             else
+               Comment += ToLang( pM->m_Content );
+             }
+           while( Comment.length() - Comment.lastIndexOf("<br>") == 4 )
+             Comment = Comment.left(Comment.length() - 4);
+           return Comment;
+           };
 
         iStep = '1';
         bool bFirstStep = true;
@@ -560,19 +1127,19 @@ void Thread::run()
           if( TaskType != "wrkLearn" )
             {
             PDescrMemb pNext = pStep->m_pF1->m_pFirst->m_pNext;
-            QString FalseComm = pNext.isNull() ? "" : ToLang( pNext->m_Content );
+            QString FalseComm = GetFalseComment(pNext);
             Q = "Insert Into SubHint( idHintTask, Comment) Values(" + idHint + ",'" + FalseComm + "')";
             if( !Query.exec( Q ) )
               throw ErrParser( "Error; Cant't add SubHint, query: " + Q, ParserErr::peNewErr );
             AddFormula( "SubHint", pStep->m_pF1->m_pFirst, "idSubHint" );
             pNext = pStep->m_pF2->m_pFirst->m_pNext;
-            FalseComm = pNext.isNull() ? "" : ToLang( pNext->m_Content );
+            FalseComm = GetFalseComment(pNext);
             Q = "Insert Into SubHint( idHintTask, Comment) Values(" + idHint + ",'" + FalseComm + "')";
             if( !Query.exec( Q ) )
               throw ErrParser( "Error; Cant't add SubHint, query: " + Q, ParserErr::peNewErr );
             AddFormula( "SubHint", pStep->m_pF2->m_pFirst, "idSubHint" );
             pNext = pStep->m_pF3->m_pFirst->m_pNext;
-            FalseComm = pNext.isNull() ? "" : ToLang( pNext->m_Content );
+            FalseComm = GetFalseComment(pNext);
             Q = "Insert Into SubHint( idHintTask, Comment) Values(" + idHint + ",'" + FalseComm + "')";
             if( !Query.exec( Q ) )
               throw ErrParser( "Error; Cant't add SubHint, query: " + Q, ParserErr::peNewErr );
@@ -632,18 +1199,33 @@ void Thread::Disconnected()
   exit( 0 );
   }
 
-QByteArray ContentCreator::GetContent( PDescrList List )
+QByteArray ContentCreator::GetContent( PDescrList List, bool Center )
   {
 //  qDebug() << "ContentCreator";
   SetContent( List );
 //  qDebug() << "ContentCreator1";
   QByteArray  Content = toHtml().toUtf8(), Result;
+  int iNoPict = Content.lastIndexOf("width=\"20%\"></td></tr>");
+  if(iNoPict != -1)
+    {
+    Content.replace( iNoPict, 11, "width=\"0%\"", 10 );
+    Content.replace( Content.indexOf("width=\"80%\""), 11, "width=\"100%\"", 12 );
+    }
   Content.remove( 0, Content.indexOf( "<style" ) );
   Content.remove( Content.indexOf( "</head>" ), 7);
   Content.remove( Content.lastIndexOf( "</html>" ), 7 );
   Content.replace( Content.indexOf( "body" ), 4, "span", 4 );
   Content.replace( Content.lastIndexOf( "body" ), 4, "span", 4 );
   Content.insert( Content.indexOf( '>', Content.indexOf( "<table" ) + 7 ), " width=\"100%\"" );
+  Content.insert( Content.indexOf( "<td", Content.indexOf( "<td" ) + 10 ) + 3, " style=\"vertical-align:top\" " );
+  Content.insert( Content.indexOf( "<td" ) + 3, " nowrap style=\"vertical-align:top\" " );
+  if( Center )
+    {
+    int iMg = Content.indexOf("<img");
+    if( iMg != -1 && Content.indexOf("80%") > iMg )
+    Content.insert( Content.lastIndexOf( "<p ", iMg ) + 3, " align='center' " );
+    }
+
   int iStart = 0;
   QFile File;
 //  qDebug() << "ContentCreator2";

@@ -55,16 +55,18 @@ class TExpr
     MATHEMATICS_EXPORT static double sm_Precision;
     MATHEMATICS_EXPORT static double Precision();
     MATHEMATICS_EXPORT static double ResetPrecision(double);
-    static bool sm_CalcOnly;
+    MATHEMATICS_EXPORT static bool sm_CalcOnly;
     static bool sm_FullReduce;
-    static QString sm_LastError;
+//    static QString sm_LastError;
+    static bool sm_IsAuxiliaryIntegral;
+    static bool sm_IntegralError;
     MATHEMATICS_EXPORT static QList<TExpr*> sm_CreatedList;
     enum TrigonomSystem { tsRad, tsDeg };
     MATHEMATICS_EXPORT static TrigonomSystem sm_TrigonomSystem;
     static double TriginomValue( double V );
     static double AngleValue( double V );
-    static MathExpr GenerateFraction( int N, int D );     
-    static int WhatIsIt( const MathExpr& exi, MathExpr& arg1, MathExpr& arg2 ); // Determine type( +, -, *, / ) of expression. 
+    static MathExpr GenerateFraction( int N, int D );
+    static int WhatIsIt( const MathExpr& exi, MathExpr& arg1, MathExpr& arg2 ); // Determine type( +, -, *, / ) of expression.
     static bool CheckDivision( MathExpr Exp, MathExpr& Dividend, MathExpr& Divisor, int& SignOfDivision );
     static MathExpr SummSubtOper( int ssSign, const MathExpr& exi, const MathExpr& exi1, const MathExpr& exi2, bool IsDetails );
     static MathExpr MultOper( const MathExpr& exi, const MathExpr& exi1, const MathExpr& exi2, bool IsDetails );
@@ -78,15 +80,15 @@ class TExpr
 #else
     TExpr() : m_Counter( 0 ), m_WasReduced( false ) {}
 #endif
-#ifdef DEBUG_TASK
+//#ifdef DEBUG_TASK
     QByteArray  m_Contents;
-#endif
+//#endif
     virtual bool IsTemplate() {return false;}
     virtual MathExpr Clone() const;
     virtual MathExpr Reduce() const;
     virtual MathExpr Perform() const;
     virtual MathExpr Diff( const QByteArray& d = "x" );
-    virtual MathExpr Integral( QByteArray d = "x" ) const;
+    virtual MathExpr Integral( const QByteArray& d = "x" );
     virtual MathExpr Lim( const QByteArray& v, const MathExpr& lm ) const;
 
     virtual bool Eq( const MathExpr& E2 ) const { return false; }
@@ -97,7 +99,7 @@ class TExpr
     virtual MathExpr Substitute( const QByteArray& vr, const MathExpr& vl );
     virtual bool Replace( const MathExpr& Target, const MathExpr& Source ) { return false; }
     MATHEMATICS_EXPORT virtual MathExpr EVar2EConst();
-    
+
     virtual QByteArray WriteE() const { return ""; }
     virtual QByteArray SWrite() const { return ""; }
     MATHEMATICS_EXPORT virtual QByteArray WriteEB() const;
@@ -106,8 +108,8 @@ class TExpr
 //    void Draw( QPainter& Canvas, EditSets AEditSets ) {}
     virtual bool AsFraction() { return false; }
     virtual bool BoolOper_( const QByteArray& N, MathExpr& op1, MathExpr& op2 ) const { return false; }
-    virtual bool Boolean_( bool& V ) const { return false; } 
-    virtual bool Boolnot_( MathExpr& op ) const { return false; } 
+    virtual bool Boolean_( bool& V ) const { return false; }
+    virtual bool Boolnot_( MathExpr& op ) const { return false; }
     virtual bool Unarminus( MathExpr& A ) const { return false; }
     virtual bool Unapm_( MathExpr& A ) const { return false; }
     virtual bool Funct( QByteArray& N, MathExpr& A ) const { return false; }
@@ -122,7 +124,7 @@ class TExpr
     virtual bool Binar_( uchar &N, MathExpr& op1, MathExpr& op2 ) const { return false; }
     virtual bool Indx_( MathExpr& op1, MathExpr& op2 ) const { return false; }
     virtual bool Summa( MathExpr& op1, MathExpr& op2 ) const { return false; }
-    virtual bool Multp( MathExpr& op1, MathExpr& op2 ) const { return false; }
+    MATHEMATICS_EXPORT virtual bool Multp( MathExpr& op1, MathExpr& op2 ) const;
     virtual bool Multiplication( MathExpr& op1, MathExpr& op2 ) { return false; }
     virtual bool Subtr( MathExpr& op1, MathExpr& op2 ) const { return false; }
     virtual bool Divis( MathExpr& op1, MathExpr& op2 ) const { return false; }
@@ -132,6 +134,7 @@ class TExpr
     virtual bool Root1_( MathExpr& op1, MathExpr& op2 ) const { return false; }
     virtual bool Root1( MathExpr& op1, MathExpr& op2 ) const { return false; }
     virtual bool SimpleFrac_( int& N, int& D ) const { return false; }
+    virtual bool SimpleFrac_( MathExpr& N, MathExpr& D ) const { return false; }
     virtual bool MixedFrac_( int& I, int& N, int& D ) const { return false; }
     virtual bool List2ex( PExMemb& F ) const { return false; }
     virtual bool Newline() const { return false; }
@@ -214,27 +217,27 @@ class TExpr
     void SetReduced() { m_WasReduced = true; }
     virtual bool operator <( const MathExpr& ) { return false; }
     virtual bool HasMatrix() const { return false; }
-    virtual bool IsIndexed() const { return false; }   
+    virtual bool IsIndexed() const { return false; }
   };
 
 class Lexp;
 class MathExpr
   {
   friend Lexp;
-  static bool sm_NewReduce;
   protected:
   TExpr *m_pExpr;
 //#ifdef DEBUG_TASK
     QByteArray  m_Contents;
 //#endif
   public:
+    static bool sm_NewReduce;
     MathExpr() : m_pExpr( nullptr ) {}
 /*
 #ifndef DEBUG_TASK
     MathExpr( const MathExpr& E ) : m_pExpr( E.m_pExpr ) { if( m_pExpr != nullptr ) m_pExpr->m_Counter++; }
-    MathExpr( TExpr* pE ) : m_pExpr( pE ) 
-      { 
-      if( m_pExpr != nullptr ) m_pExpr->m_Counter++; 
+    MathExpr( TExpr* pE ) : m_pExpr( pE )
+      {
+      if( m_pExpr != nullptr ) m_pExpr->m_Counter++;
       }
 #else
 */
@@ -252,14 +255,14 @@ class MathExpr
       }
 //#endif
     MATHEMATICS_EXPORT MathExpr(const QString&);
-    virtual ~MathExpr()   
-      { 
-      if( m_pExpr != nullptr && --m_pExpr->m_Counter == 0 ) 
-        delete m_pExpr; 
+    virtual ~MathExpr()
+      {
+      if( m_pExpr != nullptr && --m_pExpr->m_Counter == 0 )
+        delete m_pExpr;
       }
     MATHEMATICS_EXPORT void TestPtr() const;
     MATHEMATICS_EXPORT static bool sm_NoReduceByCompare;
-    MATHEMATICS_EXPORT bool IsEmpty() const { return m_pExpr == nullptr; }
+    MATHEMATICS_EXPORT bool IsEmpty() const;
     MATHEMATICS_EXPORT bool IsTemplate() const { return m_pExpr != nullptr && m_pExpr->IsTemplate(); }
     const TExpr* operator ->( ) const { return m_pExpr; }
     const TExpr& operator * ( ) const { return *m_pExpr; }
@@ -276,10 +279,10 @@ class MathExpr
     MATHEMATICS_EXPORT MathExpr Reduce( bool NewReduce = false ) const;
     MathExpr Perform() const { TestPtr(); return m_pExpr->Perform(); }
     MathExpr Diff( const QByteArray& d = "x" ) { TestPtr(); return m_pExpr->Diff( d ); }
-    MathExpr Integral( QByteArray d = "x" ) { TestPtr(); return m_pExpr->Integral( d ); }
+    MathExpr Integral( const QByteArray& d = "x" ) { TestPtr(); return m_pExpr->Integral( d ); }
     MathExpr Lim( const QByteArray& v, const MathExpr& lm ) const { TestPtr(); return m_pExpr->Lim( v, lm ); }
     MathExpr RetNeg() const;
-    bool operator == ( const MathExpr& E2 ) const { return  m_pExpr == E2.m_pExpr; } 
+    bool operator == ( const MathExpr& E2 ) const { return  m_pExpr == E2.m_pExpr; }
     bool operator != ( const MathExpr& E2 ) const { return  m_pExpr != E2.m_pExpr; }
     MATHEMATICS_EXPORT bool Eq( const MathExpr& E2 ) const;
     MATHEMATICS_EXPORT bool Equal( const MathExpr& E2 ) const;
@@ -310,7 +313,7 @@ class MathExpr
     bool Binar_( uchar& N, MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Binar_( N, op1, op2 ); }
     bool Indx_( MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Indx_( op1, op2 ); }
     bool Summa( MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Summa( op1, op2 ); }
-    bool Multp( MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Multp( op1, op2 ); }
+    bool Multp( MathExpr& op1, MathExpr& op2 ) const;
     bool Multiplication( MathExpr& op1, MathExpr& op2 )  { TestPtr(); return m_pExpr->Multiplication( op1, op2 ); }
     bool Subtr( MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Subtr( op1, op2 ); }
     bool Divis( MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Divis( op1, op2 ); }
@@ -319,8 +322,9 @@ class MathExpr
     bool Root_( MathExpr& op1, MathExpr& op2, int& rt ) const { TestPtr(); return m_pExpr->Root_( op1, op2, rt ); }
     bool Root1_( MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Root1_( op1, op2 ); }
     bool Root1( MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Root1( op1, op2 ); }
-    bool SimpleFrac_( int& N, int& D ) const { TestPtr(); return m_pExpr->SimpleFrac_( N, D ); }
+    bool SimpleFrac_( int& N, int& D ) const;
     bool SimpleFrac_( double& N, double& D ) const;
+    bool SimpleFrac_( MathExpr& N, MathExpr& D ) const;
     bool MixedFrac_( int& I, int& N, int& D ) const { TestPtr(); return m_pExpr->MixedFrac_( I, N, D ); }
     bool List2ex( PExMemb& F ) const { TestPtr(); return m_pExpr->List2ex( F ); }
     bool Newline() const { TestPtr(); return m_pExpr->Newline(); }
@@ -341,7 +345,7 @@ class MathExpr
     bool Vect( MathExpr& N ) const { TestPtr(); return m_pExpr->Vect( N ); }
     bool Matr( MathExpr& ex ) const { TestPtr(); return m_pExpr->Matr( ex ); }
     bool Measur_( MathExpr& ex, MathExpr& exm ) const { TestPtr(); return m_pExpr->Measur_( ex, exm ); }
-    bool Detsumm( MathExpr& ex, char& ASign, bool& ACarry, int& ACarryOfs, const QByteArray& ACarryStr ) 
+    bool Detsumm( MathExpr& ex, char& ASign, bool& ACarry, int& ACarryOfs, const QByteArray& ACarryStr )
       {
       TestPtr(); return m_pExpr->Detsumm( ex, ASign, ACarry, ACarryOfs, ACarryStr );
       }
@@ -387,7 +391,7 @@ class MathExpr
     MathExpr Mixer() { TestPtr(); return m_pExpr->Mixer(); }
     MathExpr SimplifyInDetail() { TestPtr(); return m_pExpr->SimplifyInDetail(); }
     MathExpr Fcase() { TestPtr(); return m_pExpr->Fcase(); }
-    MathExpr GenChainInEq() { TestPtr(); return m_pExpr->GenChainInEq(); } 
+    MathExpr GenChainInEq() { TestPtr(); return m_pExpr->GenChainInEq(); }
     MathExpr ChainToLCD() { TestPtr(); return m_pExpr->ChainToLCD(); }
     MathExpr RtoDEC() { TestPtr(); return m_pExpr->RtoDEC(); }
     MathExpr ReduceToMultiplicators();
@@ -539,7 +543,7 @@ class Lexp : public MathExpr
   friend class Parser;
   public:
     Lexp() : MathExpr() {}
-    PExMemb& First();
+    MATHEMATICS_EXPORT PExMemb& First();
     PExMemb& Last();
     Lexp( const MathExpr& E ) : MathExpr( E ) {}
     Lexp( TExpr *pE ) : MathExpr( pE ) {}
@@ -598,7 +602,7 @@ class TVariable : public TExpr
     virtual MathExpr Lim( const QByteArray& v, const MathExpr& lm ) const;
 
     virtual bool Eq( const MathExpr& E2 ) const;
-    virtual bool Equal( const MathExpr& E2 ) const; // не реализована
+    virtual bool Equal( const MathExpr& E2 ) const; // ?? ???????????
 
     virtual MathExpr Substitute( const QByteArray& vr, const MathExpr& vl );
     MATHEMATICS_EXPORT virtual QByteArray WriteE() const;
@@ -633,18 +637,19 @@ class TConstant : public TExpr
   double m_Value;
   double m_Precision;
   bool m_IsE;
+  bool m_IsDouble;
   public:
     static bool sm_ConstToFraction;
-    TConstant() : TExpr(), m_Value( 0.0 ), m_Precision( 0.0 ), m_IsE( false ) {}
-    MATHEMATICS_EXPORT TConstant( double V, bool IsE = false );
+    TConstant() : TExpr(), m_Value( 0.0 ), m_Precision( 0.0 ), m_IsE( false ), m_IsDouble(false) {}
+    MATHEMATICS_EXPORT TConstant( double V, bool IsE = false, bool IsDouble = false );
     MathExpr Clone() const;
     MathExpr Reduce() const;
     MathExpr Diff( const QByteArray& d = "x" );
     MathExpr Integral( const QByteArray& d = "x" );
-    MathExpr Lim( const QByteArray& v, const MathExpr lm ) const;
+    MathExpr Lim( const QByteArray& v, const MathExpr& lm ) const;
 
-    bool Eq( const MathExpr& E2 ) const;  //проверить завершение сравнений
-    bool Equal( const MathExpr& E2 ) const; //проверить завершение сравнений
+    bool Eq( const MathExpr& E2 ) const;  //????????? ?????????? ?????????
+    bool Equal( const MathExpr& E2 ) const; //????????? ?????????? ?????????
     MATHEMATICS_EXPORT QByteArray WriteE() const;
     virtual QByteArray SWrite() const { return WriteE(); }
 
@@ -666,8 +671,11 @@ class TSimpleFrac : public TExpr
   friend class TMixedFrac;
   int m_Nom;
   int m_Denom;
+  MathExpr m_ExNom;
+  MathExpr m_ExDenom;
   public:
     TSimpleFrac( int N, int D );
+    TSimpleFrac( const MathExpr& Nom, const MathExpr& Denom );
     MathExpr Clone() const;
     MathExpr Reduce() const;
     MathExpr Diff( const QByteArray& d = "x" );
@@ -679,6 +687,7 @@ class TSimpleFrac : public TExpr
     virtual QByteArray SWrite() const;
     bool AsFraction();
     bool SimpleFrac_( int& N, int& D ) const;
+    bool SimpleFrac_( MathExpr& N, MathExpr& D ) const;
     bool Unarminus( MathExpr& A ) const;
     bool Negative() const;
     bool ConstExpr() const;
@@ -701,8 +710,8 @@ class TFunc : public TExpr
     MathExpr Reduce() const;
     MathExpr Perform() const;
     MathExpr Diff( const QByteArray& d = "x" );
-    MathExpr Integral( const QByteArray& d = "x" ) { return nullptr; }
-    MathExpr Lim( const QByteArray& v, const MathExpr lm ) const { return nullptr; }
+    MathExpr Integral( const QByteArray& d = "x" );
+    MathExpr Lim( const QByteArray& v, const MathExpr& lm ) const;
     bool Eq( const MathExpr& E2 ) const;
     bool Equal( const MathExpr& E2 ) const;
     MathExpr Substitute( const QByteArray& vr, const MathExpr& vl );
@@ -722,7 +731,7 @@ class TFunc : public TExpr
 class TUnar : public TExpr
   {
   MathExpr m_Coeff;
-  MathExpr m_Term;                        
+  MathExpr m_Term;
   MathExpr m_Arg;
   public:
     TUnar( const MathExpr& Arg );
@@ -746,6 +755,7 @@ class TUnar : public TExpr
     bool ConstExpr() const;
     bool IsLinear() const;
     bool Cons_int( int& I ) const;
+    bool Constan( double& V ) const;
     bool Multiplication( MathExpr& op1, MathExpr& op2 );
     MathExpr TrigTerm( const QByteArray& Name, const MathExpr& exArg, const MathExpr& exPower = nullptr );
     bool HasComplex() const;
@@ -778,6 +788,7 @@ class TOper : public TExpr
     virtual bool IsFactorized( const QByteArray& Name ) const;
     virtual bool HasComplex() const;
     virtual bool HasMatrix() const;
+    virtual MathExpr Lim( const QByteArray& v, const MathExpr& lm ) const { return nullptr;}
     MathExpr& Left() { return m_Operand1; }
     MathExpr& Right() { return m_Operand2; }
     void SetName( char Name ) { m_Name = Name; }
@@ -816,8 +827,8 @@ class TPowr : public TOper
     MathExpr Reduce() const;
     MathExpr Perform() const;
     MathExpr Diff( const QByteArray& d = "x" );
-    MathExpr Integral( const QByteArray& d = "x" ) { return nullptr; }
-    MathExpr Lim( const QByteArray& v, const MathExpr& lm ) const { return nullptr; }
+    MathExpr Integral( const QByteArray& d = "x" );
+    MathExpr Lim( const QByteArray& v, const MathExpr& lm ) const;
 
     bool Eq( const MathExpr& E2 ) const;
     bool Equal( const MathExpr& E2 ) const;
@@ -879,8 +890,11 @@ class TMixedFrac: public TSimpleFrac
   {
   int m_IntPart;
   int m_NomPart;
+  MathExpr m_ExIntPart;
   public:
     TMixedFrac( int I, int N, int D );
+    TMixedFrac( const MathExpr& I, const MathExpr& N, const MathExpr& D );
+    TMixedFrac( const MathExpr& I, int N, int D );
     MathExpr Clone() const;
     MathExpr Reduce() const;
     bool Eq( const MathExpr& E2 ) const;
@@ -1022,8 +1036,8 @@ class TGSumm : public TExpr
     bool Gsumma( MathExpr& exs, MathExpr& exll, MathExpr& exhl ) const;
     void SetReduced( bool Reduced )
       {
-      TExpr::SetReduced( Reduced ); 
-      m_Lolimit.SetReduced( Reduced ); 
+      TExpr::SetReduced( Reduced );
+      m_Lolimit.SetReduced( Reduced );
       m_Hilimit.SetReduced( Reduced );
       m_Expsum.SetReduced( Reduced );
       }
@@ -1324,6 +1338,7 @@ class TMatr : public TExpr
     MathExpr Inversion() const;
     MathExpr Transpose() const;
     MathExpr Determinant() const;
+    TL2exp* Eigen() const;
     int RowCount() const { return m_RowCount; }
     int ColCount() const { return m_ColCount; }
     bool IsSquare() const { return m_RowCount == m_ColCount; }
@@ -1402,7 +1417,7 @@ class TUnapm : public TExpr
     QByteArray SWrite() const;
     bool Unapm_( MathExpr& A ) const;
     bool Splitted() const { return m_Arg.Splitted(); }
-    bool Negative() const { return true; } 
+    bool Negative() const { return true; }
     virtual void SetReduced( bool Reduced ) { TExpr::SetReduced( Reduced ); m_Arg.SetReduced( Reduced ); }
   };
 
@@ -1517,7 +1532,7 @@ inline MathExpr TExpr::Clone() const { return nullptr; }
 inline MathExpr TExpr::Reduce() const { return Clone(); }
 inline MathExpr TExpr::Perform() const { return Clone(); }
 inline MathExpr TExpr::Diff( const QByteArray& ) { return nullptr; }
-inline MathExpr TExpr::Integral( QByteArray d ) const { return nullptr; }
+inline MathExpr TExpr::Integral( const QByteArray& d ) { return nullptr; }
 inline MathExpr TExpr::Lim( const QByteArray& v, const MathExpr& lm ) const { return nullptr; }
 inline MathExpr TExpr::Substitute( const QByteArray& vr, const MathExpr& vl ) { return this; }
 inline MathExpr TExpr::TrigTerm( const QByteArray& sName, const MathExpr& exArg, const MathExpr& exPower ) { return nullptr; }

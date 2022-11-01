@@ -127,6 +127,7 @@ class Parser
   Lexp* m_pCond;
   public:
     bool m_FirstListMemberIsList;
+    MATHEMATICS_EXPORT static bool sm_Drop;
     MATHEMATICS_EXPORT static QByteArray PackUnAscii( const QByteArray& Expr );
     MATHEMATICS_EXPORT static QByteArray UnpackUnAscii( const QByteArray& Expr );
     MATHEMATICS_EXPORT Parser() : m_MultUnknown( false ), m_Constan( false ), m_NewLine( false ), m_FirstListMemberIsList( false ),
@@ -166,6 +167,7 @@ class ErrParser
     void operator = ( const QByteArray &NewName ) { m_MsgName = NewName; }
     void ShowMessage();
     MATHEMATICS_EXPORT QByteArray Message();
+    MATHEMATICS_EXPORT QString WMessage() { return m_Message; }
   };
 
 #endif

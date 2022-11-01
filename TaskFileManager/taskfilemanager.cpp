@@ -17,11 +17,14 @@ bool BaseTask::sm_GlobalShowMinusByAddition = false;
 bool BaseTask::sm_GlobalShowMultSign = false;
 bool BaseTask::sm_GlobalShowRad = true;
 int BaseTask::sm_LastCreatedTrack = 0;
+bool BaseTask::sm_EditTask = false;
 EditSets* BaseTask::sm_pEditSets = nullptr;
 QString RichTextDocument::sm_TempPath;
 int RichTextDocument::sm_NumTmp = 0;
+bool RichTextDocument::sm_AddBreak = false;
 QHash<TLanguages, QString > BaseTask::sm_FileExtensions =
-{ { lngHebrew, ".heb" }, { lngEnglish, ".tsk" }, { lngRussian, ".tru" }, { lngBulgarian, ".tbg" }, { lngAll, ".txt"} };
+{ { lngHebrew, ".heb" }, { lngEnglish, ".tsk" }, { lngRussian, ".tru" }, { lngBulgarian, ".tbg" },
+  { lngUkrainian, ".ukr"}, { lngAll, ".txt"} };
 
 bool GetString( QByteArray& L, QByteArray& LO )
   {
@@ -38,6 +41,15 @@ bool GetString( QByteArray& L, QByteArray& LO )
   if( L.indexOf( "RAND" ) >= 0 && a > L.indexOf( "RAND" ) ) return false;
   if( a == L.length() - 1 )
     s_XPStatus.SetMessage( "Not found closing '" + ( " in string:" + L ) );
+  if(BaseTask::sm_EditTask)
+    {
+    QString TS = L.simplified();
+    if(TS == "\' \'" || TS == "\'\'")
+      {
+      LO = L.mid(a);
+      return true;
+      }
+    }
   LO = L.mid( a + 1 );
   int b = LO.indexOf( '\'' );
   if( b == -1 )
@@ -430,6 +442,30 @@ void TXDescrList::Save( QByteStream& Stream, PDescrList pList)
   pList->m_pDocument->Save( Stream );
   }
 
+void TXDescrList::AddENDLEFT(QByteStream& Stream)
+  {
+  if( m_Task.GetLanguage() != lngHebrew) return;
+  if(m_pDocument == nullptr)
+    {
+    Stream << "ENDLEFT\r\n";
+    return;
+    }
+  QTextTableCell LCell = m_pDocument->m_pTable->cellAt(0, 0);
+  QTextCursor RC = LCell.lastCursorPosition();
+  if(RC.position() == 1) Stream << "ENDLEFT\r\n";
+  }
+
+bool TXDescrList::HasPicture()
+  {
+  for( PDescrMemb pMemb = m_pFirst; pMemb != nullptr; pMemb = pMemb->m_pNext )
+    {
+    if(pMemb->m_Kind == tXDpicture ||
+       pMemb->m_Kind == tXDexpress && pMemb->m_Content.left(4) == "Pict") return true;
+    if(pMemb->m_Kind != tXDnewline ) return false;
+    }
+  return false;
+  }
+
 int TXDescrList::GetExpressCount()
   {
   int Count = 0;
@@ -450,6 +486,32 @@ bool TXDescrList::GetExpr( QByteArray& L, QByteArray& LO )
   if( !Result ) return false;
   int iSemicolon = LO.indexOf( ';' );
   if( iSemicolon == -1 ) return true;
+  if(LO.indexOf("Table") != -1)
+    {
+    QByteArray TrueLo;
+    int iChar = 0;
+    do
+      {
+      int iQuote = LO.indexOf("\"", iChar);
+      if(iQuote == -1)
+        {
+        TrueLo += LO.right(LO.length() - iChar);
+        break;
+        }
+      int iNextQuote = LO.indexOf("\"", iQuote + 1);
+      if(iNextQuote == -1) return false;
+      if(iNextQuote - iQuote == 2 && LO[iQuote + 1] != ' ')
+        {
+        TrueLo += LO.mid(iChar, iQuote - iChar) + LO[iQuote + 1];
+        iChar = iNextQuote + 1;
+        continue;
+        }
+      TrueLo += LO.mid(iChar, iNextQuote - iChar + 1);
+      iChar = iNextQuote + 1;
+      } while(true);
+    LO = TrueLo;
+    return true;
+    }
   int iBrack = 0;
   for( int i = 0; i < iSemicolon; i++ )
     if( LO[i] == '(' ) 
@@ -538,6 +600,7 @@ void TXDescrList::Add( XDescr_type Type_arg, const QByteArray& S )
 
 void TXDescrList::Clear()
   {
+  m_bHasEndLeft = false;
   PDescrMemb pFirst;
   pFirst.swap( m_pFirst );
   for( PDescrMemb pNext; !pFirst.isNull(); pNext.swap( pFirst ) )
@@ -570,12 +633,13 @@ void TXDescrList::Update( QByteArray& S )
   {
   while( !S.isEmpty() && S[0] == ' ' )
     S = S.mid( 1 );
-
+  bool AddBreak = true;
   while( !S.isEmpty() )
     {
     QByteArray PrevS( S ), LO;
     if( GetString( S, LO ) )
       {
+      AddBreak = LO.lastIndexOf("\r\n") == -1;
       Add( tXDtext, LO );
       if( !LO.isEmpty() && m_QuestionCount >= 0 && LO[0] >= '0' && LO[0] <= '9' )
         {
@@ -598,10 +662,9 @@ void TXDescrList::Update( QByteArray& S )
 
     while( !S.isEmpty() && S[0] == ' ' )
       S = S.mid( 1 );
-
     if( PrevS == S ) break;
     }
-  Add( tXDnewline, "" );
+  if( AddBreak ) Add( tXDnewline, "" );
   }
 
 void TXDescrList::Assign( PDescrList& A )
@@ -637,6 +700,14 @@ void TXDescrList::LoadFromTaskFile( const QByteArray& LKeyWord )
       break;
       }
     } while( !File.atEnd() );
+  while( !m_pLast.isNull() && m_pLast != m_pFirst && ( m_pLast->m_Kind == tXDnewline ||
+    m_pLast->m_Content == " " || m_pLast->m_Content =="' '\r\n") )
+    {
+    if(m_pLast->m_pPrev->m_Kind != tXDnewline && m_pLast->m_pPrev->m_Content != " "
+       && m_pLast->m_pPrev->m_Content != "' '\r\n") break;
+    m_pLast = m_pLast->m_pPrev;
+    m_pLast->m_pNext.clear();
+    }
   }
 
 void TXDescrList::LoadFromQuestionVariables(const QByteArrayList& Variables)
@@ -753,6 +824,7 @@ void TXStepList::AddNewStep( const QByteArray& StepName, BaseTask& Task, PStepMe
     pNewStep->m_pF1->Add( tXDtext, "" );
     pNewStep->m_pF2->Add( tXDtext, "" );
     pNewStep->m_pF3->Add( tXDtext, "" );
+    pNewStep->m_pAnswerTemplate->Add(tXDtext, " ");
     m_Counter++;
     };
   if( pNext.isNull() )
@@ -1165,8 +1237,11 @@ void TXPStep::Save( QByteStream& Stream, int iId )
   Stream << "STEP" << ID << "   '" << m_Name << "'\r\n";
   m_ShowParms.Save( Stream, ID );
   Stream << "METH" << ID << "\r\n";
+  if(!m_pMethodL->HasPicture() ) m_pMethodL->AddENDLEFT(Stream);
+  RichTextDocument::sm_AddBreak = true;
   TXDescrList::Save( Stream, m_pMethodL );
   Stream << "PROMPT" << ID << "\r\n";
+  RichTextDocument::sm_AddBreak = false;
   TXDescrList::Save(Stream, m_pAnswerPrompt);
   Stream << "RESULT" << ID << "  ";
   for( PDescrMemb index = m_pResultE->m_pFirst; !index.isNull(); index = index->m_pNext )
@@ -1176,7 +1251,7 @@ void TXPStep::Save( QByteStream& Stream, int iId )
         throw ErrParser( "Step: " + ID + " Result expression not exists!", ParserErr::peNewErr );
       Stream << "EXPR(" << index->m_Content << ")\r\n";
       }
-  if( !m_pAnswerTemplate->m_pFirst.isNull() )
+  if( !m_pAnswerTemplate->m_pFirst.isNull() && !m_pAnswerTemplate->m_pFirst->m_Content.trimmed().isEmpty() )
     Stream << "TEMPLATE" << ID << "  EXPR(" << m_pAnswerTemplate->m_pFirst->m_Content << ")\r\n";
   if(m_pF1->m_pFirst == nullptr)
     throw ErrParser( "Step: " + ID + " Result expression False1 not exists!", ParserErr::peNewErr );
@@ -1307,7 +1382,8 @@ void BaseTask::SetFileName( const QString& FName )
   XPInEdit::sm_BasePath = FName.left(FName.lastIndexOf('/'));
   m_OutTemplate = false;
   m_Template = "";
-  if( m_pFile->isOpen() ) m_pFile->close();
+  if( m_pFile->isOpen() )
+    m_pFile->close();
   m_pFile->setFileName( FName );
   m_pFile->open( QIODevice::ReadOnly );
   if( !m_pFile->isOpen() )
@@ -1644,10 +1720,10 @@ void RichTextDocument::AddRow()
   if( m_Language != lngHebrew )
     {
     BlockFormat.setAlignment( Qt::AlignLeft | Qt::AlignAbsolute );
-    PicBlocFormat.setAlignment( Qt::AlignLeft | Qt::AlignHCenter );
+    PicBlocFormat.setAlignment( Qt::AlignLeft | Qt::AlignTop );
     }
   else
-    PicBlocFormat.setAlignment( Qt::AlignRight | Qt::AlignHCenter );
+    PicBlocFormat.setAlignment( Qt::AlignRight | Qt::AlignTop );
   }
 
 void RichTextDocument::DeleteRow()
@@ -1701,12 +1777,12 @@ void RichTextDocument::SetContent( PDescrList Content )
   if( m_Language != lngHebrew )
     {
     BlockFormat.setAlignment( Qt::AlignLeft | Qt::AlignAbsolute );
-    PicBlocFormat.setAlignment( Qt::AlignLeft | Qt::AlignHCenter );
+    PicBlocFormat.setAlignment( Qt::AlignLeft | Qt::AlignTop );
     }
   else
     {
     BlockFormat.setAlignment( Qt::AlignRight | Qt::AlignAbsolute );
-    PicBlocFormat.setAlignment( Qt::AlignRight | Qt::AlignHCenter | Qt::AlignAbsolute );
+    PicBlocFormat.setAlignment( Qt::AlignRight | Qt::AlignTop | Qt::AlignAbsolute );
     }
   TextFormat.setFont( m_ViewSettings.m_TaskCmFont );
 
@@ -1726,10 +1802,10 @@ void RichTextDocument::SetContent( PDescrList Content )
     if( m_Language != lngHebrew )
       {
       BlockFormat.setAlignment( Qt::AlignLeft | Qt::AlignAbsolute );
-      PicBlocFormat.setAlignment( Qt::AlignLeft | Qt::AlignHCenter );
+      PicBlocFormat.setAlignment( Qt::AlignLeft | Qt::AlignTop );
       }
     else
-      PicBlocFormat.setAlignment( Qt::AlignRight | Qt::AlignHCenter );
+      PicBlocFormat.setAlignment( Qt::AlignRight | Qt::AlignTop );
     InsertSpace = false;
     bWasExspress = false;
     bWasHebrew = false;
@@ -2229,7 +2305,12 @@ void RichTextDocument::Save( QByteStream& Stream )
           }
         case '/':
           if( Section[iTag + 1] == 'p' ) return iTag + 4;
-          return -iTag;
+          return -iTag;         
+        case 'b':
+          if( Section[iTag + 1] != 'r' ) return -iTag;
+          iTag += 6;
+          if( sm_AddBreak ) Stream << "' '";
+          continue;
         default:
           return -1;
       }
@@ -2277,7 +2358,12 @@ void RichTextDocument::Save( QByteStream& Stream )
 
 TLanguages BaseTask::GetLangByFileName( const QString& File )
   {
-  return sm_FileExtensions.key( File.mid( File.lastIndexOf('.') ).toLower().trimmed() );
+  int iExt = File.lastIndexOf('.');
+  if(iExt == -1) return lngHebrew;
+  QString Ext = File.right(File.length() - iExt ).toLower().trimmed();
+  if(Ext == ".heb") return lngHebrew;
+  return sm_FileExtensions.key(Ext);
+//  return sm_FileExtensions.key( File.mid( File.lastIndexOf('.') ).toLower().trimmed() );
   }
 
 QString BaseTask::GetFileExtByLang( TLanguages Lang )
@@ -2360,6 +2446,7 @@ void BaseTask::Save( QByteStream& Stream )
   Stream << SelectedTrack << "\r\n";
   }
   Stream << "METHOD\r\n";
+  m_pMethodL->AddENDLEFT(Stream);
   TXDescrList::Save( Stream, m_pMethodL );
   Stream << "COMMENT '" << GetComment() << "'\r\n";
   m_pStepsL->Save( Stream );

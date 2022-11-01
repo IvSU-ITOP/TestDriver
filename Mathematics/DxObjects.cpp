@@ -76,10 +76,12 @@ DxIntValues& DxIntValues::operator = ( const DxIntValues& IV )
   return *this;
   }
 
+/*
 DxExpressionValues::RNumber DxExpressionValues::operator[]( double Val )
   {
   return RNumber( DxValues::operator[]( GetIndex( Val ) ).m_pValue );
   }
+*/
 
 void DxExpressionValues::SetMax( double AMax )
   {
@@ -548,19 +550,32 @@ TCarPoint DxExpression::GetValue( const TCarPoint& x_bhv )
     return TCarPoint( lc / rc );
     }
 
-  double X;
+  const double c_NoResult = 3548931e-11;
+  double X = c_NoResult;
   bool OldFullReduce = TExpr::sm_FullReduce;
   TExpr::sm_FullReduce = true;
+  bool OldToFraction = TConstant::sm_ConstToFraction;
+  TConstant::sm_ConstToFraction = false;
+  double OldAccuracy = TExpr::sm_Accuracy;
+  TExpr::sm_Accuracy = 1e-14;
+  s_Precision = 1e-14;
   try
     {
-    Reduce().Constan(X);
+    MathExpr Substituted = m_pExpr->Substitute("x", new TConstant(x_bhv) );
+    Substituted.Reduce().Constan(X);
     }
   catch( ErrParser E )
     {
     TExpr::sm_FullReduce = OldFullReduce;
+    TExpr::sm_Accuracy = OldAccuracy;
+    TConstant::sm_ConstToFraction = OldToFraction;
     if( E.ErrStatus() == peInfinity ) return TCarPoint( bhvPInfinity );
     return TCarPoint( bhvSpace );
     }
+  TConstant::sm_ConstToFraction = OldToFraction;
   TExpr::sm_FullReduce = OldFullReduce;
-  return TCarPoint( X );
+  TExpr::sm_Accuracy = OldAccuracy;
+  if( X != c_NoResult )
+    return TCarPoint( X );
+  return TCarPoint( bhvSpace);
   }

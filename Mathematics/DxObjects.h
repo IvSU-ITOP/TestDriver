@@ -179,7 +179,7 @@ class DxExpressionValues : public DxValues
     TMax Max;
     TMin Min;
     TStep Step;
-    RNumber operator[]( double Val );
+//    RNumber operator[]( double Val );
     DxExpressionValues& operator = ( const DxExpressionValues& EV );
   };
 

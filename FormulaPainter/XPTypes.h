@@ -10,7 +10,7 @@ FORMULAPAINTER_EXPORT long long Round( double Val );
 //long long Round( double Val );
 
 enum TEdAction {	actPrintable,	actCtrlKey,	actIcon, actMouseButton, actNone,	actStep	};
-enum TLanguages { lngHebrew, lngEnglish, lngRussian, lngBulgarian, lngAll };
+enum TLanguages { lngHebrew, lngEnglish, lngRussian, lngBulgarian, lngUkrainian, lngAll };
 enum memory_mode { SWtask, SWcalculator };
 enum TWorkMode { wrkLearn, wrkTrain, wrkExam };
 

@@ -290,6 +290,7 @@ XPInEdit::XPInEdit(const QByteArray& Formula, EditSets &AEditSets, const ViewSet
   RestoreFormula( Formula );
   PreCalc( m_Start, m_Size, m_Axis );
   int dY = m_Size.height() / 2 - m_Axis;
+  if(dY > m_Axis) dY = m_Axis;
   int dSize = sm_AddHeight;
   if( dY > 0 )
     {
@@ -1068,7 +1069,7 @@ EdAction XPInEdit::EditAction( U_A_T Uact  )
       delete pChart;
     else
       if( sm_pEditor == this )
-        new EdChartEditor( this, pChart );
+        m_pCurrentTable = new EdChartEditor( this, pChart );
       else
         m_pL->m_pSub_L->Append_Before( pChart );
     return edRefresh;
@@ -1077,8 +1078,11 @@ EdAction XPInEdit::EditAction( U_A_T Uact  )
   if( Uact == "CHARTEDITOR" )
     {
     m_pCurrentTable = new EdChartEditor( this );
+//    CreateChartDialog Dlg( (EdChartEditor*) m_pCurrentTable );
+//    if (Dlg.exec() == QDialog::Rejected) return edNone;
     return edRefresh;
     }
+
 
   if( Uact == "TEXT" )
     {
@@ -1099,7 +1103,7 @@ EdAction XPInEdit::EditAction( U_A_T Uact  )
       sm_EditKeyPress = false;
       }
       */
-      sm_Language == lngEnglish;
+      sm_Language = lngEnglish;
       QByteArray Text(1, '\"');
       Text += sm_Text + '\"';
       for (auto pChar = Text.begin(); pChar != Text.end(); pChar++)
@@ -2442,13 +2446,13 @@ EdMemb* EdList::Append_Before( const PEdElm& pE )
     return Result;
     }
   if (m_pMother != nullptr && m_pLast != nullptr && m_pMother->m_pMember->m_pParent != nullptr ) return m_pMother->m_pMember->m_pParent->ReplaceParentMemb(this, pE);
-  /*
-  if( !sm_EditKeyPress && pC != nullptr && IsHebChar( pC->c() ) )
+  if( sm_EditKeyPress && pC != nullptr && ( IsHebChar( pC->c() ) || m_Hebrew && pC->c() == ' ' ))
+    {
+    m_Hebrew = true;
     if( m_pFirst == nullptr )
       {
-      m_Hebrew = true;
       if(m_IsCell)
-      Result = new EdMemb( new EdStr(m_pOwner, QByteArray(1, pC->c())), nullptr, nullptr, this );
+         Result = new EdMemb( new EdStr(m_pOwner, QByteArray(1, pC->c())), nullptr, nullptr, this );
       }
     else
       {
@@ -2461,7 +2465,7 @@ EdMemb* EdList::Append_Before( const PEdElm& pE )
         return m_pLast;
         }
       }
-*/
+    }
   if( Result == nullptr )
     Result = new EdMemb( pE, m_pLast, nullptr, this );
   if( m_pFirst == nullptr)
@@ -2702,13 +2706,18 @@ EdBaseChar::EdBaseChar( uchar C, IndReg ind, QColor Color, XPInEdit *pOwn ) :
   EdElm( pOwn), m_ind( ind ), m_Color( Color ), m_EditKeyPress(TXPGrEl::sm_EditKeyPress)
   {
   if(m_EditKeyPress)
+    {
     if( C == '{')
       C = msBrackLeftLower;
-    else
-      if( C == '}')
+    m_Qch = EdStr::sm_pCodec->toUnicode(QByteArray(1, C))[0];
+    }
+   else
+    {
+    if( C == '}')
         C = msBrackRightLower;
+    m_Qch = ToUnicode( C );
+    }
   m_ch = C;
-  m_Qch = ToUnicode( C );
   }
 
 void EdBaseChar::ResetChar( uchar C )
@@ -4408,7 +4417,8 @@ QByteArray EdFrac::Write()
   QByteArray NOMstr, DENstr;
   NOMstr = m_pAA->Write();
   DENstr = m_pBB->Write();
-  if( IsNumber( NOMstr ) && IsNumber( DENstr ) )
+  if( m_pOwner == nullptr &&
+    (IsNumber( NOMstr ) && IsNumber( DENstr ) || NOMstr[0] == '@' || DENstr[0] == '@' ))
     return  "{(" + NOMstr + ")/(" + DENstr + ")}";
   return "((" + NOMstr + ")/(" + DENstr + "))";
   }
@@ -6507,7 +6517,9 @@ QByteArray EdPerCount::GetFragment()
 
 QByteArray EdPerCount::Write()
   {
-  return  "PerCount" + '('+ m_pCC->Write() + ")";
+  QByteArray Arg = m_pCC->Write();
+  QByteArray Result =  "PerCount(" + Arg + ")";
+  return Result;
   }
 
 bool EdPerCount::MoveInRight (EdList* &pL)
@@ -8143,14 +8155,19 @@ QByteArray EdSubst::SWrite()
 
 EdStr::EdStr(XPInEdit *pOwn, QByteArray Text, bool NoSelectFont) : EdElm(pOwn), m_Value(Text), m_SelStart(-1), m_SelEnd(-1), m_NoSelectFont(NoSelectFont)
   {
+/*
   if(Text[0] != (char) msBaseLang)
     {
-    QString UString;
-    for( int iChar = 0; iChar < Text.length(); UString += ::ToUnicode( Text[iChar++] ) );
+    QString UString = QString::fromUtf8(Text);
+//    for( int iChar = 0; iChar < Text.length(); UString += ::ToUnicode( Text[iChar++] ) );
     m_SValue = UString.split('\n');
     return;
     }
-  m_SValue = ToLang(Text.mid(1).replace(msPrime, '"').replace(msDoublePrime, '{').replace(msTriplePrime, '}').replace(msCharNewLine, '\n')).split('\n');
+*/
+  if(Text.isEmpty()) return;
+  if(Text.length() == 1)
+    m_Value = ' ' + Text;
+  m_SValue = ToLang(m_Value.mid(1).replace(msPrime, '"').replace(msDoublePrime, '{').replace(msTriplePrime, '}').replace(msCharNewLine, '\n')).split('\n');
   }
 
 EdStr::EdStr(XPInEdit *pOwn, QString text, bool NoSelectFont) : EdElm(pOwn), m_SelStart(-1),m_SelEnd(-1), m_NoSelectFont(NoSelectFont)
@@ -8181,13 +8198,13 @@ void EdStr::PreCalc ( TPoint P, QSize &S, int &A )
   for (auto pStr = m_SValue.begin(); pStr != m_SValue.end(); pStr++)
     if( pStr->length() == 1)
       {
-      m_Size.setHeight(max(m_Size.height(), m_pOwner->CharHeight()));
+      m_Size.setHeight(m_Size.height() + m_pOwner->CharHeight());
       m_Size.setWidth(max(m_Size.width(), m_pOwner->CharWidth(pStr->front())));
       }
     else
       {
       QRect RLine(FM.boundingRect(*pStr));
-      m_Size.setHeight(max(m_Size.height(), RLine.height()));
+      m_Size.setHeight(m_Size.height() + RLine.height());
       m_Size.setWidth(max(m_Size.width(), RLine.width() + 10));
       }
   m_Axis = m_Size.height() / 2 + FM.strikeOutPos();
@@ -8198,6 +8215,7 @@ void EdStr::PreCalc ( TPoint P, QSize &S, int &A )
 
 void EdStr::Draw( TPoint P )
   {
+  if( m_SValue.count() == 0 ) return;
   if( m_Start.X != P.X || m_Start.Y != P.Y )
     {
     m_Start = P;
@@ -8221,7 +8239,10 @@ void EdStr::Draw( TPoint P )
     else
       {
       QString Text(*pStr);
-      m_pOwner->m_pCanvas->drawText(QRectF(m_Start.X, StartY, m_Size.width(), StrHeight), *pStr, QTextOption(Qt::AlignRight));
+      if(sm_Language == lngHebrew )
+        m_pOwner->m_pCanvas->drawText(QRectF(m_Start.X, StartY, m_Size.width(), StrHeight), *pStr, QTextOption(Qt::AlignRight));
+      else
+        m_pOwner->m_pCanvas->drawText(QRectF(m_Start.X, StartY, m_Size.width(), StrHeight), *pStr, QTextOption(Qt::AlignLeft));
       }
   m_pOwner->m_pCanvas->setLayoutDirection(Qt::LeftToRight);
   if( m_SelStart == -1 || m_Selected )
@@ -8301,7 +8322,7 @@ QByteArray EdStr::Write()
 QByteArray EdStr::SWrite()
     {
     QByteArray Text(m_Value);
-    return "\\comment{" + Text.replace('{', msBrackLeftUpper ).replace('}', msBrackRightUpper ) + '}';
+    return "\\comment{ " + Text.replace('{', msBrackLeftUpper ).replace('}', msBrackRightUpper ) + '}';
     }
 
 void EdStr::AddChar(char c)
@@ -8340,6 +8361,7 @@ void EdTable::SetColumnNumber( int NewNumber )
         EdList *pList = new EdList( m_pOwner );
         pList->m_IsCell = m_GridState != TGRUnvisible && m_GridState != TGRPartlyVisible;
         pList->m_pSub_L = new EdList( m_pOwner );
+        pList->m_pSub_L->m_IsCell = pList->m_IsCell;
         m_Body[i].push_back( pList );
         }
     else
@@ -8759,7 +8781,7 @@ EdChart::EdChart( XPInEdit *pOwn, const QByteArray& Parms, bool NoStrSelectFont 
   }
 
 EdChart::EdChart( XPInEdit *pOwn ) : EdElm( pOwn ), m_Type( ThinCol ), m_pLabelX( new EdStr( pOwn, "X" ) ),
-m_pLabelY( new EdStr( pOwn, "Y" ) ), m_pNameX( new EdStr( pOwn, "Name X" ) ), m_pNameY( new EdStr( pOwn, "Name Y" ) ),
+m_pLabelY( new EdStr( pOwn, "Y" ) ), m_pNameX( new EdStr( pOwn, " Name X" ) ), m_pNameY( new EdStr( pOwn, " Name Y" ) ),
 m_Scale( 1.0 ), m_FromTemplate( false )
   {
   m_Colors.reserve( 2 );
@@ -9439,7 +9461,7 @@ void EdColumnColor::PreCalc( TPoint P, QSize& S, int& A )
 
 void EdColumnColor::Draw( TPoint P )
   {
-  FloodFill( QRect( P.X - 3, P.Y - 3, 100, 100 ),
+  FloodFill( QRect( P.X - 3, 0, 100, 100 ),
     dynamic_cast< QImage* >( m_pOwner->m_pCanvas->device() ), QPoint( P.X, P.Y ), QColor( m_Color ) );
   }
 

@@ -59,7 +59,8 @@ bool CalcDiscrim( const QByteArray& Source );
 MathExpr DetVieEqu( const MathExpr& exi );
 Lexp CalcPolinomEqu( const QByteArray& Source, const QByteArray&& VarName = "x" );
 bool CalcEquation( const QByteArray& Source );
-MathExpr CalcAnyEquation( const QByteArray& Source );
+bool CalcAnyEquation( const QByteArray& Source );
+bool IsConst(const MathExpr& Ex, int val);
 
 class TNodes : public PascArray<PNode>
   {
@@ -186,6 +187,15 @@ class TExchange
     int Status() { return m_Status; }
   };
 
+enum Solvers { ESolvTestMode, ESolvReToMult, ESolvSubSqr, ESolvExpand, ESolvSqrSubSum, ESolvSumCub, ETrinom, ESolvCubSubSum, ESolvSubCub, EAlg1Calculator,
+  ELg, ELog1Eq, ESysInEq, ERatInEq, EAlg2InEqXYGrph, EExpEq, EMakeSubstitution, ESolveLinear, EMakeExchange,
+  ESolvDetLinEqu, ESolvQuaEqu, ESolvDetQuaEqu, ESolvDisQuaEqu, ESolvDetVieEqu, ESolvCalcDetBiQuEqu, EAlgFrEquat, ESqLogEq, ESolvCalcPolinomEqu,
+  ESolvCalcSimpleTrigoEq, ESinCosEq, ESolvCalcTrigoEqu, ESolvCalcHomogenTrigoEqu, ESolvCalcEquation,
+  ESin, ECos, ETan, ELn, EDegRad, ERadDeg, ECotan, ESciCalc,
+  EDeriv, EIndefInt, ELimit, EDerivFun, EDefInt, EEigenVals, EDeterminant, ETranspose, EMatrixInv, EAngle2, EAngle3, ETan2,
+  EAlpha2, EPriv, ETrigoOfSumma, ESumm_Mult, ETrigo_Summ, EPermutations, EBinomCoeff,
+  EAccomodations, EStatistics, ECorrelation, ELineProg, EAlgToTrigo, EComplexOper };
+
 class Solver
   {
   double m_OldPrecision;
@@ -194,25 +204,27 @@ class Solver
     virtual void Solve(){};
     QByteArray m_Name;
     QByteArray m_DefaultName;
-    int m_Code;
+    Solvers m_Code;
     void SimplifyExpand();
+    void Simplify();
   public:
-    enum Solvers { ESolvReToMult, ESolvExpand, ESolvSubSqr, ESolvSqrSubSum, ESolvSumCub, ETrinom, ESolvCubSubSum, ESolvSubCub, EAlg1Calculator, ELg, Eog1Eq,
-      ESysInEq, ESysInEqXY, ERatInEq, EExpEq, EMakeSubstitution, ESolveLinear, EMakeExchange, ESolvDetLinEqu , ESolvQuaEqu, ESolvDetQuaEqu, ESolvDisQuaEqu,
-      ESolvDetVieEqu, ESolvCalcDetBiQuEqu, ESolvFractRatEq, ESolvCalcIrratEq, ESolvCalcPolinomEqu, ESolvCalcSimpleTrigoEq, ESolvCalcSinCosEqu,
-      ESolvCalcTrigoEqu, ESolvCalcHomogenTrigoEqu, ESolvCalcEquation, ESin, ECos, ETan, ELn, EDegRad, ERadDeg, ESciCalc };
     MATHEMATICS_EXPORT static MathExpr m_OldExpr;
     MATHEMATICS_EXPORT static Solver* sm_TestSolvers;
     MATHEMATICS_EXPORT static bool sm_TestMode;
-    Solver() : m_Code( -1 ), m_OldPrecision( s_Precision ) { s_MemorySwitch = SWcalculator; }
+    Solver() : m_Code( ESolvTestMode ), m_OldPrecision( s_Precision ) { s_MemorySwitch = SWcalculator; }
     Solver( const MathExpr Expr ) : m_Expr( Expr ), m_OldPrecision( s_Precision ) { m_OldExpr = Expr; s_MemorySwitch = SWcalculator; Solve(); }
     virtual ~Solver() { s_MemorySwitch = SWtask; s_Precision = m_OldPrecision; }
-    MATHEMATICS_EXPORT void SetExpression( const QByteArray& Expr ) { m_OldExpr = m_Expr = Parser::StringToExpr( Expr ); Solve(); }
+    MATHEMATICS_EXPORT void SetExpression( const QByteArray& Expr )
+      {
+      m_OldExpr = Parser::StringToExpr( Expr );
+      m_Expr = m_OldExpr;
+      Solve();
+      }
     MATHEMATICS_EXPORT MathExpr Result() { return m_Expr; }
     MATHEMATICS_EXPORT bool Success() { return !m_Expr.IsEmpty() && !m_Expr.Eq( m_OldExpr ); }
     MATHEMATICS_EXPORT void SetExpression( const MathExpr& Expr ) { m_OldExpr = m_Expr = Expr; Solve(); }
     MATHEMATICS_EXPORT QString Name() { return X_Str( m_Name, m_DefaultName ); }
-    MATHEMATICS_EXPORT int Code() { return m_Code; }
+    MATHEMATICS_EXPORT Solvers Code() { return m_Code; }
   };
 
 class TSolvReToMult : public Solver
@@ -495,6 +507,14 @@ class TTan : public Solver
     MATHEMATICS_EXPORT TTan();
   };
 
+class TCotan : public Solver
+  {
+  MATHEMATICS_EXPORT virtual void Solve();
+  public:
+    TCotan( const MathExpr Expr );
+    MATHEMATICS_EXPORT TCotan();
+  };
+
 class TLn : public Solver
   {
   MATHEMATICS_EXPORT virtual void Solve();
@@ -525,6 +545,14 @@ class TSciCalc : public Solver
   public:
     TSciCalc( const MathExpr Expr );
     MATHEMATICS_EXPORT TSciCalc();
+  };
+
+class TDiff : public Solver
+  {
+  MATHEMATICS_EXPORT virtual void Solve();
+  public:
+    TDiff( const MathExpr Expr );
+    MATHEMATICS_EXPORT TDiff();
   };
 
 #endif

@@ -43,7 +43,7 @@ double Derivativ( double x, double dx )
   C = 1e-9;
   do
     {
-    f2 += dx;
+    f2 = x + dx;
   f2 = bhvNormal;
   f2 = e.GetValue( f2 );
   double df1 = ( f2 - f1 ) / dx;
@@ -662,6 +662,9 @@ TRealPoint DeterminBhv( DxExpressionValues& Vals, DxExpression& AExpression )
   auto ValEqual = [&] ()
     {
     double Vi1, Vi2;
+    double V1 = _Vals[i];
+    double V2 = _Vals[i - 1];
+    double V3 = _Vals[i + 1];
     if( abs( _Vals[i] ) < 1e-8 ) {
       Vi1 = 1e8*abs( _Vals[i - 1] - _Vals[i] );
       Vi2 = 1e8*abs( _Vals[i] - _Vals[i + 1] );
@@ -728,15 +731,15 @@ TRealPoint DeterminBhv( DxExpressionValues& Vals, DxExpression& AExpression )
     if( ValEqual() )
       _bhvr[i] = bhvNormal;
     else
-      if( ValJumpDoun() )
-        _bhvr[i] = SearchLimit( i );
-      else
-        if( ValJumpUp() )
-          _bhvr[i] = SearchLimit( i );
-        else
-          if( ValJump() )
-            _bhvr[i] = bhvJump;
-          else
+//      if( ValJumpDoun() )
+//        _bhvr[i] = SearchLimit( i );
+//      else
+//        if( ValJumpUp() )
+//          _bhvr[i] = SearchLimit( i );
+//        else
+//          if( ValJump() )
+//            _bhvr[i] = bhvJump;
+//          else
             if( ValIncrease( i ) )
               {
               _bhvr[i] = bhvIncrease;
@@ -853,8 +856,8 @@ TRealPoint DeterminBhv( DxExpressionValues& Vals, DxExpression& AExpression )
     if( StartXMax && !StartXMin ) Result.m_Y = yTC;
     yTC = e.GetValue( yTC );
     _Vals[i] = yTC;
-    _bhv[i] = yTC;
-    _bhvr[i] = yTC;
+    _bhv[i] = (int) yTC;
+    _bhvr[i] = (int) yTC;
     StartXMin = StartXMin && ( yTC != bhvNormal );
     if( !StartXMin )
       StartXMax = StartXMax && ( yTC == bhvNormal );
@@ -940,14 +943,15 @@ TRealPoint DeterminBhv( DxExpressionValues& Vals, DxExpression& AExpression )
   return Result;
   }
 
-MathExpr CalcAnyEquation( const QByteArray& Source )
+bool CalcAnyEquation( const QByteArray& Source )
   {
-  if( Source.isEmpty() ) return MathExpr();
+  if( Source.isEmpty() ) return false;
   auto ExprValue = [] ( const MathExpr& ex1, double& x )
     {
-    MathExpr ex = ex1.Reduce();
+    MathExpr ex = ex1.Reduce(), ex2;
     bool Result = true;
-    bool sign = ex.Unarminus( ex );
+    bool sign = ex.Unarminus( ex2 );
+    if(sign) ex = ex2;
     int N, D;
     if( ex.SimpleFrac_( N, D ) )
       x = ( double ) N / D;
@@ -963,22 +967,29 @@ MathExpr CalcAnyEquation( const QByteArray& Source )
   s_Precision = 0.0000001;
   MathExpr Result;
 
-  auto Final = [&] ()
+  auto Final = [&] (bool bResult)
     {
     s_Precision = OldPrecision;
-    return Result;
+    return bResult;
     };
 
   auto BadResult = [&] ()
     {
-    TSolutionChain::sm_SolutionChain.AddExpr( new TStr( "" ), X_Str( "MLinInv", "Invalid input data!" ) );
-    return Final();
+    TSolutionChain::sm_SolutionChain.AddExpr( new TStr( "" ), X_Str( "MNoSolutions", "No solutions!" ) );
+    return Final(false);
+    };
+
+  auto NoAlgResult = [&] ()
+    {
+    TSolutionChain::sm_SolutionChain.AddExpr( new TStr( "" ), X_Str( "MNNoAlgSolutions", "No algebraic solutions!" ) );
+    return Final(false);
     };
 
   try
     {
     Parser P;
     PNode eq = P.AnyExpr( PiVar2PiConst( P.FullPreProcessor( Source, "x" ) ) );
+    s_Precision=1e-14;
     MathExpr ex = P.OutPut( eq );
     PExMemb f;
     if( ex.Listex( f ) )
@@ -987,7 +998,7 @@ MathExpr CalcAnyEquation( const QByteArray& Source )
       MathExpr ex1 = f->m_Memb;
       MathExpr op1, op2;
       if( !ex1.Binar( '=', op1, op2 ) ) return BadResult();
-      TSolutionChain::sm_SolutionChain.AddExpr( ex1 );
+      TSolutionChain::sm_SolutionChain.AddExpr( ex );
       ex1 = op1 - op2;
       f = f->m_pNext;
       if( f.isNull() ) return BadResult();
@@ -1000,7 +1011,7 @@ MathExpr CalcAnyEquation( const QByteArray& Source )
       double b;
       if( !ExprValue( f->m_Memb, b ) ) return BadResult();
       f = f->m_pNext;
-      if( f.isNull() ) return BadResult();
+      if( !f.isNull() ) return BadResult();
       if( a < b )
         {
         DxExpressionValues FValues( a, b, abs( ( a - b ) / 400 ) );
@@ -1036,7 +1047,7 @@ MathExpr CalcAnyEquation( const QByteArray& Source )
     else
       {
       Lexp ex1 = RootPolinom( ex );
-      if( ex1.IsEmpty() || ex1.First().isNull() ) return BadResult();
+      if( ex1.IsEmpty() || ex1.First().isNull() ) return NoAlgResult();
       Result = ex1;
       TSolutionChain::sm_SolutionChain.AddExpr( ex );
       TSolutionChain::sm_SolutionChain.AddExpr( ex1, X_Str( "MRoot", "Roots are found!" ) );
@@ -1046,6 +1057,6 @@ MathExpr CalcAnyEquation( const QByteArray& Source )
     {
     TSolutionChain::sm_SolutionChain.AddExpr( new TStr( "" ), X_Str( E.Name(), E.Message() ) );
     }
-  return Final();
+  return Final(true);
   }
  

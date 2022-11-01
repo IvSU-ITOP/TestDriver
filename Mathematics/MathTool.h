@@ -25,15 +25,14 @@ bool DegCosStandard( double V, MathExpr& DegRes );
 bool DegTanStandard( double V, MathExpr& DegRes );
 bool DegCotStandard( double V, MathExpr& DegRes );
 
-inline bool MakeTrigonometric( const MathExpr& exi, MathExpr& exo, bool const IsPriv = false ) { return false; }
-inline bool MakeSummaTrigonometric( const MathExpr& exi, MathExpr& exo ) { return false; }
-inline bool MakeMultTrigonometric( const MathExpr& exi, MathExpr& exo ) { return false; }
+bool MakeTrigonometric( const MathExpr& exi, MathExpr& exo, bool );
+bool MakeSummaTrigonometric( const MathExpr& exi, MathExpr& exo );
+bool MakeMultTrigonometric( const MathExpr& exi, MathExpr& exo );
 
-inline TExpr* OutPutTrigonom( MathExpr& exi, MathExpr& exo ) { return nullptr; }
+MathExpr OutPutTrigonom( const MathExpr& exi, MathExpr& exo );
 
-inline void Trigo2Str( MathExpr& Exo, MathExpr& Exi ) {}
-
-inline TExpr* DegOutput( const MathExpr& exo ) { return nullptr; }
+void Trigo2Str( MathExpr& Exo, MathExpr& Exi );
+MathExpr DegOutput( const MathExpr& exo );
 void SumFrac( int n1, int d1, int n2, int d2, int &nr, int &dr );
 void MultFractions( int n1, int d1, int n2, int d2, int& nr, int& dr );
 void DivFrac( int N1, int D1, int N2, int D2, int& NR, int& DR );

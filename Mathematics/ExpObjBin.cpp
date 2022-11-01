@@ -84,6 +84,13 @@ MathExpr TBinar::Reduce() const
       }
     }
 
+  if(m_Name == '=' && sm_FullReduce )
+    {
+    QByteArray Var1, Var2;
+    if(op1_reduced.Variab(Var1) && op2_reduced.Variab(Var2) )
+      return new TBool( Var1 == Var2 );
+    }
+
   MathExpr exOp1, exOp2;
   bool CheckNameChange = false;
   if( op1_reduced.Unarminus( exOp1 ) )

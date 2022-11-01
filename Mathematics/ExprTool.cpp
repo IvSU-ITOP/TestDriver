@@ -594,6 +594,8 @@ MathExpr TExpr::CalcFunc( const QByteArray& fname )
       exo = ex.Reduce();
       }
     exo = exo.SimplifyFull();
+    if(TExpr::sm_TrigonomSystem == TExpr::tsDeg && IsType(TConstant, exo ))
+      exo = new TMeaExpr( exo, Variable( msDegree ) );
     }
 
   int Nom, Den;
@@ -609,14 +611,17 @@ MathExpr TExpr::CalcFunc( const QByteArray& fname )
     s_GlobalInvalid = false;
     if( Neg ) V = -V;
     MathExpr exii = this;
-    if( IsTrigonom( fname ) && sm_TrigonomSystem == tsDeg && Cast( TMeaExpr, this ) != nullptr )
+    if( IsTrigonom( fname ) && sm_TrigonomSystem == tsDeg && Cast( TConstant, this ) != nullptr )
       exii = new TMeaExpr( this, Variable( msDegree ) );
     MathExpr exp = Parser::StrToExpr( fname + '(' + WriteE() + ')' );
     MathExpr expo = Parser::StrToExpr( fname + '(' + exii.WriteE() + ')' );
     ResetPrecision( SavePrec );
     try
       {
+//      bool FullReduce = TExpr::sm_FullReduce;
+//      TExpr::sm_FullReduce = true;
       exp = exp.Reduce();
+//      TExpr::sm_FullReduce = FullReduce;
       }
     catch( ErrParser E )
       {

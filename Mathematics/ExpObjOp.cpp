@@ -189,7 +189,7 @@ MathExpr TSumm::Reduce() const
 
   if( opr2.Multp( Op21, Op22 ) )
     {
-    if( Op22.Eq( opr1 ) && Op21.ConstExpr() && ConstExpression( Op22 ) )
+    if( Op22.Eq( opr1 ) && Op21.ConstExpr() && !ConstExpression( Op22 ) )
       return ( ( Op21 + 1 ) * opr1 ).Reduce();
 
     if( Op21.Eq( opr1 ) && Op22.ConstExpr() && !ConstExpression( Op21 ) )
@@ -248,16 +248,16 @@ MathExpr TSumm::Integral( const QByteArray& d )
   return new TSumm( m_Operand1.Integral( d ), m_Operand2.Integral( d ) );
   }
 
-MathExpr TSumm::Lim( const QByteArray& v, const MathExpr& lm )
+MathExpr TSumm::Lim( const QByteArray& v, const MathExpr& lm ) const
   {
   MathExpr op1, op2;
   bool ng1, ng2;
 
-  if( IsType( TDivi, m_Operand1 ) && IsType( TDivi, m_Operand2 ) )
+  if( IsConstType( TDivi, m_Operand1 ) && IsConstType( TDivi, m_Operand2 ) )
     {
     sm_pResultReceiver->Clear();
-    op1 = CalcMulti( 1, this, false );
-    if( !op1.IsEmpty() && !( IsType ( TSumm, m_Operand1  ) ) ) return op1->Lim( v, lm );
+    op1 = TExpr::CalcMulti( 1, MathExpr(this->Clone()), false );
+    if( !op1.IsEmpty() && !( IsConstType ( TSumm, m_Operand1  ) ) ) return op1->Lim( v, lm );
     }
 
   op1 = m_Operand1->Lim( v, lm );
@@ -627,7 +627,7 @@ MathExpr TSubt::Integral( const QByteArray& d )
   return new TSubt( m_Operand1.Integral( d ), m_Operand2.Integral( d ) );
   }
 
-MathExpr TSubt::Lim( const QByteArray& v, const MathExpr& lm )
+MathExpr TSubt::Lim( const QByteArray& v, const MathExpr& lm ) const
   {
   MathExpr result;
   MathExpr  ex, op1, op2, op3, op4, op11, op12, op21, op22, exBase, exExp, ex1, exL;
@@ -644,8 +644,9 @@ MathExpr TSubt::Lim( const QByteArray& v, const MathExpr& lm )
         return new TInfinity( ng1 );
       else
         {
-        ex = MathExpr( this ).ReduceToMult();
-        if( !ex.Equal( this ) )
+        MathExpr This(this->Clone());
+        ex = MathExpr( This ).ReduceToMult();
+        if( !ex.Equal( This ) )
           return ex.Lim( v, lm );
         if( m_Operand1.Divis( op1, op2 ) )
           {
@@ -847,14 +848,13 @@ MathExpr TMult::Reduce() const
       return;
       }
     MathExpr exp = ex.Reduce();
-    if( exp.Multp( exLeft, exRight ) )
+    if( exp.Multp( exLeft, exRight ))
       {
       Append( exLeft );
       Append( exRight );
       }
     else
       Append(exp);
-    return;
     };
 
   if( IsConstType( TMult, m_Operand1 ) || IsConstType( TMult, m_Operand2 ) )
@@ -1325,9 +1325,9 @@ MathExpr TMult::Integral( const QByteArray& d )
     }
   }
 
-MathExpr TMult::Lim( const QByteArray& v, const MathExpr& lm )
+MathExpr TMult::Lim( const QByteArray& v, const MathExpr& lm ) const
   {
-  auto OpenAmbiguity = [=] ( MathExpr& operand1, MathExpr& operand2 )
+  auto OpenAmbiguity = [=] ( const MathExpr& operand1, const MathExpr& operand2 )
     {
     s_OpenMultAmbiguity = true;
     QByteArray Name;
@@ -1554,8 +1554,10 @@ QByteArray TMult::SWrite() const
       }
     }
   if( Right[0] == 'd' && Right.length() > 1 && _litera( Right[1] ) || Unvisible )
+//  if( Right[0] == 'd' && Right.length() > 1 && _litera( Right[1] ) )
     return Left += "\\setunvisible\n*\\setvisible\n" + Right;
   return Left + charToTex(m_Name) + Right;
+//  return '(' + Left + charToTex(m_Name) + Right +')';
   }
 
 MathExpr TMult::Substitute( const QByteArray& vr, const MathExpr& vl )
@@ -1974,7 +1976,12 @@ MathExpr TDivi::Reduce() const
 
     if( Op12.Equal( Op22 ) )
       if( opr1.Root_( Op11, Op12, N1 ) )
-        return ( Op11 / Op21 ).Root( N1 ).Reduce();
+        {
+        MathExpr d = Op11 / Op21;
+        MathExpr r = d.Root(N1);
+        return r.Reduce();
+//        return ( Op11 / Op21 ).Root( N1 ).Reduce();
+        }
       else
         return ( ( Op11 / Op21 ) ^ Op12 ).Reduce();
 
@@ -2396,6 +2403,289 @@ MathExpr TDivi::Integral( const QByteArray& d )
   return Ethis;
   }
 
+MathExpr TDivi::Lim(const QByteArray& v, const MathExpr& lm) const
+  {
+  MathExpr  op1,op2,op11,op12,op21,op22,rd, Result, This(this->Clone());
+  bool nl1,nl2,ng1,ng2;
+  int iNomPower, iDenomPower, Deep = 0;
+  QByteArray sName ;
+  char cOper ;
+
+  auto OpenAmbiguity = [&] ( MathExpr operand1, MathExpr operand2 )
+    {
+    const int MaxDeep = 10;
+    MathExpr  df, R;
+    s_OpenMultAmbiguity = false;
+    Deep++;
+    df = ReduceTExprs(operand1.Diff(v)) / ReduceTExprs(operand2.Diff(v));
+    if( df.Equal(This) || Deep > MaxDeep )
+      if( operand1.Equal(operand2) )
+        R = Constant( 1 );
+      else
+        {
+        s_GlobalInvalid = true;
+        R = Clone();
+        }
+    else
+      R = ReduceTExprs(df.Reduce().Lim(v,lm));
+    Deep--;
+    return R;
+    };
+
+  auto  GetMaxExponent = [&] (const MathExpr& ex)
+    {
+    int iMaxExp, iMinExp, iRoot, R;
+
+    std::function<void(const MathExpr& )> GetExponent = [&] (const MathExpr& exp)
+      {
+      MathExpr exLeft, exRight, exArg ;
+      char cOper ;
+      QByteArray Name ;
+      int iVal ;
+      if( exp.Unarminus( exArg ) )
+        {
+        GetExponent( exArg );
+        return;
+        }
+      if( exp.Oper_( cOper, exLeft, exRight ) )
+         {
+        switch (cOper)
+          {
+          case '+':
+          case '-':
+            GetExponent( exLeft );
+            GetExponent( exRight );
+            break;
+          case '*':
+            if( IsConstType( TConstant, exLeft ) && ( IsConstType( TVariable, exRight ) || IsConstType( TPowr, exRight ) ) )
+              GetExponent( exRight );
+            else
+              iMinExp = -1000;
+            break;
+          case '^':
+            if( exLeft.Variab( Name ) && Name == v && exRight.Cons_int( iVal ) )
+              if( iVal % iRoot != 0 )
+                iMinExp = -1000;
+              else
+                {
+                iVal /= iRoot;
+                iMaxExp = max( iMaxExp, iVal );
+                iMinExp = min( iMinExp, iVal );
+                }
+            else
+              iMinExp = -1000;
+            break;
+          case '~':
+            exp.Root_( exLeft, exRight, iRoot );
+            GetExponent( exLeft );
+            iRoot = 1;
+            break;
+          default:
+            iMinExp = -1000;
+          }
+        return;
+        }
+     if( exp.Variab( Name ) && Name == v )
+       {
+       if( iRoot == 1 )
+         {
+         iMaxExp = max( iMaxExp, 1 );
+         iMinExp = min( iMinExp, 1 );
+         }
+       return;
+       }
+     if( IsConstType( TConstant, exp ) ) return;
+     iMinExp = -1000;
+    };
+   iMaxExp = 0;
+   iMinExp = 0;
+   iRoot = 1;
+   GetExponent( ex );
+   R = iMaxExp;
+   if( iMinExp < 0 )
+     R = 0;
+   return R;
+   };
+
+ std::function<MathExpr(const MathExpr&, int )> TermwiseDivide = [&] (const MathExpr& ex, int iPower)
+  {
+  TMultiNominal multi(ex) ;
+  int i, iCoeff, iTermPower, Nom, Denom ;
+  TTerm Term ;
+  MathExpr exTerm, exBase, R ;
+  for( i = 0; i <= multi.count() - 1; i++ )
+    {
+    Term = multi[i];
+    iCoeff = Term.GetCoeffInt();
+    exBase = Term.TermBase();
+    if( exBase.IsEmpty() )
+      exBase = Variable( v );
+    if( !Term.TermBase().IsEmpty() && Term[0].m_Power.SimpleFrac_( Nom, Denom ) )
+      if( iCoeff == 1 )
+        exTerm = TermwiseDivide( exBase, iPower * Denom ).Root( Denom );
+      else
+        exTerm = ExpandExpr( Constant( iCoeff ^ Denom ) * TermwiseDivide( exBase, iPower * Denom ) ).Root( Denom );
+    else
+      {
+      iTermPower = iPower - Term.PowerInt();
+      if( iTermPower == 0 )
+        exTerm =  Constant( iCoeff );
+      else
+        if( iTermPower == 1 )
+          exTerm = Constant( iCoeff ) / exBase;
+        else
+          exTerm = Constant( iCoeff ) / (exBase ^ Constant( iTermPower ));
+     }
+   if( i == 0 )
+   if( Term.m_Sign < 0 )
+     R = -exTerm;
+   else
+     R = exTerm;
+  else
+    if( Term.m_Sign < 0 )
+     R -= exTerm;
+    else
+      R += exTerm;
+   }
+  return R;
+  };
+
+  op1 = m_Operand1.Reduce();
+  op2 = m_Operand2.Reduce();
+  if( op1.Funct( sName, op11 ) && sName == "log" )
+    {
+    if( IsConst( lm, 0 ) && op11.Oper_( cOper, op21, op22 ) && IsConst( op21, 1 ) && ( cOper == '+' || cOper == '-' ) )
+      {
+      rd = op11.Lim( v, lm ).Reduce();
+      if( !rd.IsEmpty() && IsConst( rd, 1 ) )
+        {
+        if( cOper == '-' ) op22 = -op22;
+        op21 = op22 / op2;
+        rd = op21.Divisor2Polinoms();
+        if( rd.Binar( '=', op21, rd ) && rd.ConstExpr() )
+          {
+          Result =  new TBinar( '=',  new TLimit( false, rd * op1 / op22, Variable(v), lm ), rd );
+          return Result;
+          }
+        }
+      }
+    rd = op11 ^ ( Constant(1) / m_Operand2);
+    Result = rd.Lim( v, lm );
+    if( !Result.IsEmpty() )
+      {
+      while( Result.Binar( '=', op1, Result ) );
+        if( Result.Funct( sName, op1 ) && sName == "exp" )
+          Result = new TBinar( '=', new TLimit( false, Function( "log", rd ), Variable(v), lm ), op1);
+        else
+          Result = new TBinar( '=', new TLimit( false, Function( "log", rd ), Variable(v), lm ),
+            Function("log", Result ) );
+      }
+    return Result;
+   }
+ if( !s_OpenMultAmbiguity )
+   if( op1.Divis(op11,op12) )
+     if( op2.Divis(op21,op22) )
+       {
+       rd = op11 * op22 / ( op12 * op21 );
+       Result = rd.Lim(v,lm);
+       return Result;
+       }
+     else
+      {
+      rd = op11 / ( op12 * op2 );
+      Result = rd.Lim(v,lm);
+      return Result;
+      }
+   else
+     if( m_Operand2.Divis(op21,op22) )
+       {
+       rd = op1 * op22 / op21;
+       Result = rd.Lim(v,lm);
+       return Result;
+       }
+ iNomPower = 0;
+ if( IsConstType( TInfinity, lm ) )
+   iNomPower = GetMaxExponent( m_Operand1 );
+ if( iNomPower > 0 )
+   {
+   iDenomPower = GetMaxExponent( m_Operand2 );
+   if( iDenomPower > 0 )
+     {
+     op1 = TermwiseDivide( m_Operand1, iNomPower );
+     op2 = TermwiseDivide( m_Operand2, iDenomPower );
+     rd = op1/op2;
+     if( iNomPower > iDenomPower )
+       {
+       iNomPower -= iDenomPower;
+       if( iNomPower == 1 )
+         rd = Variable(v) * rd;
+       else
+         rd = (Variable(v) ^ Constant( iNomPower )) * rd;
+       }
+     else
+       if( iNomPower < iDenomPower )
+         {
+         iDenomPower -= iNomPower;
+         if( iDenomPower == 1 )
+           rd = (Constant(1) / Variable(v)) * rd;
+         else
+           rd = (Constant(1) / (Variable(v)^Constant(iNomPower))) * rd;
+         }
+     Result = rd.Lim( v, lm );
+     if( !Result.IsEmpty() )
+       Result =  new TBinar( '=',  new TLimit( false, rd, Variable(v), lm ), Result );
+     return Result;
+     }
+  }
+  op1 = m_Operand1.Lim(v,lm);
+  if( !op1.IsEmpty() )
+    {
+    rd = op1.Reduce();
+    nl1 = IsConst(rd,0);
+    }
+  else
+    nl1 = false;
+  op2 = m_Operand2.Lim(v,lm);
+  if( !op2.IsEmpty() )
+    {
+    rd = op2.Reduce();
+    nl2 = IsConst(rd, 0);
+    }
+  else
+    nl2 = false;
+  if( op1.IsEmpty() )
+    {
+    if( op2.Infinity(ng2) )
+      Result = Constant(0);
+    else
+      Result.Clear();
+    return Result;
+    }
+  if( op2.IsEmpty() )
+    {
+    s_GlobalInvalid = true;
+    Result = Clone();
+    return Result;
+    }
+  if( op1.Infinity(ng1) )
+    if( op2.Infinity(ng2) )
+      Result = OpenAmbiguity(m_Operand1,m_Operand2);
+    else
+      Result= new TInfinity(ng1 ^ op2.Negative());
+  else
+    if( op2.Infinity(ng2) )
+      Result = Constant( 0 );
+    else
+      if( nl2 )
+        if( nl1 )
+          Result = OpenAmbiguity(m_Operand1, m_Operand2);
+        else
+          Result = new TInfinity(op1.Negative());
+      else
+        Result = op1 / op2;
+  return Result;
+  }
+
   bool TDivi::Eq( const MathExpr& E2 ) const
   {
   MathExpr	op21, op22;
@@ -2535,7 +2825,7 @@ QByteArray TDivi::SWrite() const
     m_Operand2.MustBracketed() == brOperation || (m_Operand2.Oper_(Op, Op1, Op2) &&
     (IsConstType(TUnapm, Op1) || Op1.Negative()))))
     return Left + Name + '(' + m_Operand2.SWrite() + ')';
-  return Left + Name + m_Operand2.SWrite();
+  return '(' + Left + Name + m_Operand2.SWrite() +')';
   }
 
 MathExpr TDivi::Substitute( const QByteArray& vr, const MathExpr& vl )

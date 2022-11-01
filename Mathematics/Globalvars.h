@@ -62,7 +62,7 @@ const int
   MATHEMATICS_EXPORT extern bool s_ExpandDetailed;
   extern bool s_IsLogEquation;
   extern bool s_CanExchange;
-  extern int s_IntegralCount;
+  MATHEMATICS_EXPORT extern int s_IntegralCount;
   extern int s_OpenMultAmbiguity;
   extern bool s_EqualPicture;
   extern bool s_IntegralError;
@@ -94,5 +94,6 @@ const int
   extern int s_FactorCount;
   extern int s_DetailDegree;
   const int sc_NumError = -2147483647;
+  extern bool s_NoAbsInLog;
 
 #endif

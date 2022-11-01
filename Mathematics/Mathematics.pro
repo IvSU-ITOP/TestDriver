@@ -17,6 +17,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     Algebra.cpp \
+    Analysis.cpp \
     DxAnalytics.cpp \
     DxObjects.cpp \
     ExpObj.cpp \
@@ -36,6 +37,7 @@ SOURCES += \
     mathematics.cpp
 
 HEADERS += \
+    Analysis.h \
     mathematics.h\
     Mathematics_global.h \
     Algebra.h \

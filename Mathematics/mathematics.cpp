@@ -2,7 +2,6 @@
 
 Mathematics::Mathematics()
 {
-
 }
 
 Mathematics::~Mathematics()

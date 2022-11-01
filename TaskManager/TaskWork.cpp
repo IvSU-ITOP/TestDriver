@@ -6,7 +6,6 @@
 #include "../Mathematics/Statistics.h"
 
 TXPTask s_Task;
-bool TXPTask::sm_EditTask = false;
 
 TXPTask::TXPTask() : m_pHelpWindow( nullptr ), m_pHintWindow( nullptr ), m_pPromptWindow(nullptr)
   {}
@@ -224,7 +223,14 @@ QString TXPTask::CompareUserExpr( const MathExpr& exi, OutWindow* pOutWin )
       {
       bool OldNoReduceByCompare = MathExpr::sm_NoReduceByCompare;
       MathExpr::sm_NoReduceByCompare = false;
+      try {
       Result = exi.Equal( exComp );
+      }  catch (ErrParser)
+        {
+        MathExpr::sm_NoReduceByCompare = OldNoReduceByCompare;
+        TExpr::sm_Precision = Precision;
+        return false;
+        }
       MathExpr::sm_NoReduceByCompare = OldNoReduceByCompare;
       }
     TExpr::sm_Precision = Precision;

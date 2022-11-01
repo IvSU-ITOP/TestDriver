@@ -1,23 +1,24 @@
 #include "OptionMenuPlotter.h"
-#include "ui_OptionMenuPlotter.h"
+//#include "ui_OptionMenuPlotter.h"
 #include <QColorDialog>
+#include <QGraphicsScene>
 #include <QPainter>
 
 OptionMenuPlotter::OptionMenuPlotter(QWidget *parent) :
-  QWidget(parent), ui(new Ui::OptionMenuPlotter)
+  QWidget(parent)//, ui(new Ui::OptionMenuPlotter)
   {
-  ui->setupUi(this);
+ // ui->setupUi(this);
   ChartToSet.clear();
-  HideAllSettings();
+//  HideAllSettings();
   QGraphicsScene* Scene=new QGraphicsScene();
-  ui->graphicsView->setScene(Scene);
+//  ui->graphicsView->setScene(Scene);
   }
-
+/*
 OptionMenuPlotter::~OptionMenuPlotter()
   {
   delete ui;
   }
-
+*/
 void OptionMenuPlotter::on_select_color_btn_clicked()
   {
   QColor color = QColorDialog::getColor();
@@ -33,7 +34,7 @@ void OptionMenuPlotter::on_select_color_btn_clicked()
       case 6:{ChartToSet.AxisColorY=color;break;}
       default:break;
       }
-    ui->graphicsView->setBackgroundBrush(QBrush(color));
+//    ui->graphicsView->setBackgroundBrush(QBrush(color));
   }
 }
 
@@ -104,6 +105,7 @@ void SettingsChart::clear()
   AxisYPen.setWidth(ThinknessAxisY);
   }
 
+/*
 void OptionMenuPlotter::on_object_to_set_currentIndexChanged(int index)
 {
     m_SelectColorToSet=index;
@@ -178,5 +180,5 @@ void OptionMenuPlotter::HideAllSettings()
     ui->pixel->hide();
     ui->retranslateUi(this);
 }
-
+*/
 

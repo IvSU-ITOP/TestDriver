@@ -12,7 +12,7 @@ class TSumm : public TOper
     virtual MathExpr Perform();
     virtual MathExpr Diff( const QByteArray& d = "x" );
     virtual MathExpr Integral( const QByteArray& d = "x" );
-    virtual MathExpr Lim( const QByteArray& v, const MathExpr& lm );
+    virtual MathExpr Lim( const QByteArray& v, const MathExpr& lm ) const;
     virtual bool Eq( const MathExpr& E2 ) const;
     virtual bool Equal( const MathExpr& E2 ) const;
     virtual MathExpr Substitute( const QByteArray& vr, const MathExpr& vl );
@@ -34,7 +34,7 @@ class TSubt : public TOper
     virtual MathExpr Perform();
     virtual MathExpr Diff( const QByteArray& d = "x" );
     virtual MathExpr Integral( const QByteArray& d = "x" );
-    virtual MathExpr Lim( const QByteArray& v, const MathExpr& lm );
+    virtual MathExpr Lim( const QByteArray& v, const MathExpr& lm ) const;
     virtual bool Eq( const MathExpr& E2 ) const;
     virtual bool Equal( const MathExpr& E2 ) const;
     virtual MathExpr Substitute( const QByteArray& vr, const MathExpr& vl );
@@ -56,7 +56,7 @@ class TMult : public TOper
     virtual MathExpr Perform();
     virtual MathExpr Diff( const QByteArray& d = "x" );
     virtual MathExpr Integral( const QByteArray& d = "x" );
-    virtual MathExpr Lim( const QByteArray& v, const MathExpr& lm );
+    virtual MathExpr Lim( const QByteArray& v, const MathExpr& lm ) const;
     virtual bool Eq( const MathExpr& E2 ) const;
     virtual bool Equal( const MathExpr& E2 ) const;
     virtual QByteArray WriteE() const;
@@ -85,7 +85,7 @@ class TDivi : public TOper
     virtual MathExpr Perform();
     virtual MathExpr Diff( const QByteArray& d = "x" );
     virtual MathExpr Integral( const QByteArray& d = "x" );
-    virtual MathExpr Lim( const QByteArray& v, const MathExpr& lm ) { return nullptr; }
+    virtual MathExpr Lim( const QByteArray& v, const MathExpr& lm ) const;
 
     virtual bool Eq( const MathExpr& E2 ) const;
     virtual bool Equal( const MathExpr& E2 ) const;
@@ -120,8 +120,6 @@ class TDiviEv : public TDivi
     virtual bool DiviEvi( MathExpr& op1, MathExpr& op2 ) const;
   };
   */
-inline MathExpr MathExpr::operator / ( const MathExpr& E ) const { return new TDivi( m_pExpr, E ); }
-inline MathExpr MathExpr::operator / ( double V ) const { return new TDivi( m_pExpr, new TConstant( V ) ); }
 //inline MathExpr MathExpr::operator | ( const MathExpr& E ) const { return new TDiviEv( m_pExpr, E ); }
 //inline MathExpr MathExpr::operator | ( double V ) const { new TDiviEv( m_pExpr, new TConstant( V ) ); }
 

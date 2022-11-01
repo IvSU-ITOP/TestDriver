@@ -475,7 +475,7 @@ MathExpr ExpandOpRes( const MathExpr& exi )
   if( exi_E.Eq( exi ) )
     {
     if( !s_CalcOnly )
-      throw  ErrParser( "I can`t expand it!", peCanNotExpand );
+      throw  ErrParser( X_Str( "MCanNotExpand", "I can`t expand it!" ), peCanNotExpand );
     return exi_E;
     }
 
@@ -489,7 +489,7 @@ MathExpr ExpandOpRes( const MathExpr& exi )
   if( !( exi.Power( op1, op2 ) && op2.Cons_int( d ) && ( d>3 ) ) )
     {
     P = Expand( exi_E );
-    while( !P.Eq( exi_E ) || !s_GlobalInvalid )
+    while( !P.Eq( exi_E ) && !s_GlobalInvalid )
       {
       if( s_ExpandDetailed )
         if( !P.Equal( exi_E ) )
@@ -2836,7 +2836,7 @@ TL2exp* RootPolinom( MathExpr ex )
           h[j] = 0;
       goto iter;
     quadr:
-      GetRoots;
+      GetRoots();
     QuadrOut:
       exTmp.Clear();
       iOut++;
@@ -3088,8 +3088,8 @@ void TMatrix2::Sort()
         for( int i = 0; i < count(); i++ )
           {
           MathExpr exTmp = ( *this )( i, j );
-          ( *this )( i, j ) = ( *this )( i, j + 1 );
-          ( *this )( i, j + 1 ) = exTmp;
+          ( *this )( i, j ) = ( *this )( i, j - 1 );
+          ( *this )( i, j - 1 ) = exTmp;
           }
         }
   }
@@ -3404,3 +3404,4 @@ MathExpr TLinear::GetRoot( int I )
       };
     };
 */
+

@@ -11,6 +11,7 @@ QString ToLanguage( const QByteArray& Text, TLanguages Lang )
 
 QByteArray FromQBB( const QByteArray& CS, TLanguages Language )
   {
+  return CS;
 //  if( BaseTask::sm_NewHebFormat || Language != lngHebrew ) return CS;
   QByteArray S( CS );
   int iDefis = S.indexOf( '-' );
@@ -27,6 +28,7 @@ QByteArray FromQBB( const QByteArray& CS, TLanguages Language )
     }
   bool bWordHeb = false;
   bool bInvert = false;
+  bool bLngHeb = Language == lngHebrew;
   QByteArray sWord, sResult, sWord2;
   int iSpaceCount = 0;
   uchar COld = 0, C;
@@ -48,10 +50,11 @@ QByteArray FromQBB( const QByteArray& CS, TLanguages Language )
         sWord.insert( 0, ' ' );
         continue;
         }
+      sWord += C;
       iSpaceCount++;
       continue;
       }
-    if( C >= 224 && C <= 250 || C == ')' || C == '(' || C == '-' )
+    if( bLngHeb && (C >= 224 && C <= 250 || C == ')' || C == '(' || C == '-' ) )
       {
       if( !bWordHeb )
         {

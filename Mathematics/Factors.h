@@ -43,6 +43,7 @@ MathExpr GetFactorEquation( const QByteArray& VarName );
 MathExpr GetPutRoot( const MathExpr& ex, const QByteArray& VarName );
 TL2exp* RootPolinom( MathExpr ex );
 bool IsMultiNominal( const MathExpr& exi );
+TL2exp* Eigen(const QByteArray& Source);
 
 class TCounter
   {

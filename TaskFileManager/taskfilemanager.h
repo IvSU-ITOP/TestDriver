@@ -99,8 +99,10 @@ class TXDescrList
     static bool ExtractValue( QByteArray& L, QByteArray& LO, int Start );
     static void ProcessMacro( QByteArray& S, char );
     static void Save( class QByteStream&, PDescrList );
-    TXDescrList( BaseTask& Task ) : m_Already( false ), m_QuestionCount( -1 ), m_Task( Task ),
-        m_pDocument(nullptr), m_bHasEndLeft(false) {}
+    TXDescrList( BaseTask& Task ) : m_Already( false ), m_bHasEndLeft(false), m_QuestionCount( -1 ),
+        m_Task( Task ), m_pDocument(nullptr)
+      {
+      }
     ~TXDescrList() { Clear(); }
     TASKFILEMANAGER_EXPORT void Add( XDescr_type Type_arg, const QByteArray& S );
     void Update( QByteArray& S );
@@ -113,6 +115,8 @@ class TXDescrList
     TASKFILEMANAGER_EXPORT QByteArray GetText();
     QByteArray* GetTextPtr();
     TASKFILEMANAGER_EXPORT int GetExpressCount();
+    void AddENDLEFT(QByteStream& );
+    bool HasPicture();
   };
 
 class TXPSubStep
@@ -395,6 +399,7 @@ class BaseTask
     TASKFILEMANAGER_EXPORT static bool sm_GlobalShowUnarMinus;
     TASKFILEMANAGER_EXPORT static bool sm_GlobalShowMinusByAddition;
     TASKFILEMANAGER_EXPORT static bool sm_GlobalShowRad;
+    TASKFILEMANAGER_EXPORT static bool sm_EditTask;
     TASKFILEMANAGER_EXPORT static EditSets* sm_pEditSets;
     TASKFILEMANAGER_EXPORT static int sm_LastCreatedTrack;
     TASKFILEMANAGER_EXPORT static TLanguages GetLangByFileName( const QString& File );
@@ -453,12 +458,13 @@ class RichTextDocument : public QTextDocument
   {
   ViewSettings m_ViewSettings;
   QString m_TempPath;
-  QTextTable *m_pTable;
   TLanguages m_Language;
   int m_FixedWidth;
   public:
+    QTextTable *m_pTable;
     TASKFILEMANAGER_EXPORT static QString sm_TempPath;
     TASKFILEMANAGER_EXPORT static int sm_NumTmp;
+    static bool sm_AddBreak;
     TASKFILEMANAGER_EXPORT RichTextDocument( const QString& TempPath = sm_TempPath );
     TASKFILEMANAGER_EXPORT void SetContent( PDescrList );
     TASKFILEMANAGER_EXPORT void ResetLanguage();

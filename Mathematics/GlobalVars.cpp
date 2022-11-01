@@ -58,8 +58,9 @@ bool s_Calculations = true;
 bool s_FactorizedSolving = false;
 int s_RootCount;
 int s_FactorCount = 0;
-int s_DetailDegree = liPutAll;
-
+int s_DetailDegree = liPutNone;
+//int s_DetailDegree = liPutAll;
+bool s_NoAbsInLog = false;
 
 
 

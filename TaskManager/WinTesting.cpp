@@ -2,6 +2,8 @@
 #include "../Mathematics/ExpStore.h"
 #include "../Mathematics/Parser.h"
 #include "../Mathematics/SolChain.h"
+#include "../Mathematics/Analysis.h"
+#include "../Mathematics/GlobalVars.h"
 #include "../FormulaPainter/InEdit.h"
 #include "TaskWork.h"
 #include <qcoreapplication.h>
@@ -11,6 +13,7 @@
 
 extern TXPTask s_Task;
 TXPTask s_MainTask;
+extern QString s_AppPath;
 
 Panel* WinTesting::sm_pPanel = nullptr;
 QuestWindow* WinTesting::sm_pQuestWindow = nullptr;
@@ -27,6 +30,7 @@ QAction* WinTesting::sm_English;
 QAction* WinTesting::sm_Hebrev;
 QAction* WinTesting::sm_Russian;
 QAction* WinTesting::sm_Bulgarian;
+QAction* WinTesting::sm_Ukrainian;
 QAction* WinTesting::sm_pSaveTaskFile;
 QAction* WinTesting::sm_pShowGreek;
 QAction* WinTesting::sm_pShowBigGreek;
@@ -75,17 +79,26 @@ DetailedCalculator::DetailedCalculator() : m_pCalculators( new ListCalculators )
   Equations1 *pE1 = new Equations1;
   Equations2 *pE2 = new Equations2;
   SciCalc *pSciCalc = new SciCalc;
+  Calculus *pCalculus = new Calculus;
+  Trigo *pTrigo = new Trigo;
+  Advanced *pAdvanced = new Advanced;
   m_pCalcsLayout->addWidget( pAl1 );
   m_pCalcsLayout->addWidget( pAl2 );
   m_pCalcsLayout->addWidget( pE1 );
   m_pCalcsLayout->addWidget( pE2 );
   m_pCalcsLayout->addWidget( pSciCalc );
+  m_pCalcsLayout->addWidget( pCalculus );
+  m_pCalcsLayout->addWidget( pTrigo );
+  m_pCalcsLayout->addWidget( pAdvanced );
   QHBoxLayout *pHLayout = new QHBoxLayout;
   m_pCalculators->AddItem( "MAlgebra", "Algebra 1" );
   m_pCalculators->AddItem( "MAlgebra_2", "Algebra 2" );
   m_pCalculators->AddItem( "MEquations", "Equations1" );
   m_pCalculators->AddItem( "MEquations2", "Equations2" );
   m_pCalculators->AddItem( "MSciCalc", "Sci. Calc." );
+  m_pCalculators->AddItem( "MCalculus", "Calculus" );
+  m_pCalculators->AddItem( "MTrigo", "Trigo" );
+  m_pCalculators->AddItem( "MAdvanced", "Advanced" );
   connect( m_pCalculators, SIGNAL( currentRowChanged( int ) ), SLOT( SelectPanel( int ) ) );
   pHLayout->addWidget( m_pCalculators );
   pHLayout->addLayout( m_pCalcsLayout );
@@ -271,12 +284,15 @@ void SolverWidget::Solve( Solver *pS, QPushButton* pBtn)
     };
   try
     {
+    TExpr::sm_CalcOnly = true;
     ExpStore::sm_pExpStore->Init_var();
     pS->SetExpression( m_Expression );
+    TExpr::sm_CalcOnly = false;
     if (s_GlobalInvalid) return Final();
     }
   catch( ErrParser )
     {
+    TExpr::sm_CalcOnly = false;
     return Final();
     }
   MathExpr Result = pS->Result();
@@ -497,15 +513,17 @@ BottomWindow::BottomWindow() : m_pTitle(new QLabel), m_pPrecision(new QLabel), m
   m_pVCalcLayout->addLayout( pHLayout );
   m_pVCalcLayout->setMargin( 0 );
   m_pDetailedCalc->adjustSize();
-  QSize G = m_pSolverWidet->size();
+//  QSize G = m_pSolverWidet->size();
   m_pSolverWidet->setFixedSize( m_pDetailedCalc->size() );
-  G = m_pSolverWidet->size();
-  m_pVCalcLayout->addWidget( m_pSolverWidet );
+//  G = m_pSolverWidet->size();
+  m_pVCalcLayout->addWidget( m_pDetailedCalc );
+//  m_pVCalcLayout->addWidget( m_pSolverWidet );
   m_pCalculator->setLayout( m_pVCalcLayout );
   m_pCalculator->setFixedWidth( WinTesting::sm_pPanel->width() * 2.2 );
   m_FullEditorWidth = ScreenSize.width() - pGroupBox->width() - 20;
   m_EditorWidth = m_FullEditorWidth - m_pCalculator->width();
   m_pCalculator->show();
+  m_pDetailedCalc->show();
   Panel::sm_pEditor = new XPGedit( this, BaseTask::sm_pEditSets );
   QScrollArea *pArea = Panel::sm_pEditor->SetSize(QSize(m_EditorWidth, ScreenSize.height() / 4 - m_pTitle->height()));
   pEdLayout->addWidget( pArea );
@@ -517,7 +535,7 @@ BottomWindow::BottomWindow() : m_pTitle(new QLabel), m_pPrecision(new QLabel), m
   LangSwitch();
   m_pAngleMeas->adjustSize();
   m_pSWitchCalc->setFixedHeight( m_pAngleMeas->height() );
-  G = m_pSolverWidet->size();
+//  G = m_pSolverWidet->size();
   }
 
 QPushButton* BottomWindow::GetCalcButton( int Widget, int row, int col )
@@ -696,6 +714,10 @@ WinTesting::WinTesting() : m_Review(false), m_pMultiPlotter(nullptr)
   sm_Russian = pLanguage->addAction( "&Russian", this, [&] () { slotChangeLanguage( lngRussian ); }, QKeySequence( "CTRL+R" ) );
   sm_Russian->setCheckable( true );
   sm_Russian->setChecked( false );
+  sm_Ukrainian = pLanguage->addAction( "&Ukrainian", this, [&] () { slotChangeLanguage( lngUkrainian ); }, QKeySequence( "CTRL+U" ) );
+  sm_Ukrainian->setCheckable( true );
+  sm_Ukrainian->setChecked( false );
+
   sm_pMenuBar->addMenu( pLanguage );
   sm_pEditor = new QMenu( "&Task Editor" );
   sm_pEditHeader = sm_pEditor->addAction( "Edit &Header", this, SLOT( EditTaskHeader() ) );
@@ -771,8 +793,8 @@ void WinTesting::closeEvent(QCloseEvent *event)
 
 void WinTesting::slotChangeLanguage( TLanguages Lang )
   {
-  QAction* LangActions[] = { sm_Hebrev, sm_English, sm_Russian, sm_Bulgarian };
-  for( TLanguages L = lngHebrew; L <= lngBulgarian; L = ( TLanguages ) ( L + 1 ) )
+  QAction* LangActions[] = { sm_Hebrev, sm_English, sm_Russian, sm_Bulgarian, sm_Ukrainian };
+  for( TLanguages L = lngHebrew; L <= lngUkrainian; L = ( TLanguages ) ( L + 1 ) )
     {
     LangActions[L]->setEnabled( true );
     LangActions[L]->setChecked( false );
@@ -782,9 +804,11 @@ void WinTesting::slotChangeLanguage( TLanguages Lang )
   XPInEdit::sm_Language = Lang;
 //#ifndef DEBUG_TASK
   if( Lang == lngHebrew )
-    s_MainTask.SetFileName( ":/Resources/Main/MAIN.heb" );
+    s_MainTask.SetFileName( s_AppPath + "/Main/MAIN.heb" );
+//    s_MainTask.SetFileName( ":/Resources/Main/MAIN.heb" );
   else
-    s_MainTask.SetFileName( ":/Resources/Main/main.tsk" );
+    s_MainTask.SetFileName( s_AppPath + "/Main/main.tsk" );
+//    s_MainTask.SetFileName( ":/Resources/Main/main.tsk" );
 //#endif
   EdStr::sm_pCodec = QTextCodec::codecForName( Lang == lngHebrew ? "Windows-1255" : "Windows-1251" );
   m_pEditTask->setText( X_Str( "ActionEditTask", "Edit Task File" ) );
@@ -956,13 +980,15 @@ void WinTesting::StartXPRESSTask( const QString& FName, bool Edit )
 
 QString WinTesting::SelectTask()
   {
-  QString Extends( "Hebrew(*.heb)\nEnglish(*.tsk)\nBulgarian(*.tbg)\nRussian(*.tru)" );
+  QString Extends( "Hebrew(*.heb)\nEnglish(*.tsk)\nBulgarian(*.tbg)\nRussian(*.tru)\nUkrainian(*.ukr)" );
   if( XPInEdit::sm_Language == lngEnglish )
-    Extends = "English(*.tsk)\nHebrew(*.heb)\nBulgarian(*.tbg)\nRussian(*.tru)";
+    Extends = "English(*.tsk)\nHebrew(*.heb)\nBulgarian(*.tbg)\nRussian(*.tru)\nUkrainian(*.ukr)";
   if( XPInEdit::sm_Language == lngRussian )
-    Extends = "Russian(*.tru)\nEnglish(*.tsk)\nHebrew(*.heb)\nBulgarian(*.tbg)";
+    Extends = "Russian(*.tru)\nEnglish(*.tsk)\nHebrew(*.heb)\nBulgarian(*.tbg)\nUkrainian(*.ukr)";
   if( XPInEdit::sm_Language ==lngBulgarian )
-    Extends = "Bulgarian(*.tbg)\nEnglish(*.tsk)\nHebrew(*.heb)\nRussian(*.tru)";
+    Extends = "Bulgarian(*.tbg)\nEnglish(*.tsk)\nHebrew(*.heb)\nRussian(*.tru)\nUkrainian(*.ukr)";
+  if( XPInEdit::sm_Language ==lngUkrainian )
+    Extends = "Ukrainian(*.ukr)\nEnglish(*.tsk)\nHebrew(*.heb)\nRussian(*.tru)\nBulgarian(*.tbg)";
   QString FileName = QFileDialog::getOpenFileName( nullptr, X_Str( "LangSwitch_Title", "Task Selecting Dialog" ),
     sm_TaskPath, Extends, nullptr, QFileDialog::ReadOnly );
   if( !FileName.isEmpty() ) sm_TaskPath = FileName;
@@ -2798,6 +2824,198 @@ void SciCalc::Calculator()
   Solve( new TSciCalc );
   }
 
+Calculus::Calculus()
+  {
+  AddButton( ":/Resources/Calculator/Deriv.jpg", "MdiffButton", "Derivative of function written with template", &Calculus::Derivative );
+  AddButton( ":/Resources/Calculator/IndefInt.jpg", "MintegralButton", "Indefinite Integral", &Calculus::IndefIntegr );
+  AddButton( ":/Resources/Calculator/Limit.jpg", "MlimitButton", "Limit", &Calculus::Limit );
+  AddButton( ":/Resources/Calculator/DerivFun.jpg", "MoldDiffButton", "Derivative of function from variable x", &Calculus::DerivFunc );
+  AddButton( ":/Resources/Calculator/DefInt.jpg", "MdefIntegralButton", "Definite Integral", &Calculus::DefIntegr );
+  AddButton( ":/Resources/Calculator/EigenVals.jpg", "MComplxNmbr", "Eigen values of Matrix", &Calculus::EigenValues );
+  AddButton( ":/Resources/Calculator/Determinant.jpg", "MBitBtnDtrmnntMHint", "Determinant of Matrix", &Calculus::Determinant );
+  AddButton( ":/Resources/Calculator/Transpose.jpg", "MBitBtnTranspMHint", "Transposition of Matrix", &Calculus::Transposition );
+  AddButton( ":/Resources/Calculator/MatrixInv.jpg", "ManalCalcButton", "Matrix Inversion", &Calculus::MatrixInv );
+  }
+
+void Calculus::AddButton( const QString& Icon, const QByteArray& Hint, const QByteArray& DefaultHint, void ( Calculus::*Slot )( ) )
+  {
+  CalcButton *pButton = CalcWidget::AddButton( Icon, Hint, DefaultHint );
+  QObject::connect( pButton, &CalcButton::clicked, this, Slot );
+  }
+
+void Calculus::Derivative()
+  {
+  Solve( new TDerivative );
+  }
+
+void Calculus::IndefIntegr()
+  {
+  Solve( new TIndefIntegr );
+  }
+
+void Calculus::Limit()
+  {
+  Solve( new TLimitCreator );
+  }
+
+void Calculus::DerivFunc()
+  {
+  Solve( new TDiff );
+  }
+
+void Calculus::DefIntegr()
+  {
+  Solve( new TDefIntegrate );
+  }
+
+void Calculus::EigenValues()
+  {
+  Solve( new TEigen );
+  }
+
+void Calculus::Determinant()
+  {
+  Solve( new TDeterminant );
+  }
+
+void Calculus::Transposition()
+  {
+  Solve( new TTransposer );
+  }
+
+void Calculus::MatrixInv()
+  {
+  Solve( new TInverter );
+  }
+
+Trigo::Trigo()
+  {
+  AddButton( ":/Resources/Calculator/DoubleAngle.jpg", "MAngle2Hint", "Double angle formulas", &Trigo::Angle2 );
+  AddButton( ":/Resources/Calculator/TripleAngle.jpg", "MAngle3Hint", "Triple angle formulas", &Trigo::Angle3 );
+  AddButton( ":/Resources/Calculator/Tan2.jpg", "MTan2Hint", "Basic functions in terms of tangent of half angle", &Trigo::Tan2 );
+  AddButton( ":/Resources/Calculator/Alpha2.jpg", "MAlpha2Hint", "Half angle formulas", &Trigo::Alpha2 );
+  AddButton( ":/Resources/Calculator/Priv.jpg", "MPrivHint", "Reduction formulas", &Trigo::Priv );
+  AddButton( ":/Resources/Calculator/TrigoOfSumma.jpg", "MTrigOfSummaHint", "Addition formulas", &Trigo::TrigOfSumma );
+  AddButton( ":/Resources/Calculator/Summ_Mult.jpg", "MSumm_MultHint", "Sum to product formulas", &Trigo::Summ_Mult );
+  AddButton( ":/Resources/Calculator/Trigo_Summ.jpg", "MTrigo_SummHint", "Product to sum formulas", &Trigo::Trigo_Summ );
+  AddButton( ":/Resources/Calculator/CalcTrigo.jpg", "MCalcTrigoHint", "Trigo-calculator", &Trigo::CalcTrigo );
+  }
+
+void Trigo::AddButton( const QString& Icon, const QByteArray& Hint, const QByteArray& DefaultHint, void ( Trigo::*Slot )( ) )
+  {
+  CalcButton *pButton = CalcWidget::AddButton( Icon, Hint, DefaultHint );
+  QObject::connect( pButton, &CalcButton::clicked, this, Slot );
+  }
+
+void Trigo::Angle2()
+  {
+  Solve( new TAngle2 );
+  }
+
+void Trigo::Angle3()
+  {
+  Solve( new TAngle3 );
+  }
+
+void Trigo::Tan2()
+  {
+  Solve( new TTan2 );
+  }
+
+void Trigo::Alpha2()
+  {
+  Solve( new TAlpha2 );
+  }
+
+void Trigo::Priv()
+  {
+  Solve( new TPriv );
+  }
+
+void Trigo::TrigOfSumma()
+  {
+  Solve( new TTrigoOfSumma );
+  }
+
+void Trigo::Summ_Mult()
+  {
+  Solve( new TSumm_Mult );
+  }
+
+void Trigo::Trigo_Summ()
+  {
+  Solve( new TTrigo_Summ );
+  }
+
+void Trigo::CalcTrigo()
+  {
+  Solve( new TSciCalc );
+  }
+
+Advanced::Advanced()
+  {
+  AddButton( ":/Resources/Calculator/Permut.jpg", "MPerCount", "Permutation of n of n", &Advanced::Permut );
+  AddButton( ":/Resources/Calculator/BinomCoeff.jpg", "MBinomCoef", "Binomial Coefficient", &Advanced::BinomCoef);
+  AddButton( ":/Resources/Calculator/Accomod.jpg", "MPlcmCoef", "Permutation of k of n", &Advanced::Accomod );
+  AddButton( ":/Resources/Calculator/Statistics.jpg", "MMStatist", "Statistics", &Advanced::Statistic );
+  AddButton( ":/Resources/Calculator/Correl.jpg", "MCorreletion", "Correlation", &Advanced::Correl );
+  AddButton( ":/Resources/Calculator/LineProg.jpg", "MLinProg", "Linear Programming", &Advanced::LineProgr );
+  AddButton( ":/Resources/Calculator/AlgToTrigo.jpg", "MAlgToTrigo", "From Algebraic To Trigonometric Form", &Advanced::AlgToTrigon );
+  AddButton( ":/Resources/Calculator/ComplexOp.jpg", "MCalcIm", "Operations between Complex numbers", &Advanced::ComplexOp );
+  AddButton( ":/Resources/Calculator/AdvGrPrez.jpg", "MRatInEqAl2Hint", "Graphical Presentation", &Advanced::Present );
+  }
+
+void Advanced::AddButton( const QString& Icon, const QByteArray& Hint, const QByteArray& DefaultHint, void ( Advanced::*Slot )( ) )
+  {
+  CalcButton *pButton = CalcWidget::AddButton( Icon, Hint, DefaultHint );
+  QObject::connect( pButton, &CalcButton::clicked, this, Slot );
+  }
+
+void Advanced::Permut()
+  {
+  Solve( new Permutations );
+  }
+
+void Advanced::BinomCoef()
+  {
+  Solve( new BinomCoeff );
+  }
+
+void Advanced::Accomod()
+  {
+  Solve( new Accomodations );
+  }
+
+void Advanced::Statistic()
+  {
+  Solve( new Statistics );
+  }
+
+void Advanced::Correl()
+  {
+  Solve( new Correlation );
+  }
+
+void Advanced::LineProgr()
+  {
+  Solve( new SysInEqXY );
+  }
+
+void Advanced::AlgToTrigon()
+  {
+  Solve( new AlgToTrigo );
+  }
+
+void Advanced::ComplexOp()
+  {
+  Solve( new ComplexOper );
+  }
+
+void Advanced::Present()
+  {
+  Solve( new RatInEq );
+  }
+
 CalcButton::CalcButton( const QByteArray& Hint, const QByteArray& DefaultHint, const QString& Icon, bool bToTitle ) : m_Hint( Hint ), m_DefaultHint( DefaultHint )
   {
   LangSwitch();
@@ -2843,7 +3061,6 @@ void CalcWidget::LangSwitch()
 
 void CalcWidget::Solve( Solver *pSolver )
   {
-
   auto Final = [&] ()
     {
     delete pSolver;
@@ -2851,10 +3068,11 @@ void CalcWidget::Solve( Solver *pSolver )
     };
   WinTesting::sm_pBottomWindow->RestoreTrigonomSystem();
   s_NoRootReduce = false;
+  s_IntegralCount = 0;
   QByteArray Formula( Panel::sm_pEditor->Write() );
   if( Formula.isEmpty() ) return Final();
   bool TestMode = Solver::sm_TestMode && sm_Result.device()->isOpen();
-  if( TestMode && pSolver->Code() == -1 )
+  if( TestMode && pSolver->Code() == ESolvTestMode )
     {
     TestMode = false;
     QMessageBox::information( nullptr, "No Test Mode", "For this operation Test Mode not exists" );
@@ -2871,7 +3089,9 @@ void CalcWidget::Solve( Solver *pSolver )
   try
     {
     ExpStore::sm_pExpStore->Init_var();
+    Solver::m_OldExpr.Clear();
     TSolutionChain::sm_SolutionChain.Clear();
+    s_LastError.clear();
     pSolver->SetExpression( Formula );
     }
   catch( ErrParser& Err )
@@ -2884,7 +3104,7 @@ void CalcWidget::Solve( Solver *pSolver )
       WinTesting::sm_pOutWindow->AddExp( Panel::sm_pEditor->m_pInEdit->SWrite() );
     else
       WinTesting::sm_pOutWindow->AddExp( Result );
-    WinTesting::sm_pOutWindow->AddComm( Err.Message() );
+    WinTesting::sm_pOutWindow->AddComm( Err.WMessage() );
     if( TestMode )
       {
       sm_Result << Err.Message() << "\r\n";
@@ -2894,8 +3114,7 @@ void CalcWidget::Solve( Solver *pSolver )
     }
   MathExpr Result = pSolver->Result();
   QString Comment = TSolutionChain::sm_SolutionChain.GetLastComment();
-  if(!Comment.isEmpty())
-    WinTesting::sm_pOutWindow->AddComm( Comment );
+//  if( Result.IsEmpty() || !s_LastError.isEmpty())
   if( Result.IsEmpty() )
     {
     WinTesting::sm_pOutWindow->AddComm( s_LastError );
@@ -2908,7 +3127,21 @@ void CalcWidget::Solve( Solver *pSolver )
     if( Result.IsEmpty() )
       WinTesting::sm_pOutWindow->AddComm( X_Str( "MNotSuitableExpr", "Not suitable expression!" ) );
     else
-      WinTesting::sm_pOutWindow->AddExp( Result );
+      {
+      Lexp L(Result);
+      for( PExMemb pMemb = L.First(); !pMemb.isNull(); pMemb = pMemb->m_pNext )
+        {
+        MathExpr Memb = pMemb->m_Memb;
+        if(IsType(TStr, Memb))
+          {
+          QString S = QString::fromUtf8(Memb.WriteE());
+          S = S.mid(1, S.count() - 2);
+          WinTesting::sm_pOutWindow->AddComm(S);
+          }
+        else
+          WinTesting::sm_pOutWindow->AddExp( Memb );
+        }
+      }
     return Final();
     }
   QString Comm;

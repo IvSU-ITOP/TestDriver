@@ -12,22 +12,6 @@
         <file>Resources/tirgul.png</file>
         <file>Resources/ShowMult.jpg</file>
         <file>Resources/ShowUnar.jpg</file>
-        <file>Resources/Main/Chart1.jpg</file>
-        <file>Resources/Main/Chart2.jpg</file>
-        <file>Resources/Main/Chart3.jpg</file>
-        <file>Resources/Main/Chart4.jpg</file>
-        <file>Resources/Main/Chart5.jpg</file>
-        <file>Resources/Main/Chart6.jpg</file>
-        <file>Resources/Main/Cop2Word1.jpg</file>
-        <file>Resources/Main/Cop2Word2.jpg</file>
-        <file>Resources/Main/Cop2Word3.jpg</file>
-        <file>Resources/Main/EdKeys6.jpg</file>
-        <file>Resources/Main/EXPR1.jpg</file>
-        <file>Resources/Main/MAIN.heb</file>
-        <file>Resources/Main/main.tsk</file>
-        <file>Resources/Main/Table1.jpg</file>
-        <file>Resources/Main/Table2.jpg</file>
-        <file>Resources/Main/Table3.jpg</file>
         <file>Resources/btnRestoreHistory.jpg</file>
         <file>Resources/btnSaveHistory.jpg</file>
         <file>Resources/bd_insrow.png</file>
@@ -92,5 +76,32 @@
         <file>Resources/UndoSelfTest.jpg</file>
         <file>Resources/InpAnswer.jpg</file>
         <file>Resources/SelfTest.jpg</file>
+        <file>Resources/Calculator/MatrixInv.jpg</file>
+        <file>Resources/Calculator/Transpose.jpg</file>
+        <file>Resources/Calculator/Determinant.jpg</file>
+        <file>Resources/Calculator/EigenVals.jpg</file>
+        <file>Resources/Calculator/DefInt.jpg</file>
+        <file>Resources/Calculator/DerivFun.jpg</file>
+        <file>Resources/Calculator/IndefInt.jpg</file>
+        <file>Resources/Calculator/Deriv.jpg</file>
+        <file>Resources/Calculator/Limit.jpg</file>
+        <file>Resources/Calculator/CalcTrigo.jpg</file>
+        <file>Resources/Calculator/Trigo_Summ.jpg</file>
+        <file>Resources/Calculator/Summ_Mult.jpg</file>
+        <file>Resources/Calculator/TrigoOfSumma.jpg</file>
+        <file>Resources/Calculator/Alpha2.jpg</file>
+        <file>Resources/Calculator/Priv.jpg</file>
+        <file>Resources/Calculator/Tan2.jpg</file>
+        <file>Resources/Calculator/TripleAngle.jpg</file>
+        <file>Resources/Calculator/DoubleAngle.jpg</file>
+        <file>Resources/Calculator/AdvGrPrez.jpg</file>
+        <file>Resources/Calculator/ComplexOp.jpg</file>
+        <file>Resources/Calculator/AlgToTrigo.jpg</file>
+        <file>Resources/Calculator/LineProg.jpg</file>
+        <file>Resources/Calculator/Correl.jpg</file>
+        <file>Resources/Calculator/Statistics.jpg</file>
+        <file>Resources/Calculator/Accomod.jpg</file>
+        <file>Resources/Calculator/BinomCoeff.jpg</file>
+        <file>Resources/Calculator/Permut.jpg</file>
     </qresource>
 </RCC>

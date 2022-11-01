@@ -13,6 +13,7 @@
 //#include <qtextdocument.h>
 //#include <QTextImageFormat>
 #include "../TaskFileManager/taskfilemanager.h"
+#include "../Mathematics/Algebra.h"
 
 const char s_Temp[] = "C:/ProgramData/Halomda/DataServer/";
 void ReadyRead( const QByteArray& Args ); //функция проверяет готовность
@@ -48,6 +49,7 @@ class DataTask : public BaseTask
     virtual void OutTemplate( const QByteArray& sTemp ) {};
     virtual PPromptDescr OneStepPrompt() { return PPromptDescr(); }
     virtual PPromptDescr OptStepPrompt() { return PPromptDescr(); }
+    bool ExactCompare() { return m_ExactCompare; }
   };
 
 class Thread : public QThread 
@@ -63,9 +65,13 @@ class Thread : public QThread
   QByteArray m_Charset;
   QString m_TempPath; //?
   QTime m_Time; //?
+  MathExpr m_Expression;
+  QByteArray m_Formula;
   bool m_Critical; //Признак монопольного режима.
-
   enum Parms { prmUser, prmTopic, prmHid, prmPathFile, prmPassword, prmTaskType, prmDatabase, prmURL, prmCharset };
+  QVector<Solvers> m_SolvIndexes;
+  void Solve( Solver*);
+  void SearchSolve(QByteArray& Formula);
   public:
     Thread( int iSockID, QObject *parent ) : QThread( parent ), m_SocketDescriptor( iSockID ), m_Critical(false) {}
     virtual void run();  //Эта функция выполнения поток.
@@ -80,5 +86,5 @@ class ContentCreator : public RichTextDocument
   {
   public:
     ContentCreator( const QString& TempPath ) : RichTextDocument( TempPath ) {}
-    QByteArray GetContent( PDescrList );
+    QByteArray GetContent( PDescrList, bool Center = false );
   };

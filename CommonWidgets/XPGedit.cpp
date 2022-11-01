@@ -151,15 +151,6 @@ void XPGedit::RefreshXPE()
 //  TMult::sm_ShowUnarMinus = true;
 //  TSumm::sm_ShowMinusByAddition = false;
 	m_pInEdit->EditDraw();
-  int dh = m_pInEdit->m_Size.height() - height();
-  bool bScroll = m_KeyPressed && dh > 0;
-  m_KeyPressed = false;
-//  SetSize(m_pInEdit->m_Size);
-  if( bScroll )
-    {
-    QScrollBar *pScrollBar = m_pScrollArea->verticalScrollBar();
-    pScrollBar->setValue(pScrollBar->value() + dh);
-    }
 	MoveCursor();
   m_Refreshing = false;
   repaint();
@@ -174,7 +165,6 @@ bool XPGedit::EdKeyPress( QKeyEvent *pMessage )
   A = char( pMessage->key() );
   if ( !_printable( A ) ) exit(1);
   Uact.act = actPrintable;
-  m_KeyPressed = true;
   Uact = A;
   Editor( Uact );
   return true;
@@ -239,7 +229,9 @@ void XPGedit::dropEvent( QDropEvent *event )
   qDebug() << "Formula: " + Formula;
   m_pInEdit->SetMathFont();
   s_iDogOption = 1;
+  Parser::sm_Drop = true;
   MathExpr Expr = MathExpr( Parser::StrToExpr( Formula ) );
+  Parser::sm_Drop = false;
   s_iDogOption = 0;
   if( s_GlobalInvalid || Expr.IsEmpty() ) return;
   Formula = Expr.SWrite();
@@ -474,6 +466,7 @@ void XPGedit::keyPressEvent( QKeyEvent *pE )
   auto Default = [&] ()
     {
 //    char C = pE->text()[0].cell();
+    //    char C = FromLang(pE->text())[0];
     char C = FromLang(pE->text())[0];
     if( C == 0 || !_printable( C ) ) return;
     Uact = C;
@@ -644,7 +637,7 @@ void XPGedit::SaveFormula()
   sFormula = sFormula.toBase64();
   QTextStream FS( &Fout );
   FS << "<html>\n<head>\n<title>Picture</title>\n</head>\n<body>\n" << Text << "<br>";
-  FS << "<img src=\"data:image/png;base64," << sFormula << "\">\n</body>\n</html>";
+  FS << "<img src=\"data:image/png; base64, " << sFormula << "\">\n</body>\n</html>";
   }
 
 void XPGedit::RestoreFormula( const QByteArray& Formula )

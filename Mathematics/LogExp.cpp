@@ -1595,7 +1595,7 @@ Lexp CalcIrratEq( const QByteArray& Source, bool PutSource, bool Recurs )
         try
           {
           ex1 = SourceEq.Substitute( "x", f->m_Memb );
-          ex1.Reduce().Boolean_( IsRoot );
+          ex1.SimplifyFull().Boolean_( IsRoot );
           Define = true;
           }
         catch( ErrParser )
@@ -3950,6 +3950,7 @@ bool CalcExpEq( const QByteArray& Source, bool Recurs )
   bool CalcOnlyOld = s_CalcOnly;
   bool OldNoRootReduce = s_NoRootReduce;
   bool Result = false;
+  TExpr::sm_FullReduce = true;
   auto Final = [&] ()
     {
     s_CalcOnly = CalcOnlyOld;

@@ -1,19 +1,21 @@
 #ifndef MATH_STATISTICS
 #define MATH_STATISTICS
 #include "ExpOb.h"
-#include <qglobal.h>
-
-MathExpr GaussProbability( const MathExpr& Ex );
-MATHEMATICS_EXPORT int Random( int Max );
-MATHEMATICS_EXPORT void Randomize();
-#include <qstring.h>
+//#include <QGlobal>
+#include <QString>
 #include <math.h>
 #include <time.h>
 #include <QVector>
 
+MathExpr GaussProbability( const MathExpr& Ex );
+MATHEMATICS_EXPORT int Random( int Max );
+MATHEMATICS_EXPORT void Randomize();
+void CalcStatistics(MathExpr&);
+void CalcCorrelation(MathExpr&);
 using namespace std;
 
 typedef unsigned long long uLong;
+int const SecLength = 10;
 
 class TRandom
   {

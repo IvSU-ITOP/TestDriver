@@ -566,6 +566,8 @@ QByteArray Parser::FullPreProcessor( const QByteArray& ASource, const QByteArray
   if( ASource.isEmpty() ) return "";
   m_DerivativeWithBrackets = false;
   m_FixCount = -1;
+  if(ASource[0] == '"' && ASource[1] == msBaseLang )
+    return ASource;
   QByteArray s, s1;
 
   auto InsideQuotes = [&] ( int pos )
@@ -1606,7 +1608,6 @@ PNode  Parser::TestAnyExpr( bool &AllOk, QByteArray& ASource, const QByteArray& 
 MathExpr Parser::OutPut( PNode p ) // The tree of solution will be transformed to expression
   {
   if( p == nullptr ) return nullptr;
-
   MathExpr Result;
   typedef QVector<MathExpr> TArgs;
   MathExpr op1, op2, op11, op22, Exp;
@@ -1710,7 +1711,7 @@ MathExpr Parser::OutPut( PNode p ) // The tree of solution will be transformed t
             Result = op1;
             }
           else
-            Result = op1 - op2;
+            Result = new TSubt(op1, op2);
       break;
     case msPlusMinus:
       if( op1 == nullptr )
@@ -2021,8 +2022,10 @@ MathExpr Parser::OutPut( PNode p ) // The tree of solution will be transformed t
           Result = new TUnar( op2 );
       break;
     case 'i':
-    case  'f':
       Result = new TConstant( p->m_Info.toDouble() );
+      break;
+    case  'f':
+      Result = new TConstant( p->m_Info.toDouble(), false, true );
       break;
     case 'd':
       Result = new TDegExpr( p->m_Info );
@@ -2065,6 +2068,26 @@ MathExpr Parser::OutPut( PNode p ) // The tree of solution will be transformed t
         }
       break;
     case  'M':
+      if(sm_Drop )
+        {
+        if( (char) p->m_Info[0] == msMetaSign )
+          {
+          MathExpr IntExp = Variable(p->m_Info, true);
+          if( op2.Divis( op11, op22 ) || op2.SimpleFrac_( op11, op22 ))
+            Result = new TMixedFrac( IntExp, op11, op22 );
+          else
+            {
+            op2.SimpleFrac_( Nom, Den );
+            Result = new TMixedFrac( IntExp, Nom, Den );
+            }
+          break;
+          }
+        if(op2.SimpleFrac_( op11, op22 ) || op2->Divis(op11, op22))
+          {
+          Result = new TMixedFrac( new TConstant(p->m_Info.toInt()), op11, op22 );
+          break;
+          }
+        }
       Int = s_ExpStore.GetValue( p->m_Info );
       if( op2.Divis( op11, op22 ) )
         {
@@ -2106,6 +2129,7 @@ MathExpr Parser::FullStrToExpr( const QByteArray& ASource, const QByteArray& Unc
     }
   Parser P;
   MathExpr Result;
+  QByteArray R;
   try
     {
     Result = P.OutPut( P.AnyExpr( P.FullPreProcessor( ASource, Uncnown ) ) );

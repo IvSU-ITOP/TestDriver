@@ -228,17 +228,17 @@ bool PiProcess( const MathExpr& exi, double& Coeff1, double& Coeff2 )
     SignNeg = exi.Unarminus( modul );
     if( !SignNeg) modul = exi;
     Coeff2 = 1;
-    if( modul.Variab( VarName ) && (char) VarName[0] == msPi ) Coeff1 = 1;
+    if( modul.Variab( VarName ) && VarName[0] == msPi ) Coeff1 = 1;
     if( modul.Multp( op1, op2 ) )
       {
-      if( op1.Variab( VarName ) && ( char ) VarName[0] == msPi ) 
+      if( op1.Variab( VarName ) && VarName[0] == msPi )
         {
-        expo = op2.Reduce();
+        expo = op2.Reduce(true);
         Result = expo.Constan( Coeff1 ) || expo.SimpleFrac_( Coeff1, Coeff2 );
         }
-      if( op2.Variab( VarName ) && ( char ) VarName[0] == msPi )
+      if( op2.Variab( VarName ) && VarName[0] == msPi )
          {
-        expo = op1.Reduce();
+        expo = op1.Reduce(true);
         Result = expo.Constan( Coeff1 ) || expo.SimpleFrac_( Coeff1, Coeff2 );
         }
       }
@@ -248,14 +248,14 @@ bool PiProcess( const MathExpr& exi, double& Coeff1, double& Coeff2 )
         if( op1.Multp( op11, op22 ) )
           {
           Result = true;
-          if( op11.Variab( VarName ) && ( char ) VarName[0] == msPi )
+          if( op11.Variab( VarName ) &&  VarName[0] == msPi )
             Result = op22.Constan( Coeff1 ) && Result;
-          if( op22.Variab( VarName ) && ( char ) VarName[0] == msPi )
+          if( op22.Variab( VarName ) &&  VarName[0] == msPi )
             Result = op11.Constan( Coeff1 ) && Result;
           Result = op2.Constan( Coeff2 ) && Result;
           }
         else
-          if( op1.Variab( VarName ) && ( char ) VarName[0] == msPi )
+          if( op1.Variab( VarName ) &&  VarName[0] == msPi )
             {
             Result = op2.Constan( Coeff2 );
             Coeff1 = 1;
@@ -409,7 +409,7 @@ bool DegSinStandard( double V, MathExpr& DegRes )
         DegRes = new TConstant( 0 );
         break;
       case 30:
-        DegRes = new TDivi( new TConstant( 1 ), new TConstant( 2 ) );
+        DegRes = new TSimpleFrac( 1, 2 );
         break;
       case 45:
         DegRes = new TDivi( new TRoot( new TConstant( 2 ), 2 ), new TConstant( 2 ) );
@@ -427,13 +427,13 @@ bool DegSinStandard( double V, MathExpr& DegRes )
         DegRes = new TDivi( new TRoot( new TConstant( 2 ), 2 ), new TConstant( 2 ) );
         break;
       case 150:
-        DegRes = new TDivi( new TConstant( 1 ), new TConstant( 2 ) );
+        DegRes = new TSimpleFrac( 1, 2 );
         break;
       case 180:
         DegRes = new TConstant( 0 );
         break;
       case 210:
-        DegRes = new TDivi( new TConstant( -1 ), new TConstant( 2 ) );
+        DegRes = new TSimpleFrac( -1, 2 );
         break;
       case 225:
         DegRes = new TUnar( new TDivi( new TRoot( new TConstant( 2 ), 2 ), new TConstant( 2 ) ) );
@@ -451,7 +451,7 @@ bool DegSinStandard( double V, MathExpr& DegRes )
         DegRes = new TUnar( new TDivi( new TRoot( new TConstant( 2 ), 2 ), new TConstant( 2 ) ) );
         break;
       case 330:
-        DegRes = new TDivi( new TConstant( -1 ), new TConstant( 2 ) );
+        DegRes = new TSimpleFrac( -1, 2 );
         break;
       case 360:
         DegRes = new TConstant( 0 );
@@ -478,13 +478,13 @@ bool DegCosStandard( double V, MathExpr& DegRes )
         DegRes = new TDivi( new TRoot( new TConstant( 2 ), 2 ), new TConstant( 2 ) );
         break;
       case 60:
-        DegRes = new TDivi( new TConstant( 1 ), new TConstant( 2 ) );
+        DegRes = new TSimpleFrac( 1, 2 );
         break;
       case 90:
         DegRes = new TConstant( 0 );
         break;
       case 120:
-        DegRes = new TDivi( new TConstant( -1 ), new TConstant( 2 ) );
+        DegRes = new TSimpleFrac( -1, 2 );
         break;
       case 135:
         DegRes = new TUnar( new TDivi( new TRoot( new TConstant( 2 ), 2 ), new TConstant( 2 ) ) );
@@ -502,13 +502,13 @@ bool DegCosStandard( double V, MathExpr& DegRes )
         DegRes = new TUnar( new TDivi( new TRoot( new TConstant( 2 ), 2 ), new TConstant( 2 ) ) );
         break;
       case 240:
-        DegRes = new TDivi( new TConstant( -1 ), new TConstant( 2 ) );
+        DegRes = new TSimpleFrac( -1, 2 );
         break;
       case 270:
         DegRes = new TConstant( 0 );
         break;
       case 300:
-        DegRes = new TDivi( new TConstant( 1 ), new TConstant( 2 ) );
+        DegRes = new TSimpleFrac( 1, 2 );
         break;
       case 315:
         DegRes = new TDivi( new TRoot( new TConstant( 2 ), 2 ), new TConstant( 2 ) );
@@ -534,11 +534,11 @@ bool PiCosStandard( double Coeff1, double Coeff2, MathExpr& PiRes )
   if( ( Coeff1 == 0.25 ) || ( ( Coeff1 == 1 ) && ( Coeff2 == 4 ) ) ) // ---- Pi/4 ----
     PiRes = new TDivi( new TRoot( new TConstant( 2 ), 2 ), new TConstant( 2 ) );
   if( ( ( Coeff1 == 1 ) && ( Coeff2 == 3 ) ) )               // ---- Pi/3 ----
-    PiRes = new TDivi( new TConstant( 1 ), new TConstant( 2 ) );
+    PiRes = new TSimpleFrac( 1, 2 );
   if( ( Coeff1 == 0.5 ) || ( ( Coeff1 == 1 ) && ( Coeff2 == 2 ) ) ) // ---- Pi/2 ----
     PiRes = new TConstant( 0 );
   if( ( ( Coeff1 == 2 ) && ( Coeff2 == 3 ) ) )               // ---- 2*Pi/3 ----
-    PiRes = new TUnar( new TDivi( new TConstant( 1 ), new TConstant( 2 ) ) );
+    PiRes = new TUnar( new TSimpleFrac( 1, 2 ) );
   if( ( Coeff1 == 0.75 ) || ( ( Coeff1 == 3 ) && ( Coeff2 == 4 ) ) )// ---- 3*Pi/4 ----
     PiRes = new TUnar( new TDivi( new TRoot( new TConstant( 2 ), 2 ), new TConstant( 2 ) ) );
   if( ( ( Coeff1 == 5 ) && ( Coeff2 == 6 ) ) )               // ---- 5*Pi/6 ----
@@ -550,11 +550,11 @@ bool PiCosStandard( double Coeff1, double Coeff2, MathExpr& PiRes )
   if( ( Coeff1 == 1.25 ) || ( ( Coeff1 == 5 ) && ( Coeff2 == 4 ) ) )// ---- 5*Pi/4 ----
     PiRes = new TUnar( new TDivi( new TRoot( new TConstant( 2 ), 2 ), new TConstant( 2 ) ) );
   if( ( ( Coeff1 == 4 ) && ( Coeff2 == 3 ) ) )               // ---- 4*Pi/3 ----
-    PiRes = new TUnar( new TDivi( new TConstant( 1 ), new TConstant( 2 ) ) );
+    PiRes = new TUnar( new TSimpleFrac( 1, 2 ) );
   if( ( Coeff1 == 1.5 ) || ( ( Coeff1 == 3 ) && ( Coeff2 == 2 ) ) )// ---- 3*Pi/2 ----
     PiRes = new TConstant( 0 );
   if( ( ( Coeff1 == 5 ) && ( Coeff2 == 3 ) ) )               // ---- 5*Pi/3 ----
-    PiRes = new TDivi( new TConstant( 1 ), new TConstant( 2 ) );
+    PiRes = new TSimpleFrac( 1, 2 );
   if( ( Coeff1 == 1.75 ) || ( ( Coeff1 == 7 ) && ( Coeff2 == 4 ) ) )// ---- 7*Pi/4 ----
     PiRes = new TDivi( new TRoot( new TConstant( 2 ), 2 ), new TConstant( 2 ) );
   if( ( ( Coeff1 == 11 ) && ( Coeff2 == 6 ) ) )             // ---- 11*Pi/6 ----
@@ -1467,4 +1467,411 @@ MathExpr CalcRad2Deg( const MathExpr& exi )
     Result = new TBinar( '=', exi, Result );
   s_XPStatus.SetMessage( X_Str( "MConverting", "Conversion" ) );
   return Result;
+  }
+
+void CheckTanZero(const MathExpr& or1, const MathExpr& or2, int& Status1, int& Status2)
+  {
+  MathExpr orc1, orc2;
+  MathExpr orc1_, orc2_;
+  double V1, V2 ;
+  orc1_ = Parser::StrToExpr(PiVar2PiConst(or1.WriteE()));
+  orc2_ = Parser::StrToExpr(PiVar2PiConst(or2.WriteE()));
+  orc1 = orc1_.Simplify();
+  orc2 = orc2_.Simplify();
+
+  Status1 = 0;
+  Status2 = 0;
+  double Pi = 3.141592653589793238462;
+  if( orc1.Constan(V1) )
+    {
+    V1 = TExpr::TriginomValue(V1);
+    while( V1 < 0 ) V1 = V1 + 2 * Pi;
+    while( (V1 >= 2 * Pi) ) V1 = V1 - 2 * Pi;
+    if( abs( V1 - Pi/2) < 0.000000001 ) Status1 = 1;
+    if( abs(V1 - 3*Pi/2) < 0.000000001 ) Status1 = 2;
+    }
+  if( orc2.Constan(V2) )
+    {
+    V2 = TExpr::TriginomValue(V2);
+    while( V2 < 0 ) V2 = V2 + 2*Pi;
+    while( V2 >= 2*Pi ) V2 = V2 - 2*Pi;
+    if( abs(V2 - Pi/2) < 0.000000001 ) Status2 = 1;
+    if( abs(V2 - 3*Pi/2) <0.000000001 ) Status2 = 2;
+    }
+  }
+
+void CheckCotZero(const MathExpr& or1, const MathExpr& or2, int& Status1, int& Status2, bool const IsPriv = false)
+  {
+  MathExpr orc1, orc2;
+  MathExpr orc1_, orc2_;
+  double V1, V2;
+  orc1_ = Parser::StrToExpr(PiVar2PiConst(or1.WriteE()));
+  orc2_ = Parser::StrToExpr(PiVar2PiConst(or2.WriteE()));
+  orc1 = orc1_.Simplify();
+  orc2 = orc2_.Simplify();
+
+  Status1 = 0;
+  Status2 = 0;
+  double Pi = 3.141592653589793238462;
+  if( orc1.Constan(V1) || ( orc1.Measur_( orc1_, orc2_ ) && orc1_.Constan( V1 ) ) )
+    {
+    V1 = TExpr::TriginomValue(V1);
+    while( V1 < 0 ) V1 = V1 + 2*Pi;
+    while( V1 >= 2*Pi ) V1 = V1 - 2*Pi;
+    if( abs(V1) < 0.000000001 ) Status1=1;
+    if( abs(V1 - Pi) < 0.000000001 ) Status1=2;
+    if( abs(V1 - 2*Pi) < 0.000000001 ) Status1=3;
+    if( (abs(V1 - Pi/2) < 0.000000001) && IsPriv ) Status1=4;
+    if( (abs(V1 - 3*Pi/2) < 0.000000001) && IsPriv ) Status1=5;
+    }
+  if( orc2.Constan(V2) )
+    {
+    V2 = TExpr::TriginomValue(V2);
+    while( V2 < 0 ) V2 = V2 + 2*Pi;
+    while( V2 >= 2*Pi ) V2 = V2 - 2*Pi;
+    if( abs(V2) < 0.000000001 ) Status2=1;
+    if( abs(V2 - Pi) < 0.000000001 ) Status2=2;
+    if( abs(V2 - 2*Pi) < 0.000000001 ) Status2=3;
+    if( (abs(V2 - Pi/2) < 0.000000001) && IsPriv ) Status2=4;
+    if( (abs(V2 - 3*Pi/2) < 0.000000001) && IsPriv ) Status2=5;
+    }
+  }
+
+MathExpr DegOutput(const MathExpr& exo)
+  {
+  QByteArray FuncName ;
+  MathExpr Argument ;
+  double V ;
+  MathExpr ex, exm ;
+  if( TExpr::sm_TrigonomSystem == TExpr::tsDeg && exo.Funct(FuncName,Argument) && IsTrigonom(FuncName) && Argument.Constan(V) &&
+      !Argument.Measur_(ex,exm) )
+    return new TFunc(false, FuncName, new TMeaExpr(Argument,Variable( msDegree )));
+  return exo;
+  }
+
+int PosTrigo(const QByteArray& Line)
+  {
+  int Pcos, Psin, Ptan, Pcot ;
+  QByteArray ULine = Line.toUpper();
+  Pcos = ULine.indexOf("COS");
+  if( Pcos == -1 ) Pcos=10000;
+  Psin = ULine.indexOf("SIN");
+  if( Psin == -1 ) Psin = 10000;
+  Ptan = ULine.indexOf("TAN");
+  if( Ptan == -1 ) Ptan = 10000;
+  Pcot = ULine.indexOf("COT");
+  if( Pcot == -1 ) Pcot = 10000;
+  int Result = min(Pcos, min(Psin, min(Ptan,Pcot)));
+  if( Result == 10000 ) return -1;
+  return Result;
+  }
+
+void Trigo2Str(MathExpr& Exo, MathExpr& Exi)
+  {
+  int P, i, counter;
+  QByteArray ExiIn, ExiSubExpr;
+  MathExpr exiSE, exiSES;
+  QByteArray ExoStr;
+  MathExpr ExoExp;
+  ExiIn = Exi.WriteE();
+  P = PosTrigo(ExiIn);
+  while(P > -1)
+    {
+    ExoStr += ExiIn.left(P);
+    i = P + 3;
+    counter = 0;
+    do
+      {
+      if( ExiIn[i] == '(' ) counter++;
+      if( ExiIn[i] == ')' ) counter--;
+      } while(++i < ExiIn.length() && (counter > 0));
+    ExiSubExpr = ExiIn.mid(P, i - P );
+    ExiIn = ExiIn.mid(i);
+    exiSE = Parser::StrToExpr(ExiSubExpr);
+    exiSES = exiSE.SimplifyFull();
+    ExoStr += '(' + exiSES.WriteE() + ')';
+    P = PosTrigo(ExiIn);
+    }
+  ExoStr += ExiIn;
+  ExoExp = Parser::StrToExpr(ExoStr);
+  if( Exi.WriteE() != ExoExp.WriteE() )
+    {
+    Exi = Parser::StrToExpr(ExoStr);
+    Exo = new TBinar('=', Exo, Exi );
+    }
+  }
+
+bool MakeTrigonometric( const MathExpr& exi, MathExpr& exo, bool IsPriv )
+  {
+  QByteArray FuncName;
+  MathExpr Argument;
+  bool IsSumma;
+  MathExpr Op1, Op2;
+  MathExpr Or1, Or2;
+  MathExpr alpha, betta;
+  int TanStatus1, TanStatus2;
+  int CotStatus1, CotStatus2;
+  MathExpr tan1, tan2;
+  MathExpr cot1,cot2;
+  exo.Clear();
+  bool Result =exi.Funct(FuncName,Argument);
+  IsSumma = Argument.Summa(Op1,Op2);
+  Result = Result && (IsSumma || Argument.Subtr(Op1,Op2));
+  if( !Result ) return false;
+   Or1 = Op1.Reduce();
+   Or2 = Op2.Reduce();
+   if( FuncName == "sin" )
+     {
+     if( IsSumma )
+       exo = DegOutput(Function("sin", Or1)) * DegOutput(Function("cos", Or2)) +
+         DegOutput(Function("cos", Or1)) * DegOutput(Function("sin", Or2));
+     else
+       exo = DegOutput(Function("sin", Or1)) * DegOutput(Function("cos", Or2)) -
+         DegOutput(Function("cos", Or1)) * DegOutput(Function("sin", Or2));
+     }
+   if( FuncName  == "cos" )
+     {
+     if( IsSumma )
+       exo = DegOutput(Function("cos", Or1)) * DegOutput(Function("cos", Or2)) -
+         DegOutput(Function("sin", Or1)) * DegOutput(Function("sin", Or2));
+     else
+       exo = DegOutput(Function("cos", Or1)) * DegOutput(Function("cos", Or2)) +
+         DegOutput(Function("sin", Or1 )) * DegOutput(Function("sin", Or2));
+     }
+
+   if( FuncName=="tan" )
+     {
+     CheckTanZero(Or1, Or2, TanStatus1, TanStatus2);
+     alpha = DegOutput(Function( "tan", Or1 ));
+     betta = DegOutput(Function( "tan", Or2 ));
+     if( TanStatus1==0 && TanStatus2==0 )
+       {
+       if( IsSumma )
+         exo = (alpha + betta) / ( Constant(1) - alpha * betta );
+       else
+         exo = (alpha - betta) / ( Constant(1) + alpha * betta );
+       }
+     else
+       {
+       exo.Clear();
+       if( TanStatus1 != 0 || TanStatus2 !=0 )
+         {
+         cot1 = DegOutput(Function( "cot", Or1 ));
+         cot2 = DegOutput(Function( "cot", Or2 ));
+         if( IsSumma && TanStatus1 == 1 && TanStatus2 == 0 ) exo = -cot2;
+         if( IsSumma && TanStatus1 == 2 && TanStatus2 == 0 ) exo = -cot2;
+         if( !IsSumma && TanStatus1 == 1 && TanStatus2 == 0 ) exo = cot2;
+         if( !IsSumma && TanStatus1 == 2 && TanStatus2 == 0 ) exo = cot2;
+         if( IsSumma && TanStatus1 == 0 && TanStatus2 == 1) exo = -cot1;
+         if( IsSumma && TanStatus1 == 0 && TanStatus2 == 2) exo = -cot1;
+         if( !IsSumma && TanStatus1 == 0 && TanStatus2 == 1) exo = -cot1;
+         if( !IsSumma && TanStatus1 == 0 && TanStatus2 == 2) exo= -cot1;
+         }
+      }
+   }
+  if( FuncName == "cot" )
+     {
+     CheckCotZero( Or1, Or2, CotStatus1, CotStatus2, IsPriv);
+    if( CotStatus1 == 0 && CotStatus2 == 0 )
+      {
+      alpha = DegOutput(Function( "cot", Or1 ));
+      betta = DegOutput(Function( "cot", Or2 ));
+      if( IsSumma )
+        exo = ( alpha * betta - Constant(1) ) / ( alpha + betta);
+      else
+        exo = ( alpha * betta + Constant(1) ) / ( betta - alpha);
+      }
+    else
+      {
+      exo.Clear();
+      if( CotStatus1 != 0 || CotStatus2 )
+        {
+        tan1 = DegOutput(Function( "tan", Or1 ));
+        tan2 = DegOutput(Function( "tan", Or2 ));
+        cot1 = DegOutput(Function( "cot", Or1 ));
+        cot2 = DegOutput(Function( "cot", Or2 ));
+       if( IsSumma && CotStatus1 == 1 && CotStatus2 == 0 ) exo = cot2;
+       if( IsSumma && CotStatus1 == 2 && CotStatus2 == 0 ) exo = cot2;
+       if( IsSumma && CotStatus1 == 3 && CotStatus2 == 0 ) exo = cot2;
+       if( IsSumma && CotStatus1 == 4 && CotStatus2 == 0 ) exo= -tan2;
+       if( IsSumma && CotStatus1 == 5 && CotStatus2 == 0 ) exo = -tan2;
+       if( !IsSumma && CotStatus1 == 1 && CotStatus2 == 0 ) exo= -cot2;
+       if( !IsSumma && CotStatus1 == 2 && CotStatus2 == 0 ) exo= -cot2;
+       if( !IsSumma && CotStatus1 == 3 && CotStatus2 == 0) exo= -cot2;
+       if( !IsSumma && CotStatus1 == 4 && CotStatus2 == 0) exo = tan2;
+       if( !IsSumma && CotStatus1 == 5 && CotStatus2 == 0) exo = tan2;
+       if( IsSumma && CotStatus1 == 0 && CotStatus2 == 1) exo = cot1;
+       if( IsSumma && CotStatus1 == 0 && CotStatus2 == 2) exo = cot1;
+       if( IsSumma && CotStatus1 == 0 && CotStatus2 == 3) exo = cot1;
+       if( IsSumma && CotStatus1 == 0 && CotStatus2 == 4) exo = -tan1;
+       if( IsSumma && CotStatus1 == 0 && CotStatus2 == 5) exo = -tan1;
+       if( !IsSumma && CotStatus1 == 0 && CotStatus2 == 1) exo = cot1;
+       if( !IsSumma && CotStatus1 == 0 && CotStatus2 == 2) exo = cot1;
+       if( !IsSumma && CotStatus1 == 0 && CotStatus2 == 3) exo = cot1;
+       if( !IsSumma && CotStatus1 == 0 && CotStatus2 == 4) exo= -tan1;
+       if( !IsSumma && CotStatus1 == 0 && CotStatus2 == 5) exo= -tan1;
+       }
+     }
+   }
+ return !exo.IsEmpty();
+ }
+
+bool MakeSummaTrigonometric( const MathExpr& exi, MathExpr& exo )
+  {
+  MathExpr Op1, Op2;
+  MathExpr m1, m2;
+  bool IsSumma;
+  MathExpr alpha, betta;
+  QByteArray FuncName1, FuncName2;
+  MathExpr ab1, ab2;
+  MathExpr abr, abs;
+  double v ;
+  exo.Clear();
+  IsSumma = exi.Summa(Op1,Op2);
+  bool Result = IsSumma || exi.Subtr(Op1, Op2);
+  Result = Result && Op1.Funct(FuncName1, alpha) && Op2.Funct(FuncName2, betta);
+  Result = Result && FuncName1 == FuncName2;
+  Result = Result && (IsTrigonom(FuncName1));
+  if( Result )
+    {
+    alpha = alpha.Reduce();
+    betta = betta.Reduce();
+    ab1 = ( alpha + betta) / Constant( 2 );
+    ab1 = ab1.ReduceTExprs();
+    ab2 = (alpha - betta) / Constant( 2 );
+    ab2 = ab2.ReduceTExprs();
+    if( TExpr::sm_TrigonomSystem == TExpr::tsDeg && !ab1.Measur_(m1,m2) && ab1.IsNumericalValue(v) )
+      ab1 = new TMeaExpr(ab1, Variable( msDegree ));
+    if( TExpr::sm_TrigonomSystem == TExpr::tsDeg && !ab2.Measur_(m1,m2) && ab2.IsNumericalValue(v) )
+       ab2 = new TMeaExpr(ab2, Variable( msDegree ));
+
+    if( FuncName1 == "sin" )
+      {
+      if( IsSumma )
+        exo = DegOutput(Function( "sin", ab1 ) ) * DegOutput(Function( "cos", ab2 ));
+      else
+        exo = DegOutput(Function( "cos", ab1) ) * DegOutput(Function( "sin", ab2 ));
+      exo = Constant( 2 ) * exo;
+      }
+
+    if( FuncName1 == "cos" )
+      {
+      if( IsSumma )
+        exo = DegOutput(Function( "cos", ab1 ) ) * DegOutput(Function( "cos", ab2 ));
+      else
+        exo = DegOutput(Function( "sin", ab1 ) ) * DegOutput(Function( "sin", ab2 ));
+      exo= Constant( 2 ) * exo;
+      if( !IsSumma ) exo = -exo;
+      }
+
+    if( FuncName1 == "tan" )
+      {
+      abr = alpha + betta;
+      abr = abr.ReduceTExprs();
+      abs = alpha - betta;
+      abs = abs.ReduceTExprs();
+      if( IsSumma )
+        exo = DegOutput(Function( "sin", abr )) / ( DegOutput(Function( "cos", alpha )) * DegOutput(Function( "cos", betta )) );
+      else
+        exo = DegOutput(Function( "sin", abs ) ) / ( DegOutput(Function( "cos", alpha)) * DegOutput(Function( "cos", betta ) ));
+      }
+
+    if( FuncName1 == "cot" )
+      {
+      abr = alpha + betta;
+      abs = alpha - betta;
+      if( IsSumma )
+        exo = DegOutput(Function( "sin", abr ) ) / ( DegOutput(Function( "sin", alpha ) ) * DegOutput(Function( "sin", betta ) ));
+      else
+        exo = DegOutput(Function("sin", abs) ) / (DegOutput(Function( "sin", alpha) ) * DegOutput(Function("sin", betta) ));
+      if( !IsSumma ) exo= -exo;
+      }
+    }
+  return !exo.IsEmpty();
+  }
+
+bool MakeMultTrigonometric( const MathExpr& exi, MathExpr& exo )
+  {
+  MathExpr op1, op2;
+  MathExpr m1 , m2;
+  MathExpr alpha, betta;
+  QByteArray FuncName1, FuncName2;
+  MathExpr ab1, ab2;
+  double v;
+  exo.Clear();
+  bool Result = exi.Multp(op1,op2) && op1.Funct(FuncName1, alpha) && op2.Funct(FuncName2, betta);
+  ab1 = alpha - betta;
+  ab1 = ab1.ReduceTExprs();
+  ab2 = alpha + betta;
+  ab2 = ab2.ReduceTExprs();
+
+   if( TExpr::sm_TrigonomSystem == TExpr::tsDeg && !ab1.Measur_(m1,m2) && ab1.IsNumericalValue(v) )
+     ab1 = new TMeaExpr(ab1,Variable( msDegree ));
+
+   if( TExpr::sm_TrigonomSystem == TExpr::tsDeg && !ab2.Measur_(m1,m2) && ab2.IsNumericalValue(v) )
+     ab2 = new TMeaExpr(ab2,Variable( msDegree ));
+
+   if( Result )
+     {
+     if( FuncName1 == "sin" && FuncName2 == "sin")
+       exo = DegOutput(Function( "cos", ab1 )) - DegOutput(Function( "cos", ab2 ));
+     if( FuncName1 == "sin" && FuncName2 == "cos")
+       exo = DegOutput(Function("sin", ab1)) + DegOutput(Function( "sin", ab2 ));
+     if( FuncName1 == "cos" && FuncName2 == "sin" )
+       exo = DegOutput(Function( "sin", betta ) - alpha ) + DegOutput(Function( "sin", betta) + alpha);
+     if( FuncName1 == "cos" && FuncName2 == "cos" )
+       exo = DegOutput(Function( "cos", ab1 )) + DegOutput(Function("cos", ab2));
+     if( FuncName1 == "tan" && FuncName2 == "tan" )
+       exo = ( DegOutput(Function( "cos", ab1 )) - DegOutput(Function( "cos", ab2 ) )) /
+         ( DegOutput(Function( "cos", ab1 )) + DegOutput(Function( "cos", ab2 )) );
+     if( FuncName1 == "cot" && FuncName2 == "cot" )
+       exo = ( DegOutput(Function( "cos", ab1 ) ) + DegOutput(Function( "cos", ab2 )) ) /
+         ( DegOutput(Function( "cos", ab1 )) - DegOutput(Function( "cos", ab2 )));
+
+     }
+   if( !exo.IsEmpty() && FuncName1 != "tan" && FuncName1 != "cot" )
+     exo = Constant( 1 ) / Constant( 2 ) * exo;
+  return !exo.IsEmpty();
+  }
+
+MathExpr OutPutTrigonom(const MathExpr& exi, MathExpr& exo)
+  {
+  MathExpr exol;
+  MathExpr exoo;
+  MathExpr arg, ex, exm;
+  QByteArray fname;
+  double C1, C2;
+
+  auto Check90 = [] (const MathExpr& ex, int r)
+    {
+    int  v;
+    if( !(TExpr::sm_TrigonomSystem == TExpr::tsDeg) ) return false;
+    if( !ex.Cons_int(v) ) return false;
+    if( (v-r) % 180 == 0 ) return true;
+    return false;
+    };
+
+  exi.Funct(fname,arg);
+  arg = arg.Reduce();
+  if( arg.Measur_(ex,exm) )
+    arg = ex;
+  if( ( fname == "tan" && ( Check90(arg, 90) || ( PiProcess(arg, C1, C2) && C1==1 && C2==2)) ) ||
+    (fname == "cot" && ( Check90(arg, 0) || ( PiProcess(arg, C1, C2) && C1==1 && C2==1 || C1 == 2 && C2==1))))
+    exol = Variable( msInfinity );
+  else
+    exol = exo.SimplifyFull();
+//    exol = exo.Simplify().ReduceTExprs();
+  if( exol.WriteE() != exo.WriteE() )
+    {
+    exoo = new TBinar('=', DegOutput(exi), exo);
+    try
+      {
+      Trigo2Str(exoo,exo);
+      }
+    catch(...){}
+    exo.Clear();
+    return new TBinar('=', exoo, exol);
+    }
+  else
+    return new TBinar('=', DegOutput(exi), exo);
   }

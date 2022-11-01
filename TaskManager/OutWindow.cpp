@@ -68,11 +68,15 @@ void OutWindow::AddExp( const QByteArray& Formula )
   static int NumTmp = 0;
   QString Path( QDir::tempPath() + '/' + "OutTmp" + QString::number( NumTmp++ ) + ".jpg" );
   QImage *pImage = InEd.GetImage();
-  if (Formula.indexOf("comment{") != -1)
+  int iComment = Formula.indexOf("comment{");
+  if (iComment != -1)
     {
-    int Open = Formula.indexOf('{');
+    int Open = Formula.indexOf('{', iComment);
     int Close = Formula.indexOf('}', Open);
-    pImage->setText("F1", Formula.left(Open) + ToLang(Formula.mid(Open, Close - Open)) + Formula.mid(Close) );
+    QString S(Formula.left(Open) + QString::fromUtf8(Formula.mid(Open, Close - Open)) + Formula.mid(Close) );
+    pImage->setText("F1", S );
+//    pImage->setText("F1", Formula.left(Open) + QString::fromLatin1(Formula.mid(Open, Close - Open)) + Formula.mid(Close) );
+//    pImage->setText("F1", Formula.left(Open) + ToLang(Formula.mid(Open, Close - Open)) + Formula.mid(Close) );
     }
   else
     pImage->setText( "F1", Formula.data() );
@@ -130,7 +134,8 @@ void OutWindow::mouseDoubleClickEvent( QMouseEvent *e )
       QImage Image( Name );
       if( !Image.isNull() )
         {
-        QByteArray Formula = FromLang(Image.text("F1"));
+//        QByteArray Formula = FromLang(Image.text("F1"));
+        QByteArray Formula = Image.text("F1").toUtf8();
         if( !Formula.isEmpty() )
           {
           Panel::sm_pEditor->Clear();

@@ -10,20 +10,23 @@
 #include "SolChain.h"
 #include "LogExp.h"
 #include "Factors.h"
+#include "Algebra.h"
 #include <functional>
 #include "../FormulaPainter/InEdit.h"
 
 extern ExpStore s_ExpStore;
-
-
 double TExpr::sm_Accuracy = 0.01;
 double TExpr::sm_Precision = 0.0000000001;
 bool TExpr::sm_FullReduce = false;
+bool TExpr::sm_IsAuxiliaryIntegral = false;
+bool TExpr::sm_IntegralError =false;
+bool TExpr::sm_CalcOnly = false;
 bool TPowr::sm_Factorize = true;
 bool TConstant::sm_ConstToFraction = false;
 TExpr::TrigonomSystem TExpr::sm_TrigonomSystem = tsRad;
 bool TOper::sm_InsideChart = false;
 bool TLexp::sm_Bracketed = true;
+bool Parser::sm_Drop = false;
 
 double TExpr::TriginomValue( double V ) { return sm_TrigonomSystem == tsRad ? V : DegToRad( V ); }
 double TExpr::AngleValue( double V ) { return sm_TrigonomSystem == tsRad ? V : RadToDeg( V ); }
@@ -40,6 +43,17 @@ int TExMemb::sm_ExMembDeleted = 0;
 int TMatr::sm_RecursionDepth = 0;
 bool TStr::sm_Server = false;
 bool TStr::sm_Encode = false;
+
+bool TExpr::Multp( MathExpr& op1, MathExpr& op2 ) const
+  {
+  return false;
+  }
+
+bool MathExpr::Multp( MathExpr& op1, MathExpr& op2 ) const
+  {
+  TestPtr();
+  return m_pExpr->Multp( op1, op2 );
+  }
 
 double TExpr::Precision()
   {
@@ -102,7 +116,7 @@ bool MathExpr::Replace( const MathExpr& Target, const MathExpr& Source )
 
 MathExpr& MathExpr::operator = ( const MathExpr& E )
   {
-  if( m_pExpr != nullptr && --m_pExpr->m_Counter == 0 ) delete m_pExpr;
+  if( m_pExpr != 0 && --m_pExpr->m_Counter == 0 ) delete m_pExpr;
   m_pExpr = E.m_pExpr;
   if( m_pExpr != nullptr )
     {
@@ -132,6 +146,15 @@ void MathExpr::TestPtr() const
     throw ErrParser( X_Str( "MNullPtr", "Was null pointer of expression!" ), peNullptr);
   }
 
+bool MathExpr::IsEmpty() const
+  {
+  if(m_pExpr == nullptr) return true;
+  TLexp const *pL =  dynamic_cast< const TLexp* >( m_pExpr );
+  if(pL == nullptr) return false;
+  return pL->Count() == 0;
+  }
+
+
 /*
 #ifdef DEBUG_TASK
 MathExpr::MathExpr( const MathExpr& E ) : m_pExpr( E.m_pExpr )
@@ -157,6 +180,18 @@ bool MathExpr::SimpleFrac_( double& N, double& D ) const
   return Result;
   }
 
+bool MathExpr::SimpleFrac_( int& N, int& D ) const
+  {
+  TestPtr();
+  return m_pExpr->SimpleFrac_( N, D );
+  }
+
+bool MathExpr::SimpleFrac_( MathExpr& N, MathExpr& D ) const
+  {
+  TestPtr();
+  return m_pExpr->SimpleFrac_( N, D );
+  }
+
 MathExpr MathExpr::SimplifyFull()
   {
   TestPtr();
@@ -176,14 +211,14 @@ bool MathExpr::operator < ( const MathExpr& Expr ) const
 bool MathExpr::Eq( const MathExpr& E2 ) const
   {
   TestPtr();
-  if(m_Contents == E2.m_Contents) return true;
+//  if(m_Contents == E2.m_Contents) return true;
   return m_pExpr->Eq( E2 );
   }
 
 bool MathExpr::Equal( const MathExpr& E2 ) const
   {
   TestPtr();
-  if(m_Contents == E2.m_Contents) return true;
+//  if(m_Contents == E2.m_Contents) return true;
   bool bResult = m_pExpr->Eq( E2 );
   if( bResult ) return true;
   bResult = m_pExpr->Equal( E2 );
@@ -218,20 +253,31 @@ MathExpr MathExpr::Reduce(bool NewReduce) const
   return Result;
   }
 
+MathExpr MathExpr::operator / ( const MathExpr& E ) const { return new TDivi( m_pExpr, E ); }
+MathExpr MathExpr::operator / ( double V ) const { return new TDivi( m_pExpr, new TConstant( V ) ); }
+
 QByteArray TStr::UnpackValue( const QByteArray& V )
   {
-  if( !sm_Server || V.left(2) != "##" ) return V;
+  if( !sm_Server || V.left(2) != "##" )
+    {
+    return V;
+    }
   bool bOK;
   int Count = V.mid(2,4).toInt( &bOK, 16 );
   if( !bOK ) return V;
   ushort *pS = new ushort[Count];
   for( int i = 0, n = 6; i < Count; i++, n += 4 )
     {
-    pS[i] = V.mid( n, 4 ).toInt( &bOK, 16 );
-    if( !bOK )
+    if(n >= V.length())
+      pS[i] = 0;
+    else
       {
-      delete pS;
-      throw ErrParser( "Error; Invalid String", ParserErr::peNewErr );
+      pS[i] = V.mid( n, 4 ).toInt( &bOK, 16 );
+      if( !bOK )
+        {
+        delete pS;
+        throw ErrParser( "Error; Invalid String", ParserErr::peNewErr );
+        }
       }
     }
   QString S;
@@ -249,14 +295,16 @@ QByteArray TStr::PackValue() const
       return Encode( m_Value );
     else
       return m_Value;
-  QString S( ToLang( m_Value ) );
+  QByteArray Value = m_Value;
+  Value.replace(msCharNewLine, ' ');
+  QString S( ToLang( Value ) );
   const ushort *pS = S.utf16();
   int Count = S.length();
   char Buf[6];
   QByteArray Val( itoa( Count, Buf, 16 ) );
   if( Val.length() < 4 ) Val = QByteArray( 4 - Val.length(), '0' ) + Val;
   QByteArray Result = "##" + Val;
-  for( int i = 1; i < Count; i++ )
+  for( int i = 0; i < Count; i++ )
     {
     QByteArray Val( itoa( pS[i], Buf, 16 ) );
     if( Val.length() < 4 ) Val = QByteArray( 4 - Val.length(), '0' ) + Val;
@@ -267,7 +315,7 @@ QByteArray TStr::PackValue() const
 
 QByteArray TStr::SWrite() const 
   {
-  QByteArray Result("\\comment{");
+  QByteArray Result("\\comment{ ");
   if (sm_Server) return Result + PackValue() + '}';
   QByteArrayList L(m_Value.split('\n') );
   for (int i = 0; i < L.count(); i++)
@@ -738,6 +786,7 @@ bool TL2exp::List2ex( PExMemb& F ) const
 
 TVariable::TVariable( bool Meta, const QByteArray& Name ) : TVariable()
   {
+  m_WasReduced = (uchar) Name[0] != msPi;
   m_Meta_sign = Meta;
   for( int i = 0, j = 0; i < Name.size() && j < mc_IndCount; i++, j++ )
     {
@@ -925,7 +974,7 @@ bool TVariable::IsFactorized( const QByteArray& Name ) const
   return Name == m_Name;
   }
 
-TConstant::TConstant( double V, bool IsE ) : m_Value( V ), m_IsE( IsE ), m_Precision( TExpr::Precision() )
+TConstant::TConstant( double V, bool IsE, bool IsDouble ) : m_Value( V ), m_IsE( IsE ), m_IsDouble(IsDouble), m_Precision( TExpr::Precision() )
   {
   if( isinf( V ) ) throw ErrParser( X_Str( "INFVAL", "Result is infinity" ), peInfinity );
 #ifdef DEBUG_TASK 
@@ -987,7 +1036,7 @@ MathExpr TConstant::Integral( const QByteArray& d )
   return ( Variable( d ) * MathExpr( this ) );
   }
 
-MathExpr TConstant::Lim( const QByteArray& v, const MathExpr lm ) const
+MathExpr TConstant::Lim( const QByteArray& v, const MathExpr& lm ) const
   {
   return Clone();
   }
@@ -1005,7 +1054,8 @@ bool TConstant::Eq( const MathExpr& E2 ) const
     Value2 = -Value2;
     }
   else
-    Prec = max( Prec, CastConstPtr( TConstant, E2 )->m_Precision );
+    if(IsConstType(TConstant, E2) )
+      Prec = max( Prec, CastConstPtr( TConstant, E2 )->m_Precision );
   return m_Value == Value2 || ( m_Value != 0 && Value2 != 0 && abs( m_Value - Value2 ) < Prec );
   }
 
@@ -1056,6 +1106,7 @@ QByteArray TConstant::WriteE() const
     return S + 'E' + S1;
     }
   QByteArray S( QByteArray::number( m_Value, 'f', nprec ) );
+  if(m_IsDouble) return S;
   while( S.right( 1 ) == "0" )
     S = S.left( S.length() - 1 );
   if( S.right( 1 ) == "." )
@@ -1066,6 +1117,7 @@ QByteArray TConstant::WriteE() const
 
 bool TConstant::Cons_int( int& I ) const
   {
+  if(m_IsDouble) return false;
   if( abs( m_Value ) < 2000000001 && abs( m_Value - Round( m_Value ) ) <  m_Precision )
     {
     I = Round( m_Value );
@@ -1114,7 +1166,9 @@ int TConstant::Compare( const MathExpr& ex ) const
 
 TFunc::TFunc( bool Meta, const QByteArray& Name, const MathExpr& Arg ) : TExpr(), m_Meta_sign( Meta ),
 m_Name( Name ), m_Arg( Arg ), m_ShortName( OutputFunctName( Name ) )
-  {
+  {  
+  if( IsTrigonom( m_Name ) && TExpr::sm_TrigonomSystem == TExpr::tsDeg && IsType(TConstant, m_Arg ))
+    m_Arg = new TMeaExpr( m_Arg, Variable( msDegree ) );
 #ifdef DEBUG_TASK 
   m_Contents = WriteE();
 #endif
@@ -1143,14 +1197,13 @@ MathExpr TFunc::Reduce() const
   else
     {
     bool OldFullReduce = TExpr::sm_FullReduce;
-    TExpr::sm_FullReduce = true;
+    TExpr::sm_FullReduce = false;
     arg_Reduced = m_Arg.Reduce();
     TExpr::sm_FullReduce = OldFullReduce;
     }
   int N, K;
   double V, Vn;
   PExMemb first;
-
   if( m_Name == "factorial" || m_Name == "PerCount" )
     {
     if( arg_Reduced.Cons_int( N ) )
@@ -1245,9 +1298,9 @@ MathExpr TFunc::Reduce() const
 
   MathExpr ext, e;
   if( sm_TrigonomSystem == tsRad )
-    ext = Parser::StrToExpr( PiVar2PiConst( arg_Reduced.WriteE() ) );
+    ext = Parser::StrToExpr( PiVar2PiConst( arg_Reduced.WriteE() ) ).Reduce();
   else
-    ext = Parser::StrToExpr( PiVar2Pi180( arg_Reduced.WriteE() ) );
+    ext = Parser::StrToExpr( PiVar2Pi180( arg_Reduced.WriteE() ) ).Reduce();
   bool Neg = ext.Unarminus( e );
   if( Neg ) ext = e;
   MathExpr op1, op2;
@@ -1617,11 +1670,11 @@ MathExpr TFunc::Reduce() const
       arg_Reduced = arg_Performed.Reduce();
       if (IsType(TSimpleFrac, arg_Reduced))
         {
-        bool FullReduce = TExpr::sm_FullReduce;
-        TExpr::sm_FullReduce = true;
+//        bool FullReduce = TExpr::sm_FullReduce;
+//        TExpr::sm_FullReduce = true;
         arg_Reduced.SetReduced(false);
         arg_Reduced = arg_Reduced.Reduce();
-        TExpr::sm_FullReduce = FullReduce;
+//        TExpr::sm_FullReduce = FullReduce;
         }
       return arg_Reduced;
       }
@@ -1795,7 +1848,7 @@ MathExpr TFunc::Reduce() const
      if( m_Name == "sin" )
        Result = new TFunc( false, "cos", m_Arg );
      if( m_Name == "cos" )
-       Result = Function( "sin", m_Arg ).Negative();
+       Result = Function( "sin", m_Arg )*Constant(-1);
      if( m_Name == "ln"  )
        Result = Constant(1) / m_Arg;
      if( m_Name == "lg"  )
@@ -1815,7 +1868,7 @@ MathExpr TFunc::Reduce() const
      if( m_Name == "sec" )
        Result = Function( "tan", m_Arg ) / Function( "cos", m_Arg );
      if( m_Name == "cosec" )
-       Result = Function( "cot", m_Arg ) / Function( "sin", m_Arg ).Negative();
+       Result = Function( "cot", m_Arg ) / Function( "sin", m_Arg )*Constant(-1);
      if( Result.IsEmpty() )
        return Clone();
      return Result * m_Arg.Diff(d);
@@ -2088,7 +2141,10 @@ MathExpr TMeaExpr::Substitute( const QByteArray& vr, const MathExpr& vl )
 
 QByteArray TMeaExpr::SWrite() const
   {
-  return "\\units{" + m_Operand1.SWrite() + "}{" + m_Operand2.SWrite() + '}';
+  if(IsConstType(TSimpleFrac, m_Operand1))
+    return "\\units{(" + m_Operand1.SWrite() + ")}{" + m_Operand2.SWrite() + '}';
+  else
+    return "\\units{" + m_Operand1.SWrite() + "}{" + m_Operand2.SWrite() + '}';
   }
 
 QByteArray TMeaExpr::WriteE() const
@@ -2194,7 +2250,7 @@ MathExpr TRoot::Reduce() const
   if( sm_FullReduce && m_Operand1.Constan( Value1 ) )
     return Value();
   
-  if( s_NoRootReduce && opr1.Cons_int( N ) )
+  if( !s_NoRootReduce && opr1.Cons_int( N ) )
     {
     if( N == 0 || N == 1 )
       return Constant( N );
@@ -2636,6 +2692,20 @@ bool TRoot1::Root1( MathExpr& op1, MathExpr& op2 ) const
   return true;
   }
   
+TMixedFrac::TMixedFrac( const MathExpr& I, const MathExpr& N, const MathExpr& D ) : TSimpleFrac( N, D ), m_ExIntPart(I)
+  {
+#ifdef DEBUG_TASK
+  m_Contents = WriteE();
+#endif
+  }
+
+TMixedFrac::TMixedFrac( const MathExpr& I, int N, int D ) : TSimpleFrac( N, D ), m_ExIntPart(I)
+  {
+#ifdef DEBUG_TASK
+  m_Contents = WriteE();
+#endif
+  }
+
 TMixedFrac::TMixedFrac( int I, int N, int D ): TSimpleFrac( N, D )
   {
   if( (abs( N ) + abs( 1.0 * I * D )) > 1.0E7 )
@@ -2710,8 +2780,8 @@ MathExpr TMixedFrac::Reduce() const
 
   if( D == 1 )
     return Constant( N );
-  else
-    return  GenerateFraction( N, D );
+  if(sm_CalcOnly) return  GenerateFraction( N, D );
+  return Ethis;
   }
 
 bool TMixedFrac::IsLinear() const
@@ -2751,12 +2821,20 @@ bool TMixedFrac::Equal( const MathExpr& E2 ) const
 
 QByteArray TMixedFrac::WriteE() const
   {
-  return QByteArray::number( m_IntPart ) + '{' + QByteArray::number( m_NomPart ) + '/' + QByteArray::number( m_Denom ) + '}';
+  if(m_ExIntPart.IsEmpty())
+    return QByteArray::number( m_IntPart ) + '{' + QByteArray::number( m_NomPart ) + '/' + QByteArray::number( m_Denom ) + '}';
+  if(m_ExNom.IsEmpty())
+    return m_ExIntPart.WriteE() + '{' + QByteArray::number( m_Nom ) + '/' + QByteArray::number( m_Denom ) + '}';
+  return m_ExIntPart.WriteE() + '{' + m_ExNom.WriteE() + '/' + m_ExDenom.WriteE() + '}';
   }
 
 QByteArray TMixedFrac::SWrite() const
   {
-  return QByteArray::number( m_IntPart ) + "\\frac{" + QByteArray::number( m_NomPart ) + "}{" + QByteArray::number( m_Denom ) + '}';
+  if(m_ExIntPart.IsEmpty())
+     return QByteArray::number( m_IntPart ) + "\\frac{" + QByteArray::number( m_NomPart ) + "}{" + QByteArray::number( m_Denom ) + '}';
+  if(m_ExNom.IsEmpty())
+    return m_ExIntPart.WriteE() + "\\frac{" + QByteArray::number( m_Nom ) + "}{" + QByteArray::number( m_Denom ) + '}';
+  return m_ExIntPart.WriteE() + "\\frac{" + m_ExNom.WriteE() + "}{" + m_ExDenom.WriteE() + '}';
   }
 /*
 void TMixedFrac::To_keyl( XPInEdit& Ed )
@@ -2798,7 +2876,7 @@ bool TMixedFrac::ConstExpr() const
 
 bool TMixedFrac::Unarminus( MathExpr& A ) const
   {
-  if( !(m_IntPart < 0) )
+  if( !m_ExIntPart.IsEmpty() || !(m_IntPart < 0) )
     return false;
 
   A = new TMixedFrac( -m_IntPart, m_NomPart, m_Denom );
@@ -3143,9 +3221,9 @@ MathExpr TPowr::Reduce() const
   if( opr2.Log( op11, op12 ) && opr1.Equal( op11 ) )
     return op12;
 
-  if( opr1.Complex( op11, op12 ) && opr2.Cons_int( Pow ) && op11.Constan( re ) && op12.Constan( im ) )
+  if( opr1.Complex( op11, op12 ) && opr2.Cons_int( Pow ) )
     {
-    if( re == 0.0 )
+    if( op11.Constan( re ) && op12.Constan( im ) && re == 0.0 && Pow > 0)
       {
       for( i = 1; i < Pow; i++ )
         im *= im;
@@ -3153,7 +3231,7 @@ MathExpr TPowr::Reduce() const
         {
         case 1:
           return CreateComplex( 0.0, im );
-        case 2: 
+        case 2:
           return Constant( -im );
         case 3:
           return CreateComplex( 0.0, -im );
@@ -3161,11 +3239,16 @@ MathExpr TPowr::Reduce() const
           return Constant( im );
         }
       }
+    if(Pow < 0)
+      {
+      Pow = -Pow;
+      opr1 = new TDivi( new TConstant(1), opr1 );
+      }
     MathExpr Result = opr1;
     for( i = 1; i < Pow; i++ )
       Result = ( Result * opr1 ).Reduce();
     return Result;
-    };
+    }
 
   if( opr1.Measur_( op11, op12 ) && opr2.Cons_int( Pow ) )
     {
@@ -3266,7 +3349,7 @@ MathExpr TPowr::Reduce() const
     if( sm_Factorize && Temp.Multp( op11, op12 ) )
       {
       P = op11 ^ opr2;
-      if( ( IsConstType( TPowr, op11 ) ) || ( op11.Funct( sName, op11 ) && sName == "exp" ) )
+      if( ( IsConstType( TConstant, op11 ) ) || ( IsConstType( TPowr, op11 ) ) || ( op11.Funct( sName, op11 ) && sName == "exp" ) )
         op21 = P.Reduce();
       else
         op21 = P;
@@ -3275,7 +3358,7 @@ MathExpr TPowr::Reduce() const
         op22 = P.Reduce();
       else
         op22 = P;
-      return op21 * op22;
+      return (op21 * op22).Reduce();
       }
     }
 
@@ -3291,8 +3374,8 @@ MathExpr TPowr::Reduce() const
     {
     P = op11 ^ opr2;
     if( N % 2 == 0 )
-      return P;
-    return -P;
+      return P.Reduce();
+    return (-P).Reduce();
     }
 
   if( opr1.Constan( Value1 ) )
@@ -3678,6 +3761,13 @@ TSimpleFrac::TSimpleFrac( int N, int D ) : TExpr()
 #endif
   }
 
+TSimpleFrac::TSimpleFrac( const MathExpr& Nom, const MathExpr& Denom ) : m_ExNom(Nom), m_ExDenom(Denom), m_Nom(0), m_Denom(0)
+  {
+#ifdef DEBUG_TASK
+  m_Contents = WriteE();
+#endif
+  }
+
 MathExpr TSimpleFrac::Clone() const
   {
   TSimpleFrac *pResult = new TSimpleFrac( m_Nom, m_Denom );
@@ -3708,7 +3798,8 @@ MathExpr TSimpleFrac::Reduce() const
     N = -N;
     D = -D;
     }
-
+  if(sm_CalcOnly && abs(N) > abs(D))
+    return new TMixedFrac(0, N, D);
   return GenerateFraction( N, D );  
   }
 
@@ -3784,7 +3875,9 @@ bool TSimpleFrac::Equal( const MathExpr& E2 ) const
 
 QByteArray TSimpleFrac::WriteE() const
   {
-  return '(' + QByteArray::number( m_Nom ) + '/' + QByteArray::number( m_Denom ) + ')';
+  if(m_ExNom.IsEmpty())
+    return '(' + QByteArray::number( m_Nom ) + '/' + QByteArray::number( m_Denom ) + ')';
+  return '(' + m_ExNom.WriteE() + '/' + m_ExDenom.WriteE() + ')';
   }
 
 QByteArray TSimpleFrac::SWrite() const
@@ -3801,8 +3894,23 @@ bool TSimpleFrac::AsFraction()
 
 bool TSimpleFrac::SimpleFrac_( int& N, int& D ) const
   {
+  if(!m_ExNom.IsEmpty() || !m_ExDenom.IsEmpty()) return false;
   N = m_Nom;
   D = m_Denom;
+  return true;
+  }
+
+bool TSimpleFrac::SimpleFrac_( MathExpr& N, MathExpr& D ) const
+  {
+  if(m_ExNom.IsEmpty() && m_ExDenom.IsEmpty() ) return false;
+  if(m_ExNom.IsEmpty())
+    N = new TConstant(m_Nom);
+  else
+    N = m_ExNom;
+  if(m_ExDenom.IsEmpty())
+    D = new TConstant(m_Denom);
+  else
+    D = m_ExDenom;
   return true;
   }
 
@@ -3890,6 +3998,14 @@ bool TUnar::Cons_int( int& I ) const
   bool Result = m_Arg.Cons_int( I );
   if( Result )
     I = -I;
+  return Result;
+  }
+
+bool TUnar::Constan( double& V ) const
+  {
+  bool Result = m_Arg.Constan( V );
+  if( Result )
+    V = -V;
   return Result;
   }
 
@@ -4845,10 +4961,12 @@ QByteArray TLimit::SWrite() const
   QByteArray Result = "\\lim{" + m_Varlimit.SWrite() + "}{" + m_Explimit.SWrite() + "}{";
   MathExpr op1, op2;
   uchar ch;
+  if(m_Exp.Binar_( ch, op1, op2 ) )
+    return Result + '(' + op1.SWrite() + ')' + (char) ch + op2.SWrite()+ "}";
   PExMemb ind;
   QByteArray N;
   if( m_Exp.Summa( op1, op2 ) || m_Exp.Subtr( op1, op2 ) || m_Exp.Multp( op1, op2 ) || ( m_Exp.Divis( op1, op2 ) && !m_Exp.AsFraction() ) || 
-    m_Exp.Binar_( ch, op1, op2 ) || m_Exp.BoolOper_( N, op1, op2 ) || m_Exp.Boolnot_( op1 ) || m_Exp.Negative() || 
+    m_Exp.BoolOper_( N, op1, op2 ) || m_Exp.Boolnot_( op1 ) || m_Exp.Negative() ||
     m_Exp.Listex( ind ) || m_Exp.Listord( ind ) )
     return  Result + '(' + m_Exp.SWrite() + ")}";
   return Result + m_Exp.SWrite() + '}';
@@ -5822,7 +5940,11 @@ bool TMatr::Equal( const MathExpr& E2 ) const
   if( m_RowCount != pMatrix->m_RowCount || m_ColCount != pMatrix->m_ColCount ) return false;
   for( int i = 0; i < m_RowCount; i++ )
     for( int j = 0; j < m_ColCount; j++ )
-      if( !m_A[i][j].Equal( pMatrix->m_A[i][j] ) ) return false;
+      {
+      MathExpr Exp(m_A[i][j]);
+      if(IsConstType(TCommStr, Exp)) continue;
+      if( !Exp.Equal( pMatrix->m_A[i][j] ) ) return false;
+      }
   return true;
   }
 
@@ -6632,7 +6754,11 @@ bool TTable::Equal( const MathExpr& E2 ) const
   if(pLeft->m_RowCount - 1 != pRight->m_RowCount) return false;
   for( int i = 0; i < pRight->m_RowCount; i++ )
     for( int j = 0; j < m_ColCount; j++ )
-      if( !pLeft->m_A[i+1][j].Equal( pRight->m_A[i][j] ) ) return false;
+      {
+      MathExpr Exp = pLeft->m_A[i+1][j];
+      if(IsConstType(TCommStr, Exp)) continue;
+      if( !Exp.Equal( pRight->m_A[i][j] ) ) return false;
+      }
   return true;
   }
 
@@ -6975,4 +7101,85 @@ QByteArray TExprPict::WriteE() const
 QByteArray TExprPict::SWrite() const
   {
   return "\\picture{" + m_Path + '}';
+  }
+
+TL2exp* TMatr::Eigen() const
+  {
+  PNode eq;
+  MatrixArry a;
+  int i, j, k, NEigen, RdOld, Digits;
+  MathExpr SecEq, Left, Right, Equation, ex;
+  PExMemb exMemb;
+  double V, OldPrecision, OldAccuracy;
+  TL2exp* pSystem, *pResult = nullptr;
+  bool OldCanExchange;
+  if( !m_IsNumerical || m_RowCount != m_ColCount || m_RowCount < 2 ) return pResult;
+  s_MemorySwitch = SWcalculator;
+  OldPrecision = s_Precision;
+  s_Precision = 1e-14;
+  OldAccuracy = TExpr::sm_Accuracy;
+  TExpr::sm_Accuracy = 1e-14;
+  for( i = 0; i < m_ColCount; i++ )
+    {
+    a.push_back( QVector<MathExpr>( m_ColCount ) );
+    for( j = 0; j < m_ColCount; j++ )
+      if( i == j )
+        a[i][i] = m_A[i][i] - Variable('t');
+      else
+        a[i][j] = m_A[i][j];
+    }
+  ex =  new TAbs( false,  new TMatr(a) );
+  RdOld = sm_RecursionDepth;
+  MathExpArray A;
+  ex = ExpandExpr(ex);
+  sm_RecursionDepth = 0;
+  SecEq =  new TBinar( '=', ex.ReductionPoly(A, "t"),  Constant( 0 ) );
+  TSolutionChain::sm_SolutionChain.AddExpr( new TBinar( '=', ex, SecEq  ) );
+  TSolutionChain::sm_SolutionChain.AddComment( "The secular Equation" );
+  sm_RecursionDepth = RdOld;
+  pResult = RootPolinom( SecEq );
+  s_Precision = OldPrecision;
+  if( pResult == nullptr ) return pResult;
+  TSolutionChain::sm_SolutionChain.AddExpr( pResult );
+  s_Precision = 1e-14;
+  TSolutionChain::sm_SolutionChain.AddComment("The eigen values");
+  QVector <double> EigenValues(m_ColCount);
+  NEigen = 0;
+  exMemb = pResult->First();
+  while( !exMemb.isNull() )
+    {
+    exMemb.get()->m_Memb.Binar( '=', Left, Right );
+    if( Right.Constan( V ) && ( NEigen == 0 || V != EigenValues[ NEigen - 1] ) )
+      EigenValues[ NEigen++ ] = V;
+    exMemb = exMemb->m_pNext;
+    }
+  if( NEigen != 0 )
+    {
+    OldCanExchange = s_CanExchange;
+    TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""));
+    TSolutionChain::sm_SolutionChain.AddComment( "Calcluation of eigen vectors" );
+    Digits = -round(log10(OldPrecision));
+    for( k = 0; k < NEigen; k++ )
+      {
+      pSystem = new TL2exp;
+      TSolutionChain::sm_SolutionChain.AddExpr(  new TStr("t=" + QByteArray::number(EigenValues[k]) + ":" ) );
+      for( i = 0; i < m_ColCount; i++ )
+        {
+        Equation = m_A[i][0] * MathExpr(new TIndx(Variable('x'), Constant(1)));
+        for( j = 1; j < m_ColCount; j++ )
+           Equation += m_A[i][j] * MathExpr( new TIndx(Variable('x'), Constant(j + 1)));
+        ex = Equation - Constant( EigenValues[k] ) * MathExpr( new TIndx( Variable( 'x' ), Constant( i+1 ) ) );
+        s_CanExchange = false;
+        Equation = ex.Reduce();
+        pSystem->Addexp(  new TBinar( '=', Equation,  Constant( 0 ) ) );
+        pSystem->Last()->m_Visi = false;
+        }
+      CalcLinear( pSystem->WriteE() );
+      }
+    s_CanExchange = OldCanExchange;
+    }
+  s_Precision = OldPrecision;
+  TExpr::sm_Accuracy = OldAccuracy;
+  s_MemorySwitch = SWtask;
+  return pResult;
   }

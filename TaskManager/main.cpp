@@ -1,5 +1,6 @@
 #include "WinTesting.h"
 #include "SelectTask.h"
+#include <QFileDialog>
 
 
 //#ifdef LEAK_DEBUG
@@ -7,6 +8,7 @@
 QFile s_LogFile( "C:\\ProgramData\\Halomda\\Log.txt" );
 QDebug s_Debug( &s_LogFile );
 QApplication *pA;
+QString s_AppPath;
 
 void MessageOutput( QtMsgType type, const QMessageLogContext &context, const QString &msg )
   {
@@ -41,6 +43,7 @@ void MessageOutput( QtMsgType type, const QMessageLogContext &context, const QSt
 int main( int argc, char *argv[] )
   {
   QApplication a( argc, argv );
+  s_AppPath = a.applicationDirPath();
   int iA[] = {2, 1, 4, -2, 3}, iProd;
   int *pA = iA, *pEnd = pA + sizeof( iA ) / sizeof(int);
   for(iProd = 1; pA  <= pEnd  && *pA > 0; iProd *= *pA++);
@@ -57,11 +60,11 @@ int main( int argc, char *argv[] )
   bool bTaskFromBrowser = QCoreApplication::arguments().count() == 7;
   QString Url;
   if( bTaskFromBrowser ) Url = Args[2].left( Args[2].lastIndexOf( '/' ) + 1 );
-  bool bContinue;
-  enum ExecStage{ exStart, exSelectTest, exSelectChapter, exSelectTopic };
+  bool bContinue = false;
+  enum ExecStage{ exStart, exSelectTest, exSelectChapter, exSelectTopic, exGetGroup };
   ExecStage Stage = exStart;
   QByteArray UsrId, TaskMode, TopicId, ChapId, TestDir, TestId, PrmId;
-  QString ChapterName, TestName;
+  QString ChapterName, TestName, StudentsList, UserLogin;
   bool bLocalWork = false;
   do
     {
@@ -95,6 +98,13 @@ int main( int argc, char *argv[] )
               CreateMoodleBank MDlg;
               MDlg.exec();
               return 0;
+              }
+            if(UsrId[0] == 'L')
+              {
+              UsrId = UsrId.mid(1);
+              Stage = exGetGroup;
+              UserLogin = Dlg.m_UsrLogin;
+              continue;
               }
             }
           case exSelectTest:
@@ -131,9 +141,136 @@ int main( int argc, char *argv[] )
             QByteArrayList LParms( TDlg.m_SelectedTopic.split( ',' ) );
             TopicId = LParms[0];
             TaskMode = LParms[1];
+            break;
             }
-          }
-        }
+          case exGetGroup:
+            {
+            SelectGroup SG( UsrId, UserLogin );
+            if( SG.exec() == QDialog::Rejected ) return 0;
+            QByteArray GroupCode;
+            int Added = 0, Restored = 0, Existed = 0, AddedToGroup = 0;
+            auto AddStudent = [&](QString& FName, QString& LName, QString& ID)
+              {
+              QByteArray Command = "FirstName=" + EdStr::sm_pCodec->fromUnicode(FName) +
+                "&LastName=" + EdStr::sm_pCodec->fromUnicode(LName) +
+                "&Id=" + EdStr::sm_pCodec->fromUnicode(ID);
+              Connector C( PasswordDialog::sm_RootUrl + "AddStudent.php", Command + "&Group=" + GroupCode );
+              QByteArray Response = C.Connect();
+              Response = Response.mid(Response.lastIndexOf('\n') + 1);
+              if( Response == "Error" )
+                QMessageBox::information(nullptr, "Error", "For student " + FName + " " + LName + " password was not defined" );
+              else
+                {
+                switch( Response[0] )
+                  {
+                  case '0':
+                    Existed++;
+                    break;
+                  case '1':
+                    Added++;
+                    break;
+                  case '2':
+                    Restored++;
+                  }
+                if(Response.length() == 2 ) AddedToGroup++;
+                }
+              };
+            auto AddStudents = [&] ()
+              {
+              QString FileName = QFileDialog::getOpenFileName(nullptr, "Select students List");
+              if(FileName == "") return false;
+              QFile F(FileName);
+              F.open(QIODevice::ReadOnly);
+              QTextStream Stream(&F);
+              QString Line, FName, LName, ID;
+              do
+                {
+                Stream >> Line;
+                } while( !Stream.atEnd() && Line.right(1) != ')');
+              if(Stream.atEnd()) throw "This File is not students list!";
+              while(true)
+                {
+                Stream >> FName;
+                if( Stream.atEnd()) break;
+                Stream >> LName;
+                Stream >> ID;
+                AddStudent(FName, LName, ID);
+                }
+              return true;
+              };
+            QString GroupName = SG.m_NewGroup;
+            if(GroupName.isEmpty())
+              {
+              GroupCode = SG.m_pListGroups->currentData().toByteArray();
+              GroupName = SG.m_pListGroups->currentText();
+              SelectWork SW(GroupName);
+              if( SW.exec() == QDialog::Rejected )
+                continue;
+              if(GroupName != SW.m_pGroupName->text())
+                {
+                QByteArray Command = "GroupName=" + EdStr::sm_pCodec->fromUnicode(SW.m_pGroupName->text());
+                Connector C( PasswordDialog::sm_RootUrl + "ChangeGroupName.php", Command + "&GroupId=" + GroupCode );
+                QByteArray Response = C.Connect();
+                if(Response == "OK")
+                  {
+                  QMessageBox::information(nullptr, "Change group name", "Group name was successfully changed");
+                  GroupName = SW.m_pGroupName->text();
+                  }
+                else
+                  {
+                  if(Response == "Exists")
+                    Response = "Can't change groupname\r\nFor this Lecturer group with this name already exists";
+                  QMessageBox::information(nullptr, "Error by change group name", Response);
+                  }
+                }
+              QString FirstName = SW.m_pFirstName->text();
+              if(FirstName.isEmpty())
+                {
+                if(SW.m_pLoadResult->isChecked())
+                  {
+                  try {
+                  SelectWork::LoadResult(GroupCode.toInt());
+                  }
+                  catch(...)
+                    {
+                    }
+                  continue;
+                  }
+                if( AddStudents() == false ) continue;
+                }
+              else
+                {
+                QString LastName = SW.m_pLastName->text(), ID = SW.m_pPassword->text();
+                AddStudent(FirstName, LastName, ID);
+                }
+              }
+            else
+              {
+              QByteArray Command = "GroupName=" + EdStr::sm_pCodec->fromUnicode(GroupName);
+              Connector C( PasswordDialog::sm_RootUrl + "AddGroup.php", Command + "&LecturerId=" + UsrId );
+              QByteArray Response = C.Connect();
+              bool bOK;
+              Response.toLongLong(&bOK);
+              if(!bOK)
+                {
+                if(Response == "Exists")
+                  Response = "Can't add new group\r\nFor this Lecturer group with this name already exists";
+                QMessageBox::information(nullptr, "Error", Response);
+                continue;
+                }
+              GroupCode = Response;
+              if(!AddStudents()) continue;
+              }
+           QMessageBox::information(nullptr, "Load Result",
+             "Students new:" + QString::number(Added) +
+             " Existed:" + QString::number(Existed) +
+             " Restored:" + QString::number(Restored) +
+             " Added to Group:" + QString::number(AddedToGroup) );
+             Stage = exStart;
+             continue;
+           }
+           }
+         }
       if( !bLocalWork )
         {
         if( TaskMode == "Error" ) throw QString( "Error by open task" );
@@ -152,7 +289,7 @@ int main( int argc, char *argv[] )
           continue;
           }
         }
-      }   
+      }
     catch( QString Err )
       {
       QMessageBox::critical( nullptr, "Net Error", Err );

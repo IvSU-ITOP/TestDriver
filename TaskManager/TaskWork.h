@@ -24,7 +24,6 @@ class TXPTask : public BaseTask
     delete m_pPromptWindow; m_pPromptWindow = nullptr;
     }
   public:
-    static bool sm_EditTask;
     virtual void OutTemplate( const QByteArray& sTemp );
     TXPTask();
     virtual void Clear();

@@ -11,6 +11,12 @@ bool Solver::sm_TestMode = false;
 Solver* Solver::sm_TestSolvers = nullptr;
 MathExpr Solver::m_OldExpr;
 
+bool IsConst(const MathExpr& Ex, int val)
+  {
+  int v;
+  return Ex.Cons_int(v) && v == val;
+  }
+
 bool GetAnswer( const MathExpr& expr, QByteArray VarName )
   {
   bool OLdPutAnswer = s_PutAnswer;
@@ -2656,7 +2662,7 @@ Lexp CalcDetQuEqu( const QByteArray& Source, QByteArray VarName )
   try
     {
     if( Source.isEmpty() ) return Result;
-    s_NoRootReduce = true;
+//    s_NoRootReduce = true;
     if( VarName == "" )
       {
       ex = Parser::StrToExpr( Source );
@@ -2810,18 +2816,21 @@ Lexp CalcDetQuEqu( const QByteArray& Source, QByteArray VarName )
           else
             if( a[1].Constan( r ) && abs( r ) < 0.0000001 )
               {
+              bool OldFullReduce = TExpr::sm_FullReduce;
+              TExpr::sm_FullReduce = false;
               ex1 = -( a[0] / a[2] ).Reduce();
               int nom, den;
               if( !( ex1.Constan( r ) && r < 0 || ex1.SimpleFrac_( nom, den ) && nom < 0 ) )
                 ex1 = ex1.Root( 2 ).Reduce();
               else
                 ex1 = CreateComplex( Constant( 0 ), ex1.RetNeg().Reduce().Root( 2 ) ).Reduce();
-              ex = GetPutRoot( ex1, VarName );
-              Result.Addexp( ex );
-              ex = GetPutRoot( -ex1, VarName );
+              TExpr::sm_FullReduce = OldFullReduce;
+              GetPutRoot( ex1, VarName );
+              Result.Addexp( ex1 );
+              GetPutRoot( -ex1, VarName );
               if( s_FinalComment )
                 TSolutionChain::sm_SolutionChain.AddComment( X_Str( "MRootsFound", "Roots are found." ) );
-              Result.Addexp( ex );
+              Result.Addexp( -ex1 );
               }
             else
               {
@@ -2981,7 +2990,7 @@ Lexp CalcDetBiQuEqu( const QByteArray& Source, const QByteArray& VarName )
     {
     if( s_FinalComment )
       TSolutionChain::sm_SolutionChain.AddComment( X_Str( "MEnterBiQuEquat", "Enter biquadratic equation" ) );
-    return Final();
+    return nullptr;
     };
 
   try
@@ -3665,7 +3674,10 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
             TSolutionChain::sm_SolutionChain.AddExpr( ex );
             if( p[2].Constan( d ) && abs( d ) < 0.0000001 && p[1].Constan( d ) && abs( d ) < 0.0000001 )
               {
-              ex1 = ( -p[0] / p[3] ).Root( 3 ).Reduce();
+              MathExpr arg =  -p[0] / p[3];
+              MathExpr arg2 = arg.Root(3);
+              ex1 = arg2.Reduce();
+//              ex1 = ( -p[0] / p[3] ).Root( 3 ).Reduce();
               Result.Addexp( ex1 );
               if( ex1.Negative() )
                 {
@@ -4121,6 +4133,22 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
   s_NoRootReduce = OldNoRootReduce;
   }
 
+void Solver::Simplify()
+  {
+  MathExpr Old = m_Expr;
+  bool bFullReduce = TExpr::sm_FullReduce;
+  TExpr::sm_FullReduce = !m_Expr.HasComplex();
+  m_Expr = m_Expr.Simplify();
+  TExpr::sm_FullReduce = bFullReduce;
+  if( m_Expr.IsEmpty() || m_Expr.Eq( Old ) || (!m_Expr.ConstExpr() && !Old.HasMatrix() ) )
+    {
+    s_LastError = X_Str( "MCanNotReduced", "can not be reduced!" );
+    m_Expr.Clear();
+    return;
+    }
+  m_Expr = new TBinar( '=', Old, m_Expr );
+  }
+
 void TSolvReToMult::Solve()
   {
   bool OldNoRootReduce = s_NoRootReduce;
@@ -4132,11 +4160,11 @@ void TSolvReToMult::Solve()
   catch( ErrParser Err )
     {
     s_NoRootReduce = OldNoRootReduce;
+    s_LastError = X_Str( "MCanNotFactor", "I can`t factor it!" );
     throw Err;
     }
   s_NoRootReduce = OldNoRootReduce;
   SimplifyExpand();
-  s_LastError = X_Str( "MCanNotFactor", "I can`t factor it!" );
   }
 
 void TSolvSubSqr::Solve()
@@ -4150,11 +4178,11 @@ void TSolvSubSqr::Solve()
   catch( ErrParser Err )
     {
     MathExpr::sm_NoReduceByCompare = OldNoReduceByCompare;
+    s_LastError = X_Str( "MCanNotFactor", "I can`t factor it!" );
     throw Err;
     }
   MathExpr::sm_NoReduceByCompare = OldNoReduceByCompare;
   SimplifyExpand();
-  s_LastError = X_Str( "MCanNotFactor", "I can`t factor it!" );
   }
 
 MathExpr SqSbSm( const MathExpr& exi )
@@ -4291,8 +4319,13 @@ void TSolvExpand::Solve()
         {
         s_NoRootReduce = false;
         s_RootToPower = true;
-        MathExpr exTmp = Op2.Reduce();
-        if( !exTmp.Eq( Op2 ) )
+        MathExpr E(Op2);
+        QByteArray Formula = Op2.WriteE();
+        int iEqu = Formula.lastIndexOf('=');
+        if(iEqu != -1)
+          E = Parser::StrToExpr( Formula.mid(iEqu + 1) );
+        MathExpr exTmp = E.Reduce();
+        if( !exTmp.Eq( E ) )
           m_Expr = new TBinar( '=', m_Expr, exTmp );
         }
       }
@@ -4448,6 +4481,11 @@ void TTan::Solve()
   m_Expr = m_Expr.CalcFunc( "tan" );
   }
 
+void TCotan::Solve()
+  {
+  m_Expr = m_Expr.CalcFunc( "cot" );
+  }
+
 void TLn::Solve()
   {
   m_Expr = m_Expr.CalcFunc( "ln" );
@@ -4465,190 +4503,7 @@ void TRadDeg::Solve()
 
 void TSciCalc::Solve()
   {
- /*
-  PNode eq;
-  MathExpr ex1, ex2, arg, ex, ex3, arg1, arg2 ;
-  MathExpr op1,op2;
-  QByteArray name, name1, name2 ;
-  double v,OldAcc;
-  bool RootToPowerOld ;
-  memory_switch=SWcalculator;
-  TanCotError = false;
-  OldAcc=Precision;
-  Precision=0.0000000000001;
-  Result = false;
-  RootToPowerOld = RootToPower;
-   if( Source!="" )
-  {
-  Result = true;
-  try{
-  eq=AnyExpr(FullPreProcessor(Source,"x"));
-
-  ex1=OutPut(eq);
-   if( TrigonomSystem == tsDeg )
-  {
-  name = ex1.WriteE;
-  Source = PiVar2Pi180( name );
-   if( name != Source )
-  {
-  FreeTree( eq );
-  eq = AnyExpr( Source );
-  ex1 = OutPut( eq );
-  };
-  };
-
-  FreeTree(eq);
-  try{
-   if( ex1.Binar("==",op1,op2) )
-  {
-   if( ! op1.Variab(name) )
-  throw  ErrParser( "Syntax error!", peSyntacs);
-   if( Pos(msPi,op2.WriteE)>0 )
-  ex=OutPut(AnyExpr(PiVar2PiConst(op2.WriteE))).Reduce()
-  else
-  ex=op2.Reduce();
-
-   if( PutAnswer )
-  Answer = ex1.Clone();
-
-   if( ex.Constan(v) )
-  {
-   if( ! PutAnswer )
-  store_var(name,ex);
-
-  OutWin.Addexp(ex1.Clone());
-  OutWin.Addcomm( X_str( "XPStatMess","MVarDefined", "Variable defined"));
-  }
-  else
-  OutWin.Addexp(ex1.Clone());
-  }
-  else
-  {
-  RecursionDepth = 2;
-  ReductionMustBeContinued = false;
-  ex2=ex1.Reduce();
-   if( ReductionMustBeContinued )
-  {
-   if( IsConstType( TLexp, ex1 ) )
-  ex = ex2.Reduce()
-  else
-  ex =  new TBinar( "==", ex2.Clone(), ex2.Reduce() );
-  ex2 = ex;
-  };
-   if( Pos(msPi,ex2.WriteE)>0 )
-  {
-  ex=OutPut(AnyExpr(PiVar2PiConst(ex2.WriteE))).Reduce();
-  ex2=ex
-  };
-
-  RootToPower = true;
-   if( ex1.Eq( ex2 ) )
-  {
-  ex2 = ex1.Reduce();
-  };
-   if( ex1.Eq(ex2) && ex1.Divis( op1, op2 ) && op1.Funct( name1, arg1 ) && op2.Funct( name2, arg2 ) && arg1.Eq( arg2 ) )
-   if( ( name1 == "sin" ) && ( name2 == "cos" ) )
-  {
-  ex2 = Function( ( "tan" ), ( arg1.Clone() ) );
-  }
-  else
-   if( ( name1 == "cos" ) && ( name2 == "sin" ) )
-  {
-  ex2 = Function( ( "cot" ), ( arg1.Clone() ) );
-  };
-   if( ex1.Eq(ex2) && ex1.Subtr( op1, op2 ) && IsConst( op1, 1 ) && op2.Power( op1, op2 ) && IsConst( op2, 2 ) && op1.Funct( name, arg ) )
-   if( name == "sin" )
-  {
-  ex2 = (( Function( ( "cos" ), ( arg.Clone() ) ) ) ^ ( 2 ));
-  }
-  else
-   if( name == "cos" )
-  {
-  ex2 = (( Function( ( "sin" ), ( arg.Clone() ) ) ) ^ ( 2 ));
-  };
-   if( ex1.Eq( ex2 ) )
-  {
-  Result = false;
-  OutWin.Addexp(ex1.Clone());
-   if( PutAnswer )
-  Answer = ex2.Clone()
-  }
-  else
-   if( (IsConstType( TLexp, ex1 )) || (IsConstType( TSyst, ex1 )) )
-  {
-  OutWin.Addexp(ex1.Clone());
-  OutWin.Addexp(ex2.Clone());
-   if( PutAnswer )
-  Answer = ex2.Clone();
-  }
-  else
-  {
-   if( Pos( msBigFi, ex1.WriteE ) > 0 )
-  ex = ex2.Clone()
-  else
-  {
-   if( ( IsConstType( TConstant, ex2 ) ) ) TConstant( ex2 ).IsE = false;
-  ex= new TBinar("==",ex1.Clone(),ex2.Clone());
-  ex3 = ex2.Reduce();
-   if( ex3.Eq(ex2) )
-  else
-  ex =  new TBinar( "==", ex, ex3 );
-  };
-  OutWin.Addexp(ex.Clone());
-   if( PutAnswer )
-  Answer = ex.Clone();
-  };
-
-  };
-   if( ! CalcOnly ) WEditor.XPEditor1.Clear;
-  except
-  Result = false;
-   if( TanCotError && ex1.Funct(name,arg) && ((name=="tan") || (name=="cot")))
-  {
-  Result = true;
-  ex= new TBinar("==",ex1.Clone(),Variable( ( msInfinity ) ));
-  OutWin.Addexp( ex.Clone() );
-   if( PutAnswer )
-  Answer = ex.Clone();
-  OutWin.Addcomm(X_Str("XPSimpleCalcMess","MCalced","Calculated!"));
-   if( ! CalcOnly ) WEditor.XPEditor1.Clear;
-  }
-  else {
-  OutWin.Addexp( ex1.Clone() );
-  OutWin.Addcomm( LastError );
-
-   if( PutAnswer )
-  Answer =  new TStr( LastError );
-
-  }
-  };
-  except
-  on E: ErrParser )
-  {
-  OutWin.AddExp( new TStr(""));
-  OutWin.Addcomm(X_Str("XPSimpleCalcMess", E.MsgName, E.Message ));
-  }
-  };
-  };
-  RootToPower = RootToPowerOld;
-  memory_switch=SWtask;
-  Precision=OldAcc;
-  OutWin.Show;
-  WEditor.XPEditor1.RefreshXPE;
-  };
-
-
-*/
-
-  MathExpr Old = m_Expr;
-  m_Expr = m_Expr.Simplify();
-  if( m_Expr.IsEmpty() || m_Expr.Eq( Old ) || (!m_Expr.ConstExpr() && !Old.HasMatrix() ) )
-    {
-    s_LastError = X_Str( "MCanNotReduced", "can not be reduced!" );
-    m_Expr.Clear();
-    return;
-    }
-  m_Expr = new TBinar( '=', Old, m_Expr );
+  Simplify();
   }
 
 void Log1Eq::Solve()
@@ -4761,7 +4616,8 @@ void TSolvQuaEqu::Solve()
 void TSolvDetQuaEqu::Solve()
   {
   bool OldConstToFraction = TConstant::sm_ConstToFraction;
-  TConstant::sm_ConstToFraction = true;
+//  TConstant::sm_ConstToFraction = true;
+  TExpr::sm_FullReduce = true;
   bool Result = true;
   try
     {
@@ -4870,7 +4726,9 @@ void TSolvCalcEquation::Solve()
   {
   bool OldConstToFraction = TConstant::sm_ConstToFraction;
   TConstant::sm_ConstToFraction = true;
-  m_Expr = new TBool( CalcEquation( m_Expr->WriteE() ) );
+//  m_Expr = CalcAnyEquation( m_Expr->WriteE() );
+//  m_Expr = new TBool( CalcEquation( m_Expr->WriteE() ) );
+  m_Expr = new TBool( CalcAnyEquation( m_Expr->WriteE() ) );
   TConstant::sm_ConstToFraction = OldConstToFraction;
   }
 
@@ -4895,7 +4753,7 @@ void TSolvDetLinEqu::Solve()
     PExMemb pMemb = Result.First();
     for( ; !pMemb->m_pNext.isNull(); pMemb = pMemb->m_pNext )
       TSolutionChain::sm_SolutionChain.AddExpr( pMemb->m_Memb );
-    TSolutionChain::sm_SolutionChain.AddComment( X_Str( "MLinSolved", "Linear Equation is Solved!" ) );
+//    TSolutionChain::sm_SolutionChain.AddComment( X_Str( "MLinSolved", "Linear Equation is Solved!" ) );
     }
   catch( ErrParser E )
     {
@@ -6642,6 +6500,7 @@ bool CalcRootsQuEqu( const QByteArray& Source )
     {
     s_Precision = OldPrecision;
     s_NoRootReduce = OldNoRootReduce;
+    TExpr::sm_FullReduce=false;
     return Result;
     };
 
@@ -6654,6 +6513,7 @@ bool CalcRootsQuEqu( const QByteArray& Source )
 
   try
     {
+    TExpr::sm_FullReduce=true;
     s_NoRootReduce = true;
     QByteArray VarName = "x";
     PNode eq;
@@ -7295,119 +7155,143 @@ bool CalcEquation( const QByteArray& Source )
   return true;
   }
 
+void TDiff::Solve()
+  {
+  TSolutionChain::sm_SolutionChain.AddExpr( m_Expr );
+  m_Expr = m_Expr.Diff().Reduce();
+  if(m_Expr.IsEmpty())
+    TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotCalculate", "Cannot calculate!") );
+  else
+    TSolutionChain::sm_SolutionChain.AddExpr( m_Expr, X_Str( "MDiffying", "derivative calculated!" ) );
+  m_Expr = new TBool(true);
+  }
+
+/*
+void TDerivative::Solve()
+  {
+  TDiff::Solve();
+  }
+*/
+
  TSolvReToMult::TSolvReToMult( const MathExpr Expr ) : Solver( Expr ) {}
- TSolvReToMult::TSolvReToMult() : Solver() {}
+ TSolvReToMult::TSolvReToMult() : Solver() {m_Code = ESolvReToMult;}
 
 TSolvExpand::TSolvExpand( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvExpand::TSolvExpand() : Solver() { m_Code = 0; m_Name = "MExpandAlHint"; m_DefaultName = "Opening Brackets"; }
+TSolvExpand::TSolvExpand() : Solver() { m_Code = ESolvExpand; m_Name = "MExpandAlHint"; m_DefaultName = "Opening Brackets"; }
 
 TSolvSubSqr::TSolvSubSqr( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvSubSqr::TSolvSubSqr() : Solver() { m_Code = 0; m_Name = "MSubtSqrAlHint"; m_DefaultName = "Difference of Squares"; }
+TSolvSubSqr::TSolvSubSqr() : Solver() { m_Code = ESolvSubSqr; m_Name = "MSubtSqrAlHint"; m_DefaultName = "Difference of Squares"; }
 
 TSolvSqrSubSum::TSolvSqrSubSum( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvSqrSubSum::TSolvSqrSubSum() : Solver() { m_Code = 0; m_Name = "MSqrSubSumAlHint"; m_DefaultName = "Square of a Sum or a Difference"; }
+TSolvSqrSubSum::TSolvSqrSubSum() : Solver() { m_Code = ESolvSqrSubSum; m_Name = "MSqrSubSumAlHint"; m_DefaultName = "Square of a Sum or a Difference"; }
 
 TSolvSumCub::TSolvSumCub( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvSumCub::TSolvSumCub() : Solver() { m_Code = 0; m_Name = "MSumCubAlHint"; m_DefaultName = "Sum of Cubes"; }
+TSolvSumCub::TSolvSumCub() : Solver() { m_Code = ESolvSumCub; m_Name = "MSumCubAlHint"; m_DefaultName = "Sum of Cubes"; }
 
 TTrinom::TTrinom( const MathExpr Expr ) : Solver( Expr ) {}
-TTrinom::TTrinom() : Solver() { m_Code = 0; m_Name = "MTrinomAlHint"; m_DefaultName = "Factoring Trinomial"; }
+TTrinom::TTrinom() : Solver() { m_Code = ETrinom; m_Name = "MTrinomAlHint"; m_DefaultName = "Factoring Trinomial"; }
 
 TSolvCubSubSum::TSolvCubSubSum( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvCubSubSum::TSolvCubSubSum() : Solver() { m_Code = 0; m_Name = "MCubSumAlHint"; m_DefaultName = "Cube of Sum or Difference"; }
+TSolvCubSubSum::TSolvCubSubSum() : Solver() { m_Code = ESolvCubSubSum; m_Name = "MCubSumAlHint"; m_DefaultName = "Cube of Sum or Difference"; }
 
 TSolvSubCub::TSolvSubCub( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvSubCub::TSolvSubCub() : Solver() { m_Code = 0; m_Name = "MSubCubAlHint"; m_DefaultName = "Difference of Cubes"; }
+TSolvSubCub::TSolvSubCub() : Solver() { m_Code = ESolvSubCub; m_Name = "MSubCubAlHint"; m_DefaultName = "Difference of Cubes"; }
 
 Alg1Calculator::Alg1Calculator( const MathExpr Expr ) : Solver( Expr ) {}
-Alg1Calculator::Alg1Calculator() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+Alg1Calculator::Alg1Calculator() : Solver() { m_Code = EAlg1Calculator; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TLg::TLg( const MathExpr Expr ) : Solver( Expr ) {}
-TLg::TLg() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TLg::TLg() : Solver() { m_Code = ELg; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 Log1Eq::Log1Eq( const MathExpr Expr ) : Solver( Expr ) {}
-Log1Eq::Log1Eq() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+Log1Eq::Log1Eq() : Solver() { m_Code = ELog1Eq; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 SysInEq::SysInEq( const MathExpr Expr ) : Solver( Expr ) {}
-SysInEq::SysInEq() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+SysInEq::SysInEq() : Solver() { m_Code = ESysInEq; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 SysInEqXY::SysInEqXY( const MathExpr Expr ) : Solver( Expr ) {}
-SysInEqXY::SysInEqXY() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+SysInEqXY::SysInEqXY() : Solver() { m_Code = ESysInEq; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 RatInEq::RatInEq( const MathExpr Expr ) : Solver( Expr ) {}
-RatInEq::RatInEq() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+RatInEq::RatInEq() : Solver() { m_Code = ERatInEq; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 ExpEq::ExpEq( const MathExpr Expr ) : Solver( Expr ) {}
-ExpEq::ExpEq() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+ExpEq::ExpEq() : Solver() { m_Code = EExpEq; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 MakeSubstitution::MakeSubstitution( const MathExpr Expr ) : Solver( Expr ) {}
-MakeSubstitution::MakeSubstitution() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+MakeSubstitution::MakeSubstitution() : Solver() { m_Code = EMakeSubstitution; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 SolveLinear::SolveLinear( const MathExpr Expr ) : Solver( Expr ) {}
-SolveLinear::SolveLinear() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+SolveLinear::SolveLinear() : Solver() { m_Code = ESolveLinear; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 MakeExchange::MakeExchange( const MathExpr Expr ) : Solver( Expr ) {}
-MakeExchange::MakeExchange() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+MakeExchange::MakeExchange() : Solver() { m_Code = EMakeExchange; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSolvDetLinEqu::TSolvDetLinEqu( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvDetLinEqu::TSolvDetLinEqu() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSolvDetLinEqu::TSolvDetLinEqu() : Solver() { m_Code = ESolvDetLinEqu; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSolvQuaEqu::TSolvQuaEqu( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvQuaEqu::TSolvQuaEqu() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSolvQuaEqu::TSolvQuaEqu() : Solver() { m_Code = ESolvQuaEqu; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSolvDetQuaEqu::TSolvDetQuaEqu( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvDetQuaEqu::TSolvDetQuaEqu() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSolvDetQuaEqu::TSolvDetQuaEqu() : Solver() { m_Code = ESolvDetQuaEqu; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSolvDisQuaEqu::TSolvDisQuaEqu( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvDisQuaEqu::TSolvDisQuaEqu() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSolvDisQuaEqu::TSolvDisQuaEqu() : Solver() { m_Code = ESolvDisQuaEqu; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSolvDetVieEqu::TSolvDetVieEqu( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvDetVieEqu::TSolvDetVieEqu() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSolvDetVieEqu::TSolvDetVieEqu() : Solver() { m_Code = ESolvDetVieEqu; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSolvCalcDetBiQuEqu::TSolvCalcDetBiQuEqu( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvCalcDetBiQuEqu::TSolvCalcDetBiQuEqu() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSolvCalcDetBiQuEqu::TSolvCalcDetBiQuEqu() : Solver() { m_Code = ESolvCalcDetBiQuEqu; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSolvFractRatEq::TSolvFractRatEq( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvFractRatEq::TSolvFractRatEq() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSolvFractRatEq::TSolvFractRatEq() : Solver() { m_Code = EAlgFrEquat; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSolvCalcIrratEq::TSolvCalcIrratEq( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvCalcIrratEq::TSolvCalcIrratEq() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSolvCalcIrratEq::TSolvCalcIrratEq() : Solver() { m_Code = ESqLogEq; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSolvCalcPolinomEqu::TSolvCalcPolinomEqu( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvCalcPolinomEqu::TSolvCalcPolinomEqu() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSolvCalcPolinomEqu::TSolvCalcPolinomEqu() : Solver() { m_Code = ESolvCalcPolinomEqu; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSolvCalcSimpleTrigoEq::TSolvCalcSimpleTrigoEq( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvCalcSimpleTrigoEq::TSolvCalcSimpleTrigoEq() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSolvCalcSimpleTrigoEq::TSolvCalcSimpleTrigoEq() : Solver() { m_Code = ESolvCalcSimpleTrigoEq; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSolvCalcSinCosEqu::TSolvCalcSinCosEqu( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvCalcSinCosEqu::TSolvCalcSinCosEqu() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSolvCalcSinCosEqu::TSolvCalcSinCosEqu() : Solver() { m_Code = ESinCosEq; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSolvCalcTrigoEqu::TSolvCalcTrigoEqu( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvCalcTrigoEqu::TSolvCalcTrigoEqu() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSolvCalcTrigoEqu::TSolvCalcTrigoEqu() : Solver() { m_Code = ESolvCalcTrigoEqu; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSolvCalcHomogenTrigoEqu::TSolvCalcHomogenTrigoEqu( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvCalcHomogenTrigoEqu::TSolvCalcHomogenTrigoEqu() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSolvCalcHomogenTrigoEqu::TSolvCalcHomogenTrigoEqu() : Solver() { m_Code = ESolvCalcHomogenTrigoEqu; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSolvCalcEquation::TSolvCalcEquation( const MathExpr Expr ) : Solver( Expr ) {}
-TSolvCalcEquation::TSolvCalcEquation() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSolvCalcEquation::TSolvCalcEquation() : Solver() { m_Code = ESolvCalcEquation; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSin::TSin( const MathExpr Expr ) : Solver( Expr ) {}
-TSin::TSin() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSin::TSin() : Solver() { m_Code = ESin; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TCos::TCos( const MathExpr Expr ) : Solver( Expr ) {}
-TCos::TCos() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TCos::TCos() : Solver() { m_Code = ECos; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TTan::TTan( const MathExpr Expr ) : Solver( Expr ) {}
-TTan::TTan() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TTan::TTan() : Solver() { m_Code = ETan; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+
+TCotan::TCotan( const MathExpr Expr ) : Solver( Expr ) {}
+TCotan::TCotan() : Solver() { m_Code = ECotan; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TLn::TLn( const MathExpr Expr ) : Solver( Expr ) {}
-TLn::TLn() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TLn::TLn() : Solver() { m_Code = ELn; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TDegRad::TDegRad( const MathExpr Expr ) : Solver( Expr ) {}
-TDegRad::TDegRad() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TDegRad::TDegRad() : Solver() { m_Code = EDegRad; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TRadDeg::TRadDeg( const MathExpr Expr ) : Solver( Expr ) {}
-TRadDeg::TRadDeg() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TRadDeg::TRadDeg() : Solver() { m_Code = ERadDeg; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
 TSciCalc::TSciCalc( const MathExpr Expr ) : Solver( Expr ) {}
-TSciCalc::TSciCalc() : Solver() { m_Code = 0; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TSciCalc::TSciCalc() : Solver() { m_Code = ESolvTestMode; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+
+TDiff::TDiff( const MathExpr Expr ) : Solver( Expr ) {}
+TDiff::TDiff() : Solver() { m_Code = EDeriv; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }

@@ -8,13 +8,14 @@
 #include <QtCharts/QScatterSeries>
 #include <QtCharts/QAreaSeries>
 #include <QtCharts/QValueAxis>
+#include "OptionMenuPlotter.h"
 
 using namespace QtCharts;
 
 class PlotData
   {
   friend class MultiPlotter;
-//  friend class SettingsChart;
+  friend class SettingsChart;
   QByteArray m_Formula;
   QFont m_Font;
   QString m_Label;
@@ -33,11 +34,19 @@ class PlotData
   QPointF SetCursor(class MultiPlotter &Plotter, int index);
   };
 
+class MultiPlotter;
+class DialogSettingsChart : public QDialog
+  {
+  friend class MultiPlotter;
+  MultiPlotter *m_pPlotter;
+  DialogSettingsChart(MultiPlotter *pPlotter);
+  };
+
 class MultiPlotter : public QWidget
   {
   Q_OBJECT
     friend PlotData;
-//    friend class SettingsChart;
+    friend class DialogSettingsChart;
     const double cm_Break = 1e-34;
     QScatterSeries *m_pSeriesBreakPoints=new QScatterSeries;
     QValueAxis *m_pValueAxisX = new QValueAxis;
@@ -63,8 +72,8 @@ class MultiPlotter : public QWidget
     QLabel *m_pValueX;
     QPushButton *m_pRefresh;
     int m_iCurrentPoint;
-//    SettingsChart *m_pMainChart=new SettingsChart;
-//    OptionMenuPlotter *m_pPlotterMenu=new OptionMenuPlotter(nullptr);
+    DialogSettingsChart *m_pMainChart;
+    OptionMenuPlotter *m_pPlotterMenu=new OptionMenuPlotter(nullptr);
     double m_YMin = 1.79769e+308, m_YMax = 2.22507e-308;
     int m_Prec = 1;
     bool m_NumberAxisIsHidden=true;
@@ -107,13 +116,5 @@ private slots:
 public slots:
      void on_SetChartSettings();
 };
-
-/*
-class SettingsChart : public QDialog
-  {
-  MultiPlotter *m_pPlotter;
-  SettingsChart(MultiPlotter *pPlotter);
-  };
-*/
 
 #endif // MULTIPLOT_H

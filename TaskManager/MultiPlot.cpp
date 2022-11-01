@@ -70,7 +70,8 @@ QPointF PlotData::SetCursor( MultiPlotter &Plotter, int index)
 
 const  unsigned Colors[15] = {0,0xff0000,0x00ff00,0x0000ff,0xffff00,0x00ffff,0xff00ff,0x008080,0x800080,0x000080,0x008000,0x800000};
 
-MultiPlotter::MultiPlotter(const QByteArray& Formula) : QWidget(nullptr), m_Formula(Formula), m_iCurrentPoint(0), m_pPathAsymptote(nullptr)
+MultiPlotter::MultiPlotter(const QByteArray& Formula) : QWidget(nullptr), m_Formula(Formula), m_iCurrentPoint(0), m_pPathAsymptote(nullptr),
+  m_pMainChart (new DialogSettingsChart(this))
   {
 /*
   m_pUi=new Ui::Plotter;
@@ -826,13 +827,13 @@ void MultiPlotter::on_HideLegend()
         m_ChartLegendIsHidden=true;
     }
 }
-/*
-SettingsChart::SettingsChart(MultiPlotter *pPlotter): QDialog( nullptr, Qt::WindowSystemMenuHint ),
+
+DialogSettingsChart::DialogSettingsChart(MultiPlotter *pPlotter): QDialog( nullptr, Qt::WindowSystemMenuHint ),
   m_pPlotter(pPlotter)
   {
 
   }
-*/
+
 void MultiPlotter::on_SetChartSettings()
   {
   }

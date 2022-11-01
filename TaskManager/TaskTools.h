@@ -204,6 +204,7 @@ class MarkEd : public QSpinBox
     void Edit(int i);
   };
 
+/*
 class TemplEdit : public QLineEdit
   {
   Q_OBJECT
@@ -216,6 +217,7 @@ class TemplEdit : public QLineEdit
   public slots:
   void Edit();
   };
+*/
 
 class PromptEditor : public QDialog
   {

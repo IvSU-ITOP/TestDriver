@@ -20,12 +20,6 @@ int main(int argc, char *argv[])
     Process.start(Path, Args);
     Process.waitForFinished();
     }
-  QSettings S("HKEY_CLASSES_ROOT\\Installer\\Products\\1926E8D15D0BCE53481466615F760A7F", QSettings::NativeFormat);
-  if( S.allKeys().isEmpty() )
-    {
-    Path = '"' + QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("vcredist_x64.exe") + '"';
-    system(Path.toLocal8Bit());
-    }
   Path = QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("TestDriver.exe");
   Args.clear();
   QProcess::startDetached(Path, Args);

@@ -68,6 +68,7 @@ class WinTesting : public QMainWindow
   static QAction *sm_Hebrev;
   static QAction *sm_Russian;
   static QAction *sm_Bulgarian;
+  static QAction *sm_Ukrainian;
   static QAction *sm_pSaveTaskFile;
   void HideHelps() {}
   QAction *m_pOpenTask;
@@ -267,6 +268,60 @@ class SciCalc : public CalcWidget
     void ToDeg();
     void Pi();
     void Calculator();
+  };
+
+class Calculus : public CalcWidget
+  {
+  Q_OBJECT
+  public:
+    Calculus();
+    void AddButton( const QString& Icon, const QByteArray& Hint, const QByteArray& DefaultHint, void ( Calculus::*Slot )( ) );
+  public slots:
+    void Derivative();
+    void IndefIntegr();
+    void Limit();
+    void DerivFunc();
+    void DefIntegr();
+    void EigenValues();
+    void Determinant();
+    void Transposition();
+    void MatrixInv();
+  };
+
+class Trigo : public CalcWidget
+  {
+  Q_OBJECT
+  public:
+     Trigo();
+     void AddButton( const QString& Icon, const QByteArray& Hint, const QByteArray& DefaultHint, void ( Trigo::*Slot )( ) );
+  public slots:
+     void Angle2();
+     void Angle3();
+     void Tan2();
+     void Alpha2();
+     void Priv();
+     void TrigOfSumma();
+     void Summ_Mult();
+     void Trigo_Summ();
+     void CalcTrigo();
+  };
+
+class Advanced : public CalcWidget
+  {
+  Q_OBJECT
+  public:
+     Advanced();
+     void AddButton( const QString& Icon, const QByteArray& Hint, const QByteArray& DefaultHint, void ( Advanced::*Slot )( ) );
+  public slots:
+     void Permut();
+     void BinomCoef();
+     void Accomod();
+     void Statistic();
+     void Correl();
+     void LineProgr();
+     void AlgToTrigon();
+     void ComplexOp();
+     void Present();
   };
 
 class ListCalculators : public QListWidget

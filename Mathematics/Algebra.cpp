@@ -2561,6 +2561,7 @@ Lexp CalcDetLinEqu( const QByteArray& Source, const QByteArray& VarName )
             }
           CastPtr( TL2exp, ex )->Last()->m_Memb.Binar( '=', lp, rp );
           ex1 = rp.CancellationOfMultiNominals( ex2 ).Reduce();
+          s_GlobalInvalid = false;
           ex2 = new TBinar( '=', lp, rp );
           if( !ex1.Eq( rp ) ) ex2 = new TBinar( '=', ex2, ex1 );
           Result = new TL2exp;

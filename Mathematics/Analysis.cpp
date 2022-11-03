@@ -1256,6 +1256,7 @@ void TIndefIntegr::Solve()
 
 void TDefIntegrate::Solve()
   {
+  s_GlobalInvalid = false;
   m_Expr = CalcDefIntegralExpr( m_Expr );
   if(m_Expr.IsEmpty())
     TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotCalculate", "Cannot calculate!") );
@@ -1266,6 +1267,7 @@ void TDefIntegrate::Solve()
 
 void TLimitCreator::Solve()
   {
+  s_GlobalInvalid = false;
   m_Expr = CalcLimitExpr( m_Expr );
   if(m_Expr.IsEmpty())
     TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotLim", "Cannot Limit calculate!") );

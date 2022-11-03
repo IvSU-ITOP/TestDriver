@@ -284,6 +284,14 @@ void Thread::SearchSolve(QByteArray& Formula)
   Solve( new TTrinom );
 //  if( m_SolvIndexes.count() > 0 ) return Final();
   Solve( new Alg1Calculator );
+  if( m_SolvIndexes.count() > 0 ) return Final();
+  Solve( new TDerivative);
+  if( m_SolvIndexes.count() > 0 ) return Final();
+  Solve( new TDefIntegrate);
+  if( m_SolvIndexes.count() > 0 ) return Final();
+  Solve( new TIndefIntegr);
+  if( m_SolvIndexes.count() > 0 ) return Final();
+  Solve( new TLimitCreator );
   Final();
   }
 
@@ -669,6 +677,9 @@ void Thread::ReadyRead()
             case EComplexOper:
               pSolv = new ComplexOper;
               break;
+            case ELimit:
+              pSolv = new TLimitCreator;
+            break;
             }
           /*
                           EAlg2InEqXYGrph,
@@ -713,7 +724,8 @@ EAngle2, EAngle3, ETan2,
             return Final();
             }
           MathExpr EResult = pSolv->Result();
-          QString Comment = TSolutionChain::sm_SolutionChain.GetLastComment();
+//          QString Comment = TSolutionChain::sm_SolutionChain.GetLastComment();
+          QString Comment;
           if( EResult.IsEmpty() )
             {
             Result = s_LastError.toUtf8();
@@ -734,7 +746,8 @@ EAngle2, EAngle3, ETan2,
           QString Comm;
           Result = "Exp&" + EResult.SWrite();
           if( pSolv->Success() )
-            Comm = s_XPStatus.GetCurrentMessage();
+            Comm = "";
+//            Comm = s_XPStatus.GetCurrentMessage();
           else
             Comm = s_LastError;
           Result += "&" + Comm.toUtf8();

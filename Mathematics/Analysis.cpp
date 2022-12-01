@@ -1246,6 +1246,7 @@ void TDerivative::Solve()
 
 void TIndefIntegr::Solve()
   {
+  s_IntegralCount = 0;
   m_Expr = CalcIntegralExpr( m_Expr );
   if(m_Expr.IsEmpty())
     TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotCalculate", "Cannot calculate!") );

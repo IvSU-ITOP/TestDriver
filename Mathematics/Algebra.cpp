@@ -2453,6 +2453,13 @@ Lexp CalcDetLinEqu( const QByteArray& Source, const QByteArray& VarName )
         expr = ex;
         TSolutionChain::sm_SolutionChain.AddExpr( expr );
         }
+      expr.Binar( '=', ex1, ex2 );
+      if( IsType( TVariable, ex1 ) && IsType( TConstant, ex2 ) )
+        {
+        Result = new TL2exp;
+        Result.Addexp( ex2 );
+        return Final();
+        }
       ex = RemDenominator( expr, Cond );
       if( !ex.Eq( expr ) )
         {

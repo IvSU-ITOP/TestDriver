@@ -475,6 +475,64 @@ void Thread::ReadyRead()
           m_pSocket->flush();
           return;
           }
+        if(CalcParms[0] == "Plot")
+          {
+          double X_start(CalcParms[1].toDouble()), X_end(CalcParms[2].toDouble()), X_step;
+          int NumberX = X_end - X_start;
+          X_step = NumberX / 250.0;
+          X_end += 0.1 * X_step;
+          QByteArray Formula = Parms[1];
+          int PosEq = Formula.indexOf('=');
+          if(PosEq != -1)
+            Formula = Formula.mid(PosEq + 1);
+          MathExpr Expr = MathExpr( Parser::StrToExpr( Formula));
+          if(s_GlobalInvalid || Expr.IsEmpty()) throw ErrParser( "Bad formula: " + Formula, ParserErr::peNewErr );
+          QByteArray Result;
+          double MaxY, MinY = 0;
+          bool bFirstValue = true;
+          double OldAccuracy = TExpr::sm_Accuracy;
+          TExpr::sm_Accuracy = 0.001;
+          for( double X = X_start; X <= X_end; X += X_step)
+            {
+            MathExpr Value;
+            try
+              {
+              Value = Expr.Substitute("x", Constant(X) ).SimplifyFull();
+              }
+            catch( ErrParser& ErrMsg )
+              {
+              }
+            Result += QByteArray::number(X) + ',';
+            if( !(IsType( TConstant, Value )) || s_GlobalInvalid && s_LastError=="INFVAL")
+              Result += "1.38162e-31;";
+            else
+              {
+              Result += Value.WriteE() + ";";
+              if(bFirstValue)
+                {
+                bFirstValue = false;
+                Value.Constan(MaxY);
+                if(MaxY < 0) MinY = MaxY;
+                }
+              else
+                {
+                double Y;
+                Value.Constan(Y);
+                if( Y > MaxY)
+                  MaxY = Y;
+                else
+                  if(Y < MinY) MinY = Y;
+                }
+              }
+            }
+          TExpr::sm_Accuracy = OldAccuracy;
+          Result += QByteArray::number(X_start) + "," + QByteArray::number(X_end) +
+              ";" + QByteArray::number(MinY) + "," + QByteArray::number(MaxY);
+//          QByteArrayList Li = Result.split(';');
+          m_pSocket->write(Result + "\n\n");
+          m_pSocket->flush();
+          return;
+          }
         if(CalcParms[0] == "Calc")
           {
           s_CalcOnly = false;

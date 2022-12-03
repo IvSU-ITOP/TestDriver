@@ -526,8 +526,8 @@ void Thread::ReadyRead()
               }
             }
           TExpr::sm_Accuracy = OldAccuracy;
-          Result += QByteArray::number(X_start) + "," + QByteArray::number(X_end) +
-              ";" + QByteArray::number(MinY) + "," + QByteArray::number(MaxY);
+          Result += QByteArray::number(X_start,'g', 2) + "," + QByteArray::number(X_end, 'g', 2) +
+              ";" + QByteArray::number(MinY, 'g', 2) + "," + QByteArray::number(MaxY, 'g', 2);
 //          QByteArrayList Li = Result.split(';');
           m_pSocket->write(Result + "\n\n");
           m_pSocket->flush();

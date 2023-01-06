@@ -1770,6 +1770,7 @@ MathExpr TDivi::Reduce() const
 
   if( sm_FullReduce && opr1.Constan( Value1 ) && opr2.Constan( Value2 ) )
     {
+    s_GlobalInvalid = false;
     double A2 = fabs(Value2);
     if( A2 > sm_Precision )
       return Constant( Value1 / Value2 );

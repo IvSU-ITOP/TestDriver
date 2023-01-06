@@ -6,6 +6,7 @@
 #include "../Mathematics/Algebra.h"
 #include "../Mathematics/SolChain.h"
 #include "../Mathematics/Analysis.h"
+#include "../Mathematics/ExpOb.h"
 
 const int s_FontSize = 16;
 const int s_PowDecrease = 5;
@@ -13,6 +14,7 @@ DataServer *s_pDataServer;
 QByteArray s_MainUrl;
 QSqlDatabase DB;
 QMutex s_Critical;
+QByteArray Thread::sm_Buffer;
 
 QFile s_LogFile( QString( s_Temp ) + "Log.txt" );
 QDebug s_Debug( &s_LogFile );
@@ -297,8 +299,15 @@ void Thread::SearchSolve(QByteArray& Formula)
 
 void Thread::ReadyRead()
   {
-  QByteArrayList Parms( m_pSocket->readAll().split( '&' ) );
   QMutexLocker locker(&s_Critical);
+  QByteArrayList Parms( m_pSocket->readAll().split( '&' ) );
+  if(sm_Buffer.length() != 0)
+    {
+    m_pSocket->write(sm_Buffer + "\n\n");
+    m_pSocket->flush();
+    sm_Buffer.clear();
+    return;
+    }
   qDebug() << "StartReadyRead";
   if( !DB.isValid() ) DB = QSqlDatabase::addDatabase( "QMYSQL" );
   qDebug() << "QMYSQL Added";
@@ -475,63 +484,259 @@ void Thread::ReadyRead()
           m_pSocket->flush();
           return;
           }
+        if(CalcParms[0] == "CalcPoint")
+          {
+          QByteArrayList Formuls = CalcParms[1].split(';');
+          int FCount = Formuls.count();
+          QByteArray Points;
+          double OldAccuracy = TExpr::sm_Accuracy;
+          TExpr::sm_Accuracy = 0.0000000001;
+          for(int i = 0; i < FCount; i++)
+            {
+            if(Formuls[i].endsWith('@'))
+              Formuls[i] = Formuls[i].left(Formuls[i].length() - 1);
+            int PosEq = Formuls[i].indexOf('=');
+            if(PosEq != -1)
+              Formuls[i] = Formuls[i].mid(PosEq + 1);
+            MathExpr Expr = MathExpr( Parser::StrToExpr( Formuls[i]));
+            Expr = Expr.SimplifyFull();
+            QByteArray E = Expr.WriteE();
+            if(E == "e") E = "1";
+            Points += E + ';';
+//            if( i < FCount - 1) Points += ';';
+            }
+          m_pSocket->write(Points + "\n\n");
+          m_pSocket->flush();
+          TExpr::sm_Accuracy = OldAccuracy;
+          return;
+          }
         if(CalcParms[0] == "Plot")
           {
           double X_start(CalcParms[1].toDouble()), X_end(CalcParms[2].toDouble()), X_step;
           int NumberX = X_end - X_start;
-          X_step = NumberX / 250.0;
+          X_step = NumberX / 200.0;
           X_end += 0.1 * X_step;
-          QByteArray Formula = Parms[1];
-          int PosEq = Formula.indexOf('=');
-          if(PosEq != -1)
-            Formula = Formula.mid(PosEq + 1);
-          MathExpr Expr = MathExpr( Parser::StrToExpr( Formula));
-          if(s_GlobalInvalid || Expr.IsEmpty()) throw ErrParser( "Bad formula: " + Formula, ParserErr::peNewErr );
-          QByteArray Result;
-          double MaxY, MinY = 0;
+          QByteArrayList Formuls = Parms[1].split(';');
+          int FCount = Formuls.count();
+          TExprs Exprs;
+          QVector<bool> Infinity(FCount);
+          QVector<bool> IsEmpty(FCount);
+          for(int i = 0; i < FCount; i++)
+            {
+            IsEmpty[i] = false;
+            Infinity[i] = false;
+            int PosEq = Formuls[i].indexOf('=');
+            if(PosEq != -1)
+              Formuls[i] = Formuls[i].mid(PosEq + 1);
+            if(Formuls[i].endsWith('@'))
+              Formuls[i] = Formuls[i].left(Formuls[i].length() - 1);
+            MathExpr Expr = MathExpr( Parser::StrToExpr( Formuls[i]));
+            if(s_GlobalInvalid || Expr.IsEmpty())
+              throw ErrParser( "Bad formula: " + Formuls[i], ParserErr::peNewErr );
+            Exprs.append(Expr);
+            }
+          double MaxY, MinY, MaxAbsY;
           bool bFirstValue = true;
           double OldAccuracy = TExpr::sm_Accuracy;
           TExpr::sm_Accuracy = 0.001;
-          for( double X = X_start; X <= X_end; X += X_step)
+          MatrixArry Values;
+          int i = 0;
+          for( double X = X_start; X <= X_end; X += X_step, i++)
             {
-            MathExpr Value;
-            try
+            Values.push_back( QVector<MathExpr>( FCount ) );
+            if(fabs(X) < TExpr::sm_Accuracy) X = 0;
+            for(int j = 0; j < FCount; j++)
               {
-              Value = Expr.Substitute("x", Constant(X) ).SimplifyFull();
-              }
-            catch( ErrParser& ErrMsg )
-              {
-              }
-            Result += QByteArray::number(X) + ',';
-            if( !(IsType( TConstant, Value )) || s_GlobalInvalid && s_LastError=="INFVAL")
-              Result += "1.38162e-31;";
-            else
-              {
-              Result += Value.WriteE() + ";";
-              if(bFirstValue)
+              MathExpr Value;
+              try
                 {
-                bFirstValue = false;
-                Value.Constan(MaxY);
-                if(MaxY < 0) MinY = MaxY;
+                TExpr::sm_ConstOnly = true;
+                Value = Exprs[j].Substitute("x", Constant(X) ).SimplifyFull();
+                }
+              catch( ErrParser& ErrMsg )
+                {
+                }
+              TExpr::sm_ConstOnly = false;
+              bool bEmpty = !(IsType( TConstant, Value )) || s_GlobalInvalid && s_LastError=="INFVAL";
+              if(!bEmpty)
+                {
+                double VY;
+                Value.Constan(VY);
+                bEmpty = isnan(VY);
+                }
+              if( bEmpty )
+                {
+                if(!Infinity[j] && i > 2)
+                  {
+                  double YOld, YOldOld;
+                  Values[i-1][j].Constan(YOld);
+                  Values[i-2][j].Constan(YOldOld);
+                  if(fabs(YOld) > fabs(YOldOld) * 10)
+                    {
+                    if(MaxY == YOld)
+                      MaxY = YOldOld;
+                    else
+                      if(MinY == YOld)
+                        MinY = YOld;
+                    if( MaxAbsY == fabs(YOld))
+                      MaxAbsY = fabs(YOldOld);
+                    Values[i-1][j] = MathExpr();
+                    }
+                  }
+//                Values[i][j] = new TBool(false);
+                Infinity[j] = true;
                 }
               else
                 {
                 double Y;
                 Value.Constan(Y);
-                if( Y > MaxY)
-                  MaxY = Y;
+                double AbsY = fabs(Y);
+                if(Infinity[j])
+                  {
+                  Infinity[j] = false;
+                  if( MaxAbsY != 0 && AbsY > MaxAbsY * 10 )
+                    {
+//                    Values[i][j] = new TBool(false);
+                    continue;
+                    }
+                  }
+                Values[i][j] = Value;
+                if(bFirstValue)
+                  {
+                  bFirstValue = false;
+                  MinY = MaxY = Y;
+                  MaxAbsY = AbsY;
+                  }
                 else
-                  if(Y < MinY) MinY = Y;
+                  {
+                  if( Y > MaxY)
+                    MaxY = Y;
+                  else
+                    if(Y < MinY) MinY = Y;
+                  if(AbsY > MaxAbsY) MaxAbsY = AbsY;
+                  }
+                }
+              }
+            }
+          QByteArray Result;
+          int iCount = i;
+          i = 0;
+          for( double X = X_start; X <= X_end; X += X_step, i++)
+            {
+            if(fabs(X) < TExpr::sm_Accuracy) X = 0;
+            Result += QByteArray::number(X) + ',';
+            for(int j = 0; j < FCount; j++)
+              {
+              MathExpr Value = Values[i][j];
+              if( Value.IsEmpty())
+                {
+                double dF1 = 0;
+                double Step = X_step / 100;
+                MathExpr ValueX;
+                bool bToMax = true;
+                double dF2, dF, dX;
+                if(( !IsEmpty[j] && i > 0 ) || ( i < iCount - 1 && !Values[i+1][j].IsEmpty()))
+                  {
+                  if(Values[i-1][j].IsEmpty())
+                    {
+                    bToMax = false;
+                    Step = -Step;
+                    dX = X;
+                    dX = X + X_step + Step;
+                    Values[i+1][j].Constan(dF);
+                    }
+                  else
+                    {
+                    Values[i-1][j].Constan(dF);
+                    dX = X - X_step + Step;
+                    }
+                  for( ; bToMax ? dX < X : dX > X; dX += Step)
+                    {
+                    try
+                      {
+                      TExpr::sm_ConstOnly = true;
+                      ValueX = Exprs[j].Substitute("x", Constant(dX) ).SimplifyFull();
+                      }
+                      catch( ErrParser& ErrMsg )
+                      {
+                      }
+                    TExpr::sm_ConstOnly = false;
+                    if(ValueX.IsEmpty())
+                      break;
+                    double NewF;
+                    if(!ValueX.Constan(NewF))
+                      break;
+                    dF2 = fabs(NewF - dF);
+                    dF = NewF;
+                    if(dF1 == 0)
+                      {
+                      dF1 = dF2;
+                      continue;
+                      }
+                    if(dF2 / dF1 > 10)
+                      {
+                      Result += "a";
+                      break;
+                      }
+//                    dF1 = dF2;
+                    }
+                  }
+                IsEmpty[j] = true;
+                if(j == FCount - 1)
+                  Result += ";";
+                else
+                  Result += ",";
+                }
+              else
+                {
+                if(i > 1 && i < iCount - 1)
+                  {
+                  double dCurrent, dNext, dPrev;
+                  Value.Constan(dCurrent);
+                  if(!Values[i+1][j].IsEmpty() && !Values[i-1][j].IsEmpty())
+                    {
+                    Values[i+1][j].Constan(dNext);
+                    Values[i-1][j].Constan(dPrev);
+                    double D1 = dCurrent - dPrev;
+                    double D2 = dNext - dCurrent;
+                    if(D1 * D2 < 0 && (fabs(D1) > 3) && (fabs(D2) > 3))
+                      {
+                      if( D1 < 0.0 )
+                        {
+                        if(j == FCount - 1)
+                          Result += "c;";
+                        else
+                          Result += "c,";
+                        continue;
+                        }
+                      else
+                        {
+                        if(j == FCount - 1)
+                          Result += "b;";
+                        else
+                          Result += "b,";
+                        continue;
+                        }
+                      }
+                    }
+                  }
+                IsEmpty[j] = false;
+                if(j == FCount - 1)
+                  Result += Value.WriteE() + ";";
+                else
+                  Result += Value.WriteE() + ",";
                 }
               }
             }
           TExpr::sm_Accuracy = OldAccuracy;
           Result += QByteArray::number(X_start,'g', 2) + "," + QByteArray::number(X_end, 'g', 2) +
               ";" + QByteArray::number(MinY, 'g', 2) + "," + QByteArray::number(MaxY, 'g', 2);
-//          QByteArrayList Li = Result.split(';');
+          int N2 = Result.count() / 2;
+          int RestBuffer = Result.count() - N2;
+          sm_Buffer = Result.right(RestBuffer);
+          Result = Result.left(N2);
           m_pSocket->write(Result + "\n\n");
           m_pSocket->flush();
-          return;
           }
         if(CalcParms[0] == "Calc")
           {

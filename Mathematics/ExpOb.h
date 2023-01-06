@@ -56,6 +56,7 @@ class TExpr
     MATHEMATICS_EXPORT static double Precision();
     MATHEMATICS_EXPORT static double ResetPrecision(double);
     MATHEMATICS_EXPORT static bool sm_CalcOnly;
+    MATHEMATICS_EXPORT static bool sm_ConstOnly;
     static bool sm_FullReduce;
 //    static QString sm_LastError;
     static bool sm_IsAuxiliaryIntegral;
@@ -1425,7 +1426,7 @@ class TBool : public TExpr
   {
   bool m_Valueb;
   public:
-    TBool( bool V );
+    TBool( bool V = true);
     MathExpr Clone() const;
     MathExpr Diff( const QByteArray& d = "x" );
     bool Eq( const MathExpr& E2 ) const;

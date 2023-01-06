@@ -67,13 +67,15 @@ class Thread : public QThread
   QTime m_Time; //?
   MathExpr m_Expression;
   QByteArray m_Formula;
+  static QByteArray sm_Buffer;
   bool m_Critical; //Признак монопольного режима.
   enum Parms { prmUser, prmTopic, prmHid, prmPathFile, prmPassword, prmTaskType, prmDatabase, prmURL, prmCharset };
   QVector<Solvers> m_SolvIndexes;
   void Solve( Solver*);
   void SearchSolve(QByteArray& Formula);
   public:
-    Thread( int iSockID, QObject *parent ) : QThread( parent ), m_SocketDescriptor( iSockID ), m_Critical(false) {}
+    Thread( int iSockID, QObject *parent ) : QThread( parent ),
+      m_SocketDescriptor( iSockID ), m_Critical(false) {}
     virtual void run();  //Эта функция выполнения поток.
   signals:
     void Error( QTcpSocket::SocketError socketerror ); 

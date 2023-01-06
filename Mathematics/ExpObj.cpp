@@ -21,6 +21,7 @@ bool TExpr::sm_FullReduce = false;
 bool TExpr::sm_IsAuxiliaryIntegral = false;
 bool TExpr::sm_IntegralError =false;
 bool TExpr::sm_CalcOnly = false;
+bool TExpr::sm_ConstOnly = false;
 bool TPowr::sm_Factorize = true;
 bool TConstant::sm_ConstToFraction = false;
 TExpr::TrigonomSystem TExpr::sm_TrigonomSystem = tsRad;
@@ -1451,6 +1452,8 @@ MathExpr TFunc::Reduce() const
 
   if( m_Name == "arcsin" )
     {
+    if(sm_ConstOnly)
+      return new TConstant( AngleValue( asin( V ) ) );
     V1 = abs( V ), V2;
     if( V1 > 1.0 ) throw ErrParser( X_Str( "MArgArcsinOut", "Argument out of range!" ), peNoSolv );
     if( V1 == 1.0 )
@@ -1482,6 +1485,8 @@ MathExpr TFunc::Reduce() const
 
   if( m_Name == "arccos" )
     {
+    if(sm_ConstOnly)
+      return new TConstant( AngleValue( acos( V ) ) );
     if( ( V > 1 ) || ( V < -1 ) ) throw ErrParser( X_Str( "MArgArcsinOut", "Argument out of range!" ), peNoSolv );
     if( V == 0.0 )
       {
@@ -1536,6 +1541,8 @@ MathExpr TFunc::Reduce() const
 
   if( m_Name == "arctan" )
     {
+    if(sm_ConstOnly)
+      return new TConstant( AngleValue( atan( V ) ) );
     V1 = abs( V );
     if( V1 == 1 )
       V2 = 4;
@@ -1562,6 +1569,12 @@ MathExpr TFunc::Reduce() const
 
   if( m_Name == "arccot" )
     {
+    if(sm_ConstOnly)
+      {
+      V1 = atan( 1.0 / V );
+      if( V1 < 0 ) V1 = V1 + M_PI;
+      return new TConstant( AngleValue( V1 ) );
+      }
     if( V == 0 )
       {
       V1 = 1; V2 = 2;
@@ -2247,7 +2260,7 @@ MathExpr TRoot::Reduce() const
     };
 
   opr1 = m_Operand1.Reduce();
-  if( sm_FullReduce && m_Operand1.Constan( Value1 ) )
+  if( sm_FullReduce && opr1.Constan( Value1 ) )
     return Value();
   
   if( !s_NoRootReduce && opr1.Cons_int( N ) )

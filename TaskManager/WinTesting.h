@@ -120,8 +120,8 @@ class WinTesting : public QMainWindow
     static QAction *sm_pEditCalc;
     static QAction *sm_pAddPicture;
     static QAction *sm_pShowCalcualtor;
-    static QAction *sm_pPlotGraph;
     static QAction *sm_pMultiPlot;
+    static QAction *sm_pCalcDeriv;
     static WinTesting* sm_pMainWindow;
     static QNetworkAccessManager sm_NetworkManager;
     static QStringList sm_ApplicationArguments;
@@ -166,8 +166,8 @@ public slots :
     void BrowseTask();
     void Calc();
     void Quit();
-//    void PlotGraph();
     void MultiPlot();
+    void CalcDeriv();
   };
 
 class TypeSelector : public QDialog

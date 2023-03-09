@@ -111,7 +111,6 @@ class Parser
   PNode TestAnyExpr( bool &AllOk, QByteArray& ASource, const QByteArray& UncnownName = "x" );
   bool IsUnknown( QByteArray& ASource );
   void GetToken();
-  QByteArray PreProcessor( const QByteArray& ASource, const QByteArray& ASelectName );
   QByteArray Number();
   QByteArray GetWord();
   void FreeTree();
@@ -127,6 +126,7 @@ class Parser
   Lexp* m_pCond;
   public:
     bool m_FirstListMemberIsList;
+    MATHEMATICS_EXPORT static QByteArray PreProcessor( const QByteArray& ASource, const QByteArray& ASelectName );
     MATHEMATICS_EXPORT static bool sm_Drop;
     MATHEMATICS_EXPORT static QByteArray PackUnAscii( const QByteArray& Expr );
     MATHEMATICS_EXPORT static QByteArray UnpackUnAscii( const QByteArray& Expr );

@@ -48,17 +48,19 @@ class MultiPlotter : public QWidget
     friend PlotData;
     friend class DialogSettingsChart;
     const double cm_Break = 1e-34;
+    const double cm_Asymptote = 1e-33;
     QScatterSeries *m_pSeriesBreakPoints=new QScatterSeries;
     QValueAxis *m_pValueAxisX = new QValueAxis;
     QValueAxis *m_pValueAxisY = new QValueAxis;
     QGraphicsScene *m_pScene = nullptr;
     QGraphicsPathItem* m_pPathItem = nullptr;
-    QGraphicsPathItem* m_pPathItemGraph = nullptr;
+    QVector<QGraphicsPathItem*> m_PathItemGraphs;
     QVector <QGraphicsTextItem *>TextAxisY, TextAxisX;
     QChart *m_pChart = new QChart;
     QChartView *m_pChartView = new QChartView(m_pChart);
     QPainterPath m_Path, m_PathGraph;
-    QGraphicsPathItem* m_pPathAsymptote;
+    QVector<QGraphicsPathItem*> m_PathAsymptots;
+    QVector<int> m_AsymptIndx;
     QVector<QPointF> m_BreakPoints;
     QVector<PlotData*> m_Plots;
     QByteArray m_Formula;
@@ -67,14 +69,18 @@ class MultiPlotter : public QWidget
     QDoubleSpinBox *m_pXMax;
     QDoubleSpinBox *m_pYMin;
     QDoubleSpinBox *m_pYMax;
+    QDoubleSpinBox *m_pParm;
     QSlider *m_pCurSliderValue;
     QSlider *m_pPrecisionFx;
     QLabel *m_pValueX;
+    QPushButton *m_pZoomIn;
+    QPushButton *m_pZoomOut;
     QPushButton *m_pRefresh;
+    QVector<QLineEdit *> m_pFormuls;
     int m_iCurrentPoint;
     DialogSettingsChart *m_pMainChart;
     OptionMenuPlotter *m_pPlotterMenu=new OptionMenuPlotter(nullptr);
-    double m_YMin = 1.79769e+308, m_YMax = 2.22507e-308;
+//    double m_YMin = 1.79769e+308, m_YMax = 2.22507e-308;
     int m_Prec = 1;
     bool m_NumberAxisIsHidden=true;
     bool m_NamesAxisIsHidden=true;
@@ -86,14 +92,13 @@ class MultiPlotter : public QWidget
     void ReCalculateAndUpdate();
     void UpdateGraph();
     void SetCursor(int index);
-    void CalculatePoint(PlotData& PData);
+    void CalculatePoint(int DataIndex);
     void PaintAxis();
     void PaintGraph(PlotData& PData);
     protected:
     bool eventFilter(QObject *obj, QEvent *ev) override;
     void on_ContextMenuCall(const QPoint& val);
     void RefreshValues(int index);
-
 public:
      MultiPlotter(const QByteArray& Formula);
      ~MultiPlotter();
@@ -112,6 +117,9 @@ private slots:
      void on_SaveGraph();
      void on_Options();
      void on_HideLegend();
+     void ZoomIn();
+     void ZoomOut();
+     void ParmsChanged(const QString&) {m_pRefresh->setEnabled(true);}
 
 public slots:
      void on_SetChartSettings();

@@ -316,8 +316,9 @@ QByteArray TStr::PackValue() const
 
 QByteArray TStr::SWrite() const 
   {
-  QByteArray Result("\\comment{ ");
-  if (sm_Server) return Result + PackValue() + '}';
+//  QByteArray Result("\\comment{ ");
+  if (sm_Server) return "\\comment{ " + PackValue() + '}';
+  QByteArray Result("\\comment{");
   QByteArrayList L(m_Value.split('\n') );
   for (int i = 0; i < L.count(); i++)
     {
@@ -412,7 +413,11 @@ MathExpr TLexp::Diff( const QByteArray& d )
 bool TLexp::Eq( const MathExpr& E2 ) const
   {
   PExMemb index1, index2;
-  if( !(E2->Listex( index2 ) || E2->Listord( index2 ) ) ) return false;
+  if( !(E2->Listex( index2 ) || E2->Listord( index2 ) ) )
+    {
+    if( TStr::sm_Server && E2.WriteE() == WriteE() ) return true;
+    return false;
+    }
   if( m_Count != CastConstPtr( TLexp, E2 )->m_Count ) return false;
   for( index1 = m_pFirst; !index1.isNull(); index1 = index1->m_pNext, index2 = index2->m_pNext )
     {
@@ -3359,7 +3364,7 @@ MathExpr TPowr::Reduce() const
     Temp = opr1;
     if( !opr1.Multp( op11, op12 ) && s_SummExpFactorize && ( QByteArray( "exp" ).indexOf( opr1.WriteE() ) != -1 ) )
       Temp = opr1.ReToMult();
-    if( sm_Factorize && Temp.Multp( op11, op12 ) )
+    if( sm_Factorize && Temp.Multp( op11, op12 ) && !(IsConstType(TVariable, op11) && IsConstType(TVariable, op12)) )
       {
       P = op11 ^ opr2;
       if( ( IsConstType( TConstant, op11 ) ) || ( IsConstType( TPowr, op11 ) ) || ( op11.Funct( sName, op11 ) && sName == "exp" ) )

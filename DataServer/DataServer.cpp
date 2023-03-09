@@ -512,35 +512,102 @@ void Thread::ReadyRead()
           }
         if(CalcParms[0] == "Plot")
           {
+          bool bSqEq = false;
+          auto TestFormula = [] (QByteArray &Formula)
+            {
+            int iEqPos = Formula.indexOf('=');
+            if(iEqPos == -1) return Formula;
+            QByteArray Left = Formula.left(iEqPos);
+            QByteArray Right = Formula.mid(iEqPos + 1);
+            if(Left.count() == 1)
+              {
+              if(Left[0] == 'x') return Formula;
+              if(Left[0] == 'y' && Right.indexOf('y') != -1) return Formula;
+              if(Left[0] <= '9' && Left[0] >= '0') return Formula;
+              return Right;
+              }
+            if( Left.right(1) == ")")
+              if(Left.right(3) == "(x)" || Left.indexOf("func") != -1)
+                return Right;
+//              else
+//                throw ErrParser( "Bad formula: " + Formula, ParserErr::peNewErr );
+            return Formula;
+            };
+
           double X_start(CalcParms[1].toDouble()), X_end(CalcParms[2].toDouble()), X_step;
-          int NumberX = X_end - X_start;
+          double NumberX = X_end - X_start;
           X_step = NumberX / 200.0;
-          X_end += 0.1 * X_step;
-          QByteArrayList Formuls = Parms[1].split(';');
+          X_end += 0.001 * X_step;
+          QByteArray Formula = Parms[1];
+          if(Formula.indexOf(';') == -1 )
+            {
+            Formula = TestFormula(Formula);
+            if( Formula.indexOf('=') != -1)
+              {
+              Formula = Parser::PreProcessor(Formula, "y");
+              MathExpr L = CalcDetQuEqu(Formula, "y");
+              if(!L.IsEmpty())
+                {
+                Formula = L.WriteE();
+                bSqEq = true;
+                Formula = Formula.mid(1, Formula.length() - 2);
+                int PosEq = Formula.indexOf('=');
+                if(PosEq != -1) Formula = Formula.mid(PosEq + 1);
+                }
+              }
+            }
+          QByteArrayList Formuls(Formula.split(';'));
           int FCount = Formuls.count();
           TExprs Exprs;
           QVector<bool> Infinity(FCount);
           QVector<bool> IsEmpty(FCount);
+          QVector<int> LastAsympt(FCount);
           for(int i = 0; i < FCount; i++)
             {
             IsEmpty[i] = false;
             Infinity[i] = false;
-            int PosEq = Formuls[i].indexOf('=');
-            if(PosEq != -1)
-              Formuls[i] = Formuls[i].mid(PosEq + 1);
+            LastAsympt[i] = -1;
+            Formuls[i] = TestFormula(Formuls[i]);
+//            int PosEq = Formuls[i].indexOf('=');
+//            if(PosEq != -1)
+//              Formuls[i] = Formuls[i].left(PosEq) + "-(" + Formuls[i].mid(PosEq + 1) + ')';
+            if(Formuls[i].indexOf('x') == -1 || Formuls[i].indexOf('=') != -1)
+              throw ErrParser( "Bad formula: " + Formuls[i], ParserErr::peNewErr );
             if(Formuls[i].endsWith('@'))
               Formuls[i] = Formuls[i].left(Formuls[i].length() - 1);
-            MathExpr Expr = MathExpr( Parser::StrToExpr( Formuls[i]));
-            if(s_GlobalInvalid || Expr.IsEmpty())
-              throw ErrParser( "Bad formula: " + Formuls[i], ParserErr::peNewErr );
-            Exprs.append(Expr);
+            if(Formuls[i] == "deriv")
+              {
+              if(i != 1)
+                throw ErrParser( "Bad formula: " + Formuls[i], ParserErr::peNewErr );
+              Solver *pSolv = new TDiff;
+              ExpStore::sm_pExpStore->Init_var();
+              TSolutionChain::sm_SolutionChain.Clear();
+              pSolv->SetExpression(Formuls[0]);
+              MathExpr EResult = pSolv->Result();
+              delete pSolv;
+              bool V;
+              if( EResult.Boolean_( V ) && V)
+                {
+                EResult = TSolutionChain::sm_SolutionChain.GetLastExpr();
+                Exprs.append(EResult);
+                }
+              else
+                throw ErrParser( "Bad derivative for: " + Formuls[0], ParserErr::peNewErr );
+              }
+            else
+              {
+              MathExpr Expr = MathExpr( Parser::StrToExpr( Formuls[i]));
+              if(s_GlobalInvalid || Expr.IsEmpty())
+                throw ErrParser( "Bad syntax: " + Formuls[i], ParserErr::peNewErr );
+              Exprs.append(Expr);
+              }
             }
           double MaxY, MinY, MaxAbsY;
           bool bFirstValue = true;
           double OldAccuracy = TExpr::sm_Accuracy;
           TExpr::sm_Accuracy = 0.001;
           MatrixArry Values;
-          int i = 0;
+          int i = 0, iValueCount = 0;
           for( double X = X_start; X <= X_end; X += X_step, i++)
             {
             Values.push_back( QVector<MathExpr>( FCount ) );
@@ -550,6 +617,7 @@ void Thread::ReadyRead()
               MathExpr Value;
               try
                 {
+                s_GlobalInvalid = false;
                 TExpr::sm_ConstOnly = true;
                 Value = Exprs[j].Substitute("x", Constant(X) ).SimplifyFull();
                 }
@@ -566,7 +634,7 @@ void Thread::ReadyRead()
                 }
               if( bEmpty )
                 {
-                if(!Infinity[j] && i > 2)
+                if(!Infinity[j] && i > 2 && !Values[i-2][j].IsEmpty())
                   {
                   double YOld, YOldOld;
                   Values[i-1][j].Constan(YOld);
@@ -601,6 +669,7 @@ void Thread::ReadyRead()
                     }
                   }
                 Values[i][j] = Value;
+                iValueCount++;
                 if(bFirstValue)
                   {
                   bFirstValue = false;
@@ -618,7 +687,7 @@ void Thread::ReadyRead()
                 }
               }
             }
-          QByteArray Result;
+          QByteArray Result = Formula + '#';
           int iCount = i;
           i = 0;
           for( double X = X_start; X <= X_end; X += X_step, i++)
@@ -639,6 +708,14 @@ void Thread::ReadyRead()
                   {
                   if(Values[i-1][j].IsEmpty())
                     {
+                    if( bSqEq && i < iCount - 1 && FCount == 2 && j == 0 && !Values[i+1][j].IsEmpty() && !Values[i+1][j+1].IsEmpty())
+                      {
+                      double v1, v2;
+                      Values[i+1][j].Constan(v1);
+                      Values[i+1][j+1].Constan(v2);
+                      Values[i+1][j] = new TConstant((v1+v2) / 2);
+                      Values[i+1][j+1] = Values[i+1][j];
+                      }
                     bToMax = false;
                     Step = -Step;
                     dX = X;
@@ -673,9 +750,11 @@ void Thread::ReadyRead()
                       dF1 = dF2;
                       continue;
                       }
-                    if(dF2 / dF1 > 10)
+                   if(dF2 / dF1 > 100 && dF2 > 0.1 && Formula.indexOf("sin") == -1)
+//                    if(dF2 / dF1 > 10 && dF2 > 0.1)
                       {
                       Result += "a";
+                      LastAsympt[j] = i;
                       break;
                       }
 //                    dF1 = dF2;
@@ -689,19 +768,47 @@ void Thread::ReadyRead()
                 }
               else
                 {
+/*
+                if( i < iCount - 1 && FCount == 2 && j == 0 && Values[i+1][j].IsEmpty() && Values[i+1][j+1].IsEmpty())
+                  {
+                  double v1, v2;
+                  Values[i][j].Constan(v1);
+                  Values[i][j+1].Constan(v2);
+                  Value = new TConstant((v1+v2) / 2);
+                  Values[i][j] = Value;
+                  Values[i][j+1] = Value;
+                  }
+*/
                 if(i > 1 && i < iCount - 1)
                   {
                   double dCurrent, dNext, dPrev;
                   Value.Constan(dCurrent);
+                  if(IsEmpty[j] && !Values[i+1][j].IsEmpty() && LastAsympt[j] != i-1)
+                    {
+                    Values[i+1][j].Constan(dNext);                   
+                    if(fabs(dNext - dCurrent) > 5)
+                      {
+/*
+                      if(j == FCount - 1)
+                        Result += ";";
+//                      Result += "a;";
+                      else
+                        Result += ",";
+//                        Result += "a,";
+*/
+                      IsEmpty[j] = false;
+//                      continue;
+                      }
+                    }
                   if(!Values[i+1][j].IsEmpty() && !Values[i-1][j].IsEmpty())
                     {
                     Values[i+1][j].Constan(dNext);
                     Values[i-1][j].Constan(dPrev);
                     double D1 = dCurrent - dPrev;
                     double D2 = dNext - dCurrent;
-                    if(D1 * D2 < 0 && (fabs(D1) > 3) && (fabs(D2) > 3))
+                    if(D1 * D2 < 0 && (fabs(D1) > 2) && (fabs(D2) > 2))
                       {
-                      if( D1 < 0.0 )
+                      if( dCurrent * dPrev > 0 && D1 < 0.0 || dCurrent * dNext > 0 )
                         {
                         if(j == FCount - 1)
                           Result += "c;";
@@ -728,8 +835,10 @@ void Thread::ReadyRead()
                 }
               }
             }
+//          if(iValueCount < 10)
+//            throw ErrParser( "Bad formula: " + Formula, ParserErr::peNewErr );
           TExpr::sm_Accuracy = OldAccuracy;
-          Result += QByteArray::number(X_start,'g', 2) + "," + QByteArray::number(X_end, 'g', 2) +
+          Result += QByteArray::number(X_start,'g', 3) + "," + QByteArray::number(X_end, 'g', 3) +
               ";" + QByteArray::number(MinY, 'g', 2) + "," + QByteArray::number(MaxY, 'g', 2);
           int N2 = Result.count() / 2;
           int RestBuffer = Result.count() - N2;
@@ -1018,6 +1127,8 @@ EAngle2, EAngle3, ETan2,
           }
         DataTask Task;
         QByteArray Formulas;
+        bool ListExpr = Parms[0].indexOf("@;") != -1;
+        Parms[0] = Parms[0].replace("@;", ";");
         for( int i = 0; i < Parms.count(); i++ )
           {
           if( i > 0 ) Formulas += "; ";
@@ -1027,7 +1138,7 @@ EAngle2, EAngle3, ETan2,
           << ++s_pDataServer->m_ConnectionsCount;
         QString Text;
         MathExpr Expr;
-        if(Parms[0].left(3) == "\"##")
+        if(!ListExpr && Parms[0].left(3) == "\"##")
           {
           Text = Parms[0];
           if(Text.right(5) == "0000\"")
@@ -1313,6 +1424,7 @@ EAngle2, EAngle3, ETan2,
             }
           if( Answer.isEmpty() ) throw ErrParser( "Error; Bad task, all content is empty", ParserErr::peNewErr );
           QByteArray EdFormula( Expr.SWrite() );
+          EdFormula.replace("\\comment{", "\\comment{ ");
           XPInEdit InEd( EdFormula, *BaseTask::sm_pEditSets, CC.ViewSettings() );
 //          if( Expr.HasStr() )
 //            {

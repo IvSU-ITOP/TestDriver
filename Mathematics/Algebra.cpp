@@ -2671,6 +2671,66 @@ Lexp CalcDetQuEqu( const QByteArray& Source, QByteArray VarName )
     {
     if( Source.isEmpty() ) return Result;
 //    s_NoRootReduce = true;
+    ex = Parser::StrToExpr( Source );
+    MathExpr Ex = ex;
+    QVector<MathExpr> Equation, Reserve;
+    bool bLeft = true;
+    while(true)
+      {
+      MathExpr Left, Right;
+      char Name;
+      if( !ex.Oper_(Name, Left, Right) )
+        {
+        Equation.append(ex);
+        if(Reserve.isEmpty()) break;
+        ex = Reserve.takeLast();
+        bLeft = !bLeft;
+        continue;
+        }
+      if(Name == '+' || Name == '-' || Name == '=')
+        if(bLeft)
+          {
+          Reserve.append(Right);
+          ex = Left;
+          }
+        else
+          {
+          Reserve.append(Left);
+          ex = Right;
+          }
+      else
+        {
+        Equation.append(ex);
+        if(Reserve.isEmpty()) break;
+        ex = Reserve.takeLast();
+        bLeft = !bLeft;
+        }
+      }
+    QVector<MathExpr> VCommDiv;
+    for(int i = 0; i < Equation.count(); i++)
+      {
+      MathExpr Nom, Denom;
+      if(Equation[i].Divis(Nom, Denom))
+        {
+        int j = 0;
+        for(; j < VCommDiv.count() && (VCommDiv[j] - Denom).SimplifyFull() != 0; j++);
+        if(j == VCommDiv.count()) VCommDiv.append(Denom);
+        }
+      }
+    QByteArray Src = Source;
+    if(!VCommDiv.isEmpty())
+      {
+      MathExpr CommDiv = VCommDiv[0];
+      for(int i = 1; i < VCommDiv.count(); i++ )
+        CommDiv *= VCommDiv[i];
+      MathExpr Left, Right;
+      char Sign;
+      Ex.Oper_(Sign, Left, Right);
+      Left = (Left * CommDiv).SimplifyFull();
+      Right = (Right * CommDiv).SimplifyFull();
+      Src = Left.WriteE() + '=' + Right.WriteE();
+      }
+
     if( VarName == "" )
       {
       ex = Parser::StrToExpr( Source );
@@ -2679,7 +2739,7 @@ Lexp CalcDetQuEqu( const QByteArray& Source, QByteArray VarName )
       }
     bool IsName, Mult;
     Parser P;
-    PNode eq = P.Equation( Source, VarName, IsName, Mult );
+    PNode eq = P.Equation( Src, VarName, IsName, Mult );
     if( IsFuncEqu( eq ) || TestFrac( eq ) || IsExpEqu( eq ) ) return ErrResult();
     ex = Parser().OutPut( eq );
     MathExpr op1, op2;
@@ -2732,7 +2792,7 @@ Lexp CalcDetQuEqu( const QByteArray& Source, QByteArray VarName )
     if( ex.Binar( '=', op1, op2 ) )
       {
       QByteArray sName;
-      if( !op1.Variab( sName ) || sName != VarName || op2.HasUnknown() == VarName )
+      if( op2.WriteE().indexOf(VarName) != -1 || !op1.Variab( sName ))
         {
         ex1 = ( op1 - op2 ).Reduce();
         TExprs a;

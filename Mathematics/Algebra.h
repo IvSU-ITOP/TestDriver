@@ -23,7 +23,7 @@ MathExpr RemDenominator( MathExpr ex, Lexp& );
 MathExpr RemDenominator( MathExpr ex );
 MathExpr Transfer( MathExpr exp );
 Lexp FractRatEq( const QByteArray& Source, const QByteArray& Name = "x", bool CalcBiQ = true );
-Lexp CalcDetQuEqu( const QByteArray& Source, QByteArray VarName = "" );
+Lexp MATHEMATICS_EXPORT CalcDetQuEqu( const QByteArray& Source, QByteArray VarName = "" );
 bool IsFuncEqu( PNode Expr, const QByteArray& Excepted = "" );
 bool TestFrac( PNode Expr );
 bool IsExpEqu( PNode Expr );

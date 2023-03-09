@@ -1199,7 +1199,7 @@ class EdStr : public EdElm
   public:
     static bool sm_PureText;
     FORMULAPAINTER_EXPORT static QTextCodec *sm_pCodec;
-    EdStr( XPInEdit *pOwn, QByteArray text, bool NoSelectFont = false );
+    EdStr( XPInEdit *pOwn, QByteArray, bool NoSelectFont = false );
     EdStr( XPInEdit *pOwn, QString text, bool NoSelectFont = false );
     EdStr( XPInEdit *pOwn, const char* text, bool NoSelectFont = false ) : EdStr( pOwn, QByteArray(text), NoSelectFont )  {}
     virtual void PreCalc( TPoint P, QSize &S, int &A );

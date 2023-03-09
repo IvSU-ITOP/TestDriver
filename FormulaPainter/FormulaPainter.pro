@@ -1,5 +1,4 @@
 QT += widgets
-
 TARGET = FormulaPainter
 TEMPLATE = lib
 DEFINES += FORMULAPAINTER_LIB

@@ -8155,6 +8155,7 @@ QByteArray EdSubst::SWrite()
 
 EdStr::EdStr(XPInEdit *pOwn, QByteArray Text, bool NoSelectFont) : EdElm(pOwn), m_Value(Text), m_SelStart(-1), m_SelEnd(-1), m_NoSelectFont(NoSelectFont)
   {
+//  QByteArray Text1 = Text;
 /*
   if(Text[0] != (char) msBaseLang)
     {
@@ -8167,7 +8168,8 @@ EdStr::EdStr(XPInEdit *pOwn, QByteArray Text, bool NoSelectFont) : EdElm(pOwn), 
   if(Text.isEmpty()) return;
   if(Text.length() == 1)
     m_Value = ' ' + Text;
-  m_SValue = ToLang(m_Value.mid(1).replace(msPrime, '"').replace(msDoublePrime, '{').replace(msTriplePrime, '}').replace(msCharNewLine, '\n')).split('\n');
+  m_SValue = ToLang(m_Value.replace(msPrime, '"').replace(msDoublePrime, '{').replace(msTriplePrime, '}').replace(msCharNewLine, '\n')).split('\n');
+//  m_SValue = ToLang(m_Value.mid(1).replace(msPrime, '"').replace(msDoublePrime, '{').replace(msTriplePrime, '}').replace(msCharNewLine, '\n')).split('\n');
   }
 
 EdStr::EdStr(XPInEdit *pOwn, QString text, bool NoSelectFont) : EdElm(pOwn), m_SelStart(-1),m_SelEnd(-1), m_NoSelectFont(NoSelectFont)

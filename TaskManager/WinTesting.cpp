@@ -42,8 +42,8 @@ QAction* WinTesting::sm_pAddPicture;
 QAction* WinTesting::sm_pEditHeader;
 QAction* WinTesting::sm_pEditCalc;
 QAction* WinTesting::sm_pShowCalcualtor;
-QAction* WinTesting::sm_pPlotGraph;
 QAction* WinTesting::sm_pMultiPlot;
+QAction* WinTesting::sm_pCalcDeriv;
 TranslateObjects WinTesting::sm_TranslateObjects;
 
 QTextStream CalcWidget::sm_Result(new QFile );
@@ -410,10 +410,10 @@ void SolverWidget::SearchSolve()
     if( m_pButtonBox->m_ButtonCount == 1 ) return Final( true );
 
     Prompt = X_Str( "MCanAlsoCalculate", "You can also calculate:" );
-    Solve( new TSolvDetQuaEqu, WinTesting::sm_pBottomWindow->GetCalcButton( 2, 0, 2 ) );
     Solve( new TSolvDisQuaEqu, WinTesting::sm_pBottomWindow->GetCalcButton( 2, 1, 0 ) );
-    Solve( new TSolvDetVieEqu, WinTesting::sm_pBottomWindow->GetCalcButton( 2, 1, 1 ) );
     Solve( new TSolvQuaEqu, WinTesting::sm_pBottomWindow->GetCalcButton( 2, 0, 1 ) );
+    Solve( new TSolvDetVieEqu, WinTesting::sm_pBottomWindow->GetCalcButton( 2, 1, 1 ) );
+    Solve( new TSolvDetQuaEqu, WinTesting::sm_pBottomWindow->GetCalcButton( 2, 0, 2 ) );
     if( m_pButtonBox->m_ButtonCount > 0 ) return Final( true );
 
     Solve( new TSolvCalcPolinomEqu, WinTesting::sm_pBottomWindow->GetCalcButton( 2, 2, 2 ) );
@@ -745,8 +745,8 @@ WinTesting::WinTesting() : m_Review(false), m_pMultiPlotter(nullptr)
   addDockWidget( Qt::TopDockWidgetArea, new DockWithoutTitle( new QuestWindow( this ) ) );
   addDockWidget( Qt::BottomDockWidgetArea, new DockWithoutTitle( new BottomWindow ) );
   sm_pShowCalcualtor = sm_pToolBar->addAction(QIcon(":/Resources/abacus.png"), "Show &Calculator", sm_pBottomWindow, SLOT(ShowCalculator()));
-//  sm_pPlotGraph = sm_pToolBar->addAction( QIcon(":/Resources/plotter.png"), "Plot Graph", this ,SLOT(PlotGraph()));
   sm_pMultiPlot = sm_pToolBar->addAction( QIcon(":/Resources/plotter.png"), "Plot Graph", this ,SLOT(MultiPlot()));
+  sm_pCalcDeriv = sm_pToolBar->addAction( QIcon(":/Resources/GraphBtnDerive.png"), "Calculate Derivative", this ,SLOT(CalcDeriv()));
 
   setCorner( Qt::BottomRightCorner, Qt::BottomDockWidgetArea );
   setCentralWidget( new CentralWindow );
@@ -1498,6 +1498,26 @@ void WinTesting::MultiPlot()
   catch( QString Err )
     {
     QMessageBox::information( NULL, "Error", Err );
+    }
+  }
+
+void WinTesting::CalcDeriv()
+  {
+  QByteArray Formula = Panel::sm_pEditor->Write();
+  if(Formula.isEmpty()) return;
+  Solver *pSolv = new TDiff;
+  ExpStore::sm_pExpStore->Init_var();
+  TSolutionChain::sm_SolutionChain.Clear();
+  pSolv->SetExpression(Formula);
+  MathExpr EResult = pSolv->Result();
+  delete pSolv;
+  bool V;
+  if( EResult.Boolean_( V ) && V)
+    {
+    EResult = TSolutionChain::sm_SolutionChain.GetLastExpr();
+    Formula = Formula + ";" + EResult->SWrite();
+    Panel::sm_pEditor->Clear();
+    Panel::sm_pEditor->RestoreFormula(Formula);
     }
   }
 

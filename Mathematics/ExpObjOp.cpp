@@ -1251,6 +1251,18 @@ MathExpr TMult::Reduce() const
   if( opr2.Binar( '=', Op11, Op12 ) )
     return new TBinar( '=', ExpandExpr( Op11 * opr1 ), ExpandExpr( Op12 * opr1 ) );
 
+  if( opr1.Summa(Op11, Op12 ))
+    return new TSumm( ExpandExpr( Op11 * opr2 ), ExpandExpr( Op12 * opr2 ) );
+
+  if( opr1.Subtr(Op11, Op12 ))
+    return new TSubt( ExpandExpr( Op11 * opr2 ), ExpandExpr( Op12 * opr2 ) );
+
+  if( opr2.Summa( Op11, Op12 ) )
+    return new TSumm( ExpandExpr( Op11 * opr1 ), ExpandExpr( Op12 * opr1 ) );
+
+  if( opr2.Subtr( Op11, Op12 ) )
+    return new TSubt( ExpandExpr( Op11 * opr1 ), ExpandExpr( Op12 * opr1 ) );
+
   return new TMult( opr1, opr2, m_Name );
   }
 

@@ -27,7 +27,7 @@ class TSolutionChain
     void DockTail( int Rest );
     MATHEMATICS_EXPORT MathExpr GetChain();
     int Count();
-    MathExpr GetLastExpr();
+    MATHEMATICS_EXPORT MathExpr GetLastExpr();
     void Delete();
     MATHEMATICS_EXPORT void Clear();
     MathExpr GetExpr( int i );

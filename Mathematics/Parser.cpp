@@ -566,7 +566,8 @@ QByteArray Parser::FullPreProcessor( const QByteArray& ASource, const QByteArray
   if( ASource.isEmpty() ) return "";
   m_DerivativeWithBrackets = false;
   m_FixCount = -1;
-  if(ASource[0] == '"' && ASource[1] == msBaseLang )
+//  if(ASource[0] == '"' && ASource[1] == msBaseLang )
+  if(ASource[0] == '"' )
     return ASource;
   QByteArray s, s1;
 

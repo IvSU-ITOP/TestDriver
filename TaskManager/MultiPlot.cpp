@@ -1,12 +1,13 @@
 #include "Multiplot.h"
 
 //#include <OptionMenuPlotter.h>
+#include <Algebra.h>
 #include <Parser.h>
 #include <QPainter>
 #include <QColorDialog>
 
 PlotData::PlotData( const QByteArray& Formula, QString Label, QColor Color, MultiPlotter &Plotter ) : m_Formula(Formula),
-  m_Color(Color), m_LineWidth(1), m_Label(Label), m_pCursor(new QScatterSeries), m_pLinesCursor(new QLineSeries)
+  m_Color(Color), m_LineWidth(2), m_Label(Label), m_pCursor(new QScatterSeries), m_pLinesCursor(new QLineSeries)
   {
   if( m_Formula.isEmpty() || m_Formula.contains("/0") ) throw QString("Formula is empty");
   int iEq = m_Formula.indexOf('=');
@@ -70,7 +71,7 @@ QPointF PlotData::SetCursor( MultiPlotter &Plotter, int index)
 
 const  unsigned Colors[15] = {0,0xff0000,0x00ff00,0x0000ff,0xffff00,0x00ffff,0xff00ff,0x008080,0x800080,0x000080,0x008000,0x800000};
 
-MultiPlotter::MultiPlotter(const QByteArray& Formula) : QWidget(nullptr), m_Formula(Formula), m_iCurrentPoint(0), m_pPathAsymptote(nullptr),
+MultiPlotter::MultiPlotter(const QByteArray& FormArg) : QWidget(nullptr), m_Formula(FormArg), m_iCurrentPoint(0),
   m_pMainChart (new DialogSettingsChart(this))
   {
 /*
@@ -79,9 +80,20 @@ MultiPlotter::MultiPlotter(const QByteArray& Formula) : QWidget(nullptr), m_Form
 
   connect(m_pPlotterMenu,&OptionMenuPlotter::sendDataClass,this,&Plotter::on_SetChartSettings);
 */
-  resize(721, 580);
+  resize(725, 580);
   setWindowTitle("Graph");
   setWindowIcon( QIcon( ":/Resources/plotter.png" ) );
+  QByteArray Formula = FormArg;
+  if(Formula.indexOf(';') == -1 && Formula.indexOf('=') != -1)
+    {
+    Formula = Parser::PreProcessor(Formula, "y");
+    MathExpr L = CalcDetQuEqu(Formula, "y");
+    if(!L.IsEmpty())
+      {
+      Formula = L.WriteE();
+      Formula = Formula.mid(1, Formula.length() - 2);
+      }
+    }
   QByteArrayList Formuls(Formula.split(';'));
   if(Formuls.count() == 1)
     m_Plots.append(new PlotData(Formula, "Y", Qt::black, *this ) );
@@ -98,6 +110,7 @@ MultiPlotter::MultiPlotter(const QByteArray& Formula) : QWidget(nullptr), m_Form
   pLayout->addWidget( m_pGraphicsView );
   QFrame *pFrame = new QFrame;
   pFrame->setFixedHeight(150);
+  pFrame->setFixedWidth(135);
   pFrame->setFrameShape(QFrame::StyledPanel);
   QVBoxLayout *pFrameLayout = new QVBoxLayout(pFrame);
   QLabel *pInterval = new QLabel("Interval");
@@ -105,15 +118,21 @@ MultiPlotter::MultiPlotter(const QByteArray& Formula) : QWidget(nullptr), m_Form
   pInterval->setStyleSheet( "QLabel {font-size:16px}" );
   pFrameLayout->addWidget(pInterval);
   m_pXMin = new QDoubleSpinBox;
+  m_pXMin->setDecimals(3);
   m_pXMax = new QDoubleSpinBox;
+  m_pXMax->setDecimals(3);
   m_pYMin = new QDoubleSpinBox;
+  m_pYMin->setDecimals(3);
   m_pYMax = new QDoubleSpinBox;
+  m_pYMax->setDecimals(3);
   m_pXMin->setMinimum(-100000);
   m_pXMax->setMaximum(100000);
   m_pYMax->setMaximum(10000000);
   m_pYMin->setMinimum(-10000000);
   m_pXMin->setValue(-10);
   m_pXMax->setValue(10);
+  m_pYMin->setValue(-10);
+  m_pYMax->setValue(10);
   connect(m_pXMin, SIGNAL(valueChanged(double)), SLOT(on_xmin_valueChanged(double)));
   connect(m_pXMax, SIGNAL(valueChanged(double)), SLOT(on_xmax_valueChanged(double)));
   connect(m_pYMin, SIGNAL(valueChanged(double)), SLOT(on_ymin_valueChanged(double)));
@@ -126,9 +145,37 @@ MultiPlotter::MultiPlotter(const QByteArray& Formula) : QWidget(nullptr), m_Form
   pFrameLayout->addLayout(pFLayout);
   QVBoxLayout *pVlayout = new QVBoxLayout;
   pVlayout->addWidget(pFrame);
+  pVlayout->addSpacing(100);
+  QHBoxLayout *pParmLayout = new QHBoxLayout;
+  QLabel *pA = new QLabel("a");
+  pA->setStyleSheet( "QLabel {font-weight: bold; color:red; font-size:12px}" );
+  pA->setAlignment(Qt::AlignRight);
+  pParmLayout->addWidget(pA);
+  m_pParm = new QDoubleSpinBox();
+  m_pParm->setValue(1.0);
+  connect(m_pParm, SIGNAL(textChanged(const QString&)), SLOT(ParmsChanged(const QString&)));
+  pParmLayout->addWidget(m_pParm);
+  pParmLayout->addSpacing(5);
+  pVlayout->addLayout(pParmLayout);
+  QHBoxLayout *pSoomLayout = new QHBoxLayout;
+  m_pZoomIn = new QPushButton("+");
+  m_pZoomIn->setFixedSize(20,20);
+  connect(m_pZoomIn, SIGNAL(clicked()), SLOT(ZoomIn()));
+  pSoomLayout->addWidget(m_pZoomIn);
+  QLabel *pZoom = new QLabel("Zoom In/Out");
+  pZoom->setAlignment(Qt::AlignHCenter);
+  pZoom->setStyleSheet( "QLabel {font-size:14px}" );
+  pSoomLayout->addWidget(pZoom);
+  m_pZoomOut = new QPushButton("-");
+  m_pZoomOut->setFixedSize(20,20);
+  connect(m_pZoomOut, SIGNAL(clicked()), SLOT(ZoomOut()));
+  pSoomLayout->addWidget(m_pZoomOut);
+  pSoomLayout->addSpacing(5);
+  pVlayout->addLayout(pSoomLayout);
   m_pRefresh = new QPushButton("Refresh");
   m_pRefresh->setEnabled(false);
   connect(m_pRefresh, SIGNAL(clicked()), SLOT(on_ResetPressed()));
+  m_pRefresh->setFixedWidth(135);
   pVlayout->addWidget(m_pRefresh);
   QLabel *pCurrval = new QLabel("Current Value");
   pCurrval->setAlignment(Qt::AlignHCenter);
@@ -156,10 +203,12 @@ MultiPlotter::MultiPlotter(const QByteArray& Formula) : QWidget(nullptr), m_Form
   for(int i = 0; i < m_Plots.count(); i++)
     {
     QLineEdit *pFormula = new QLineEdit(m_Plots[i]->m_Formula);
+    pFormula->setFixedWidth(135);
     pFormula->setAlignment(Qt::AlignHCenter);
     pFormula->setReadOnly(true);
     pVlayout->addWidget(pFormula);
     pVlayout->addWidget(m_Plots[i]->AddValueFunc());
+    m_pFormuls.append(pFormula);
     }
   QLabel *pPrecision = new QLabel("Precision F(x)");
   pPrecision->setAlignment(Qt::AlignHCenter);
@@ -173,7 +222,7 @@ MultiPlotter::MultiPlotter(const QByteArray& Formula) : QWidget(nullptr), m_Form
   m_pPrecisionFx->setValue(1);
   connect(m_pPrecisionFx, SIGNAL(valueChanged(int)), SLOT(on_precision_Fx_valueChanged(int)));
   pVlayout->addWidget(m_pPrecisionFx);
-  pVlayout->addSpacing(300);
+  pVlayout->addSpacing(200);
   pLayout->addLayout(pVlayout);
   setLayout( pLayout );
   m_pScene = new QGraphicsScene(m_pGraphicsView);
@@ -200,33 +249,50 @@ MultiPlotter::~MultiPlotter()
     delete m_Plots[i];
   }
 
-void MultiPlotter::CalculatePoint(PlotData& PData)
+void MultiPlotter::CalculatePoint(int DataIndex)
   {
-
+  PlotData &PData = *m_Plots[DataIndex];
   double X_start(m_pXMin->value()), X_end(m_pXMax->value()), X_step;
-
-  int NumberX=abs(X_start)+abs(X_end);
-
-  if(NumberX<=25)X_step=0.1;
-//  if(NumberX<=25)X_step=0.02;
-  else if(NumberX<=50)X_step=0.05;
-  else if(NumberX<=100)X_step=0.1;
-  else if(NumberX<=250)X_step=0.2;
-  else if(NumberX<=500)X_step=5;
-  else if(NumberX<=5000)X_step=20;
-  else X_step=100;
-
-  X_end += 0.1 * X_step;
-  MathExpr Expr = MathExpr( Parser::StrToExpr( PData.m_Formula));
+  double NumberX = X_end - X_start;
+  X_step = NumberX / 200.0;
+  X_end += 0.001 * X_step;
+  MathExpr Expr;
+  QByteArray Formula = PData.m_Formula;
+  if(!m_pParm->text().isEmpty())
+    {
+    QByteArray NewFormula;
+    QByteArray ParmValue = QByteArray::number(m_pParm->value());
+    bool bDigit = false;
+    for( int i = 0; i < Formula.length(); i++)
+      if(Formula[i] == 'a' && (i == 0 || Formula[i-1] != 't' ) )
+        if(bDigit)
+          NewFormula += '*' + ParmValue;
+        else
+          NewFormula += ParmValue;
+      else
+        {
+        NewFormula += Formula[i];
+        bDigit = Formula[i] >= '0' && Formula[i] <= '9';
+        }
+    Expr = MathExpr( Parser::StrToExpr( NewFormula));
+    m_pFormuls[DataIndex]->setText(NewFormula);
+    }
+  else
+    Expr = MathExpr( Parser::StrToExpr( Formula));
   if(s_GlobalInvalid || Expr.IsEmpty()) throw QString("Bad formula:") + PData.m_Formula;
   int nPrevBreakpoint = 0;
+  double OldAccuracy = TExpr::sm_Accuracy;
+  TExpr::sm_Accuracy = 0.001;
+  double Precision = TExpr::sm_Precision;
+  TExpr::sm_Precision = TExpr::sm_Accuracy;
   double MaxExtr = 0;
   double MinExtr = 0;
   double dY = 0;
-  bool bStart = true;
+  int i = 0;
   for( double YOld, Dy, Y, X = X_start; X <= X_end; X += X_step, YOld = Y, dY = Dy)
     {
-//    if(fabs(X) < 0.5 * X_step ) X = 0;
+    i = PData.m_Points.count();
+    if(fabs(X) < TExpr::sm_Accuracy) X = 0;
     MathExpr Value;
     try
       {
@@ -236,18 +302,59 @@ void MultiPlotter::CalculatePoint(PlotData& PData)
       {
       }
     Y = 0;
-    if( !(IsType( TConstant, Value )) || s_GlobalInvalid && s_LastError=="INFVAL" && !bStart)
+    if( !(IsType( TConstant, Value )) || s_GlobalInvalid && s_LastError=="INFVAL")
       {
       if( !nPrevBreakpoint )
         {
-        Y = 0;
+        Y = cm_Break;
         if( !Value.IsEmpty() && Value.Constan(Y))
           if(Y > MaxExtr)
             MaxExtr = Y;
           else
             if(Y < MinExtr)
               MinExtr = Y;
-        m_BreakPoints.append(QPointF(X, Y));
+        if(i > 0)
+          {
+          double dF1 = 0;
+          double Step = X_step / 100;
+          MathExpr ValueX;
+          double dF2, dF, dX;
+          dF = PData.m_Points[i-1].y();
+          for(dX = X - X_step + Step; dX < X; dX += Step)
+            {
+            try
+              {
+              TExpr::sm_ConstOnly = true;
+              ValueX = Expr.Substitute("x", Constant(dX) ).SimplifyFull();
+              }
+            catch( ErrParser& ErrMsg )
+              {
+              }
+            TExpr::sm_ConstOnly = false;
+            if(ValueX.IsEmpty())
+              break;
+            double NewF;
+            if(!ValueX.Constan(NewF))
+              {
+              PData.m_Points.append(QPointF(dX - Step, dF));
+              break;
+              }
+             dF2 = fabs(NewF - dF);
+             dF = NewF;
+             if(dF1 == 0)
+               {
+               dF1 = dF2;
+               continue;
+               }
+             if(dF2 / dF1 > 10 && dF2 > 0.1)
+               {
+               Y = cm_Asymptote;
+               m_AsymptIndx.append(i);
+               break;
+               m_BreakPoints.append(QPointF(X, Y));
+               }
+             }
+          }
         PData.m_Points.append(QPointF(X, Y));
         }
       else
@@ -260,34 +367,73 @@ void MultiPlotter::CalculatePoint(PlotData& PData)
       if(Value.IsLimit())
         {
         PData.m_Points.append(QPointF(X, cm_Break));
-        if( !nPrevBreakpoint ) m_BreakPoints.append(QPointF(X, Y));
+//        if( !nPrevBreakpoint ) m_BreakPoints.append(QPointF(X, Y));
         nPrevBreakpoint++;
         continue;
         }
       if( Value.HasComplex() )
         {
-        if( !nPrevBreakpoint ) m_BreakPoints.append(QPointF(X, Y));
+//        if( !nPrevBreakpoint ) m_BreakPoints.append(QPointF(X, Y));
         nPrevBreakpoint++;
         PData.m_Points.append(QPointF(X, cm_Break));
         continue;
         }
       if(nPrevBreakpoint > 1)
         {
-        Y = 0;
-        m_BreakPoints.append(QPointF(X, 0 ));
+//        m_BreakPoints.append(QPointF(X - X_step, 0 ));
         dY = 0;
+        double dF1 = 0;
+        double Step = X_step / 100;
+        MathExpr ValueX;
+        double dF2, dF, dX;
+        Value.Constan(dF);
+        for(dX = X - Step; dX > X - X_step; dX -= Step)
+          {
+          try
+            {
+            TExpr::sm_ConstOnly = true;
+            ValueX = Expr.Substitute("x", Constant(dX) ).SimplifyFull();
+            }
+          catch( ErrParser& ErrMsg )
+            {
+            }
+          TExpr::sm_ConstOnly = false;
+          if(ValueX.IsEmpty())
+            break;
+          double NewF;
+          if(!ValueX.Constan(NewF))
+            {
+            PData.m_Points.append(QPointF(dX + Step, dF));
+            break;
+            }
+           dF2 = fabs(NewF - dF);
+           dF = NewF;
+           if(dF1 == 0)
+              {
+              dF1 = dF2;
+              continue;
+              }
+           if(dF2 / dF1 > 100 && dF2 > 0.1)
+             {
+             m_BreakPoints.append(QPointF(X - X_step, 0 ));
+             PData.m_Points[i-1].setY(cm_Asymptote);
+             m_AsymptIndx.append(i-1);
+             break;
+             }
+           }
         }
       Dy = Y - YOld;
-      if( X == X_start )
-        m_YMin = m_YMax = Y;
-      else
-         if( Y * YOld < 0 && Dy * dY < 0  )
+//      if( X == X_start )
+ //       m_YMin = m_YMax = Y;
+//      else
+      if(nPrevBreakpoint == 0 && X != X_start && Y * YOld < 0 && Dy * dY < 0  )
            {
            Y = PData.m_Points.last().ry();
-           if( Y > m_YMax  ) m_YMax = Y;
-           if( Y < m_YMin ) m_YMin = Y;
-           PData.m_Points.append(QPointF(X - X_step, cm_Break));
-           m_BreakPoints.append(QPointF(X - X_step, 0 ));
+//           if( Y > m_YMax  ) m_YMax = Y;
+//           if( Y < m_YMin ) m_YMin = Y;
+           PData.m_Points.append(QPointF(X, cm_Asymptote));
+           m_BreakPoints.append(QPointF(X, 0 ));
+           m_AsymptIndx.append(i);
            X += X_step;
            if(X > X_end) break;
            Value = Expr.Substitute("x", Constant(X) ).SimplifyFull();
@@ -295,8 +441,9 @@ void MultiPlotter::CalculatePoint(PlotData& PData)
            PData.m_Points.append(QPointF(X, Y));
            continue;
            }
-       if(Y < m_YMin) m_YMin = Y;
-       if( Y > m_YMax ) m_YMax = Y;
+//       if(Y < m_YMin) m_YMin = Y;
+//       if( Y > m_YMax )
+//         m_YMax = Y;
        PData.m_Points.append(QPointF(X, Y));
        nPrevBreakpoint = 0;
        if( X == X_start || Dy * dY >= 0 ) continue;
@@ -308,36 +455,69 @@ void MultiPlotter::CalculatePoint(PlotData& PData)
        if(Y > MaxExtr) MaxExtr = Y;
        }
      }
+    TExpr::sm_Accuracy = OldAccuracy;
+    TExpr::sm_Precision = Precision;
+/*
+    if( m_AsymptIndx.count() > 1)
+      {
+      for(i = 0; i < m_AsymptIndx.count(); i++)
+        {
+        double Y = PData.m_Points[m_AsymptIndx[i] - 1].y();
+        if(Y != cm_Break)
+          if(Y > PData.m_Points[m_AsymptIndx[i] - 2].y())
+            {
+            if(Y < m_YMax ) m_YMax = Y;
+            }
+          else
+            if( Y > m_YMin) m_YMin = Y;
+        Y = PData.m_Points[m_AsymptIndx[i] + 1].y();
+        if(Y != cm_Break)
+          if(Y > PData.m_Points[m_AsymptIndx[i] + 2].y())
+            {
+            if(Y < m_YMax ) m_YMax = Y;
+            }
+          else
+            if( Y > m_YMin) m_YMin = Y;
+        }
+      }
     double delta = ( m_YMax - m_YMin ) / 20;
     if( m_YMin == 0 ) m_YMin -= delta;
     if(fabs(m_YMin - MinExtr) < delta ) m_YMin -= delta;
-    if(fabs(m_YMax - MaxExtr) < delta ) m_YMax += delta;
+    if(fabs(m_YMax - MaxExtr) < delta )
+      m_YMax += delta;
+*/
   m_pCurSliderValue->setMaximum(PData.m_Points.length());
   }
 
 bool MultiPlotter::Plot()
   {
+  m_AsymptIndx.clear();
   for( int i = 0; i < m_Plots.count(); i++)
-    CalculatePoint(*m_Plots[i]);
+    CalculatePoint(i);
 
  m_pScene->addItem(m_pChart);
  m_pChartView->setRenderHint(QPainter::Antialiasing);
  m_pGraphicsView->setScene(m_pScene);
 
+ /*
  m_pYMin->blockSignals(true);
  m_pYMax->blockSignals(true);
- m_pYMin->setValue( m_YMin );
-// m_pYMin->setValue( floor(m_YMin) );
- m_pYMax->setValue( m_YMax );
-// m_pYMax->setValue( ceil(m_YMax) );
- m_pYMin->blockSignals(false);
- m_pYMax->blockSignals(false);
-
- m_pValueAxisX->setRange(m_pXMin->value(),m_pXMax->value());
+ double Interval = 0.1;
+ if(m_YMax - m_YMin > 10) Interval = 1.0;
+ m_YMin = Interval * round(m_YMin/Interval);
+ if(m_YMin > -Interval ) m_YMin = -Interval;
  if(m_YMin==m_YMax){m_YMax++;m_YMin--;}
-// m_pValueAxisY->setRange(floor(m_YMin), ceil(m_YMax) );
+ m_pYMin->setValue( m_YMin );
+ m_pYMin->blockSignals(false);
+ m_pYMax->setValue( m_YMax );
+ m_pYMax->blockSignals(false);
+ m_pValueAxisX->setRange(m_pXMin->value(),m_pXMax->value());
  m_pValueAxisY->setRange(m_YMin, m_YMax );
-
+ m_pYMin->setSingleStep(Interval);
+ m_pYMax->setSingleStep(Interval);
+*/
+ m_pValueAxisX->setRange(m_pXMin->value(),m_pXMax->value());
+ m_pValueAxisY->setRange(m_pYMin->value(), m_pYMax->value() );
  SetCursor(0);
  UpdateGraph();
 
@@ -357,7 +537,10 @@ void MultiPlotter::ReCalculateAndUpdate()
   m_BreakPoints.clear();
   s_LastError="";
   for( int i = 0; i < m_Plots.count(); i++)
-    CalculatePoint(*m_Plots[i]);
+    {
+    m_Plots[i]->m_Points.clear();
+    CalculatePoint(i);
+    }
   UpdateGraph();
   }
 
@@ -380,8 +563,32 @@ void MultiPlotter::PaintGraph(PlotData& PData)
       bWasBreak = true;
       continue;
       }
-    if(P.y() > m_YMax ) P.setY(m_YMax);
-    if(P.y() < m_YMin ) P.setY(m_YMin);
+    if(P.y() == cm_Asymptote )
+      {
+      bWasBreak = true;
+      m_PathGraph.clear();
+      QPointF P1, P2;
+      P1.setX(P.x());
+      P1.setY(m_pValueAxisY->min());
+      P2.setX(P.x());
+      P2.setY(m_pValueAxisY->max());
+      auto p1 = m_pChartView->mapFromParent( QPoint(
+        static_cast<int>(m_pChart->mapToPosition(P1).x()),
+        static_cast<int>(m_pChart->mapToPosition(P1).y())));
+      auto p2 = m_pChartView->mapFromParent( QPoint(
+        static_cast<int>(m_pChart->mapToPosition(P2).x()),
+        static_cast<int>(m_pChart->mapToPosition(P2).y())));
+      m_PathGraph.moveTo(p1);
+      m_PathGraph.lineTo(p2);
+      QPen P;
+      P.setColor(Qt::darkRed);
+      P.setStyle( Qt::DashDotDotLine);
+      P.setWidth(1);
+      m_PathAsymptots.append(m_pScene->addPath(m_PathGraph, P));
+      continue;
+      }
+    if(P.y() > m_pYMax->value() ) P.setY(m_pYMax->value());
+    if(P.y() < m_pYMin->value() ) P.setY(m_pYMin->value());
     if(bWasBreak)
         PData.m_PathGraph.moveTo(MapPoint(P));
       else
@@ -391,7 +598,7 @@ void MultiPlotter::PaintGraph(PlotData& PData)
   QPen P;
   P.setColor(PData.m_Color);
   P.setWidth(PData.m_LineWidth);
-  m_pPathItemGraph = m_pScene->addPath(PData.m_PathGraph, P);
+  m_PathItemGraphs.append(m_pScene->addPath(PData.m_PathGraph, P));
   }
 
 void MultiPlotter::RefreshValues(int index)
@@ -608,7 +815,14 @@ void MultiPlotter::UpdateGraph()
     m_pSeriesBreakPoints->replace(m_BreakPoints);
     }
   PaintAxis();
-  m_pScene->removeItem(m_pPathItemGraph);
+  for(int i = 0; i < m_PathItemGraphs.count(); i++)
+    m_pScene->removeItem(m_PathItemGraphs[i]);
+  m_PathItemGraphs.clear();
+
+  for(int i = 0; i < m_PathAsymptots.count(); i++)
+    m_pScene->removeItem(m_PathAsymptots[i]);
+  m_PathAsymptots.clear();
+
   for( int i = 0; i < m_Plots.count(); i++)
     {
     PaintGraph(*m_Plots[i]);
@@ -645,6 +859,28 @@ void MultiPlotter::on_ymax_valueChanged(double val)
   m_pRefresh->setEnabled(true);
   }
 
+void MultiPlotter::ZoomIn()
+  {
+  m_pYMin->setValue(m_pYMin->value() / 2);
+  m_pYMax->setValue(m_pYMax->value() / 2);
+  m_pValueAxisY->setRange(m_pYMin->value(),m_pYMax->value());
+  m_pXMin->setValue(m_pXMin->value() / 2);
+  m_pXMax->setValue(m_pXMax->value() / 2);
+  m_pValueAxisX->setRange(m_pXMin->value(),m_pXMax->value());
+  m_pRefresh->setEnabled(true);
+  }
+
+void MultiPlotter::ZoomOut()
+  {
+  m_pYMin->setValue(m_pYMin->value() * 2);
+  m_pYMax->setValue(m_pYMax->value() * 2);
+  m_pValueAxisY->setRange(m_pYMin->value(),m_pYMax->value());
+  m_pXMin->setValue(m_pXMin->value() * 2);
+  m_pXMax->setValue(m_pXMax->value() * 2);
+  m_pValueAxisX->setRange(m_pXMin->value(),m_pXMax->value());
+  m_pRefresh->setEnabled(true);
+  }
+
 void MultiPlotter::on_ResetPressed()
   {
   ReCalculateAndUpdate();
@@ -653,41 +889,8 @@ void MultiPlotter::on_ResetPressed()
 
 void MultiPlotter::SetCursor(int index)
   {
-  if( m_pPathAsymptote != nullptr) m_pScene->removeItem(m_pPathAsymptote);
-  m_pScene->removeItem(m_pPathAsymptote);
-  m_pPathAsymptote = nullptr;
-  QPointF Point;
-  Point.setY(cm_Break);
   for(int i = 0; i < m_Plots.count(); i++)
-    {
-    QPointF P = m_Plots[i]->SetCursor(*this, index);
-    if( P.y() != cm_Break )
-      Point = P;
-    else
-      if( Point.y() == cm_Break ) Point = P;
-    }
-  if(Point.y() == cm_Break )
-    {
-    m_PathGraph.clear();
-    QPointF P1, P2;
-    P1.setX(Point.x());
-    P1.setY(m_pValueAxisY->min());
-    P2.setX(Point.x());
-    P2.setY(m_pValueAxisY->max());
-    auto p1 = m_pChartView->mapFromParent( QPoint(
-      static_cast<int>(m_pChart->mapToPosition(P1).x()),
-      static_cast<int>(m_pChart->mapToPosition(P1).y())));
-    auto p2 = m_pChartView->mapFromParent( QPoint(
-      static_cast<int>(m_pChart->mapToPosition(P2).x()),
-      static_cast<int>(m_pChart->mapToPosition(P2).y())));
-    m_PathGraph.moveTo(p1);
-    m_PathGraph.lineTo(p2);
-    QPen P;
-    P.setColor(Qt::darkRed);
-    P.setStyle( Qt::DashDotDotLine);
-    P.setWidth(1);
-    m_pPathAsymptote = m_pScene->addPath(m_PathGraph, P);
-    }
+    m_Plots[i]->SetCursor(*this, index);
   m_pChart->update(m_pGraphicsView->rect());
   m_pScene->update(m_pScene->sceneRect());
   }

@@ -103,5 +103,6 @@
         <file>Resources/Calculator/Accomod.jpg</file>
         <file>Resources/Calculator/BinomCoeff.jpg</file>
         <file>Resources/Calculator/Permut.jpg</file>
+        <file>Resources/GraphBtnDerive.png</file>
     </qresource>
 </RCC>

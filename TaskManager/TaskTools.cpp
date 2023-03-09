@@ -651,7 +651,8 @@ void ExprPanel::mousePressEvent( QMouseEvent* pE)
   if( s_GlobalInvalid || Expr.IsEmpty() ) return;
   QString Path( RichTextDocument::GetTempPath() );
   QByteArray Formula(Expr.SWrite());
-  if(Formula.contains("comment") && Formula[9] == (char) msBaseLang) return;
+  if(Formula.contains("comment") ) return;
+//  if(Formula.contains("comment") && Formula[9] == (char) msBaseLang) return;
   XPInEdit InEd( Formula, *BaseTask::sm_pEditSets,
     ViewSettings( QFont( "Arial", 16 ), QFont( "Arial", 16 ), QFont( "Arial", 16 ), "white" ) );
   QImage *pImage = InEd.GetImage();
@@ -1231,14 +1232,18 @@ BoundedButton::BoundedButton( PDescrMemb pData, const QByteArray& Icon, const QB
 void NationalTextButton::mouseReleaseEvent(QMouseEvent *e)
   {
   QByteArray Text(*m_pExprPanel->m_pExpr);
+  if( Text.length() == 0 || Text[0] != '"')
+    Text.clear();
+/*
   if (Text.length() > 0 && Text[0] == '"')
     {
     Text = Text.mid(1, Text.length() - 2);
-    if(!Text.isEmpty() && Text[0] == (char) msBaseLang)
-      Text = Text.mid(1);
+//    if(!Text.isEmpty() && Text[0] == (char) msBaseLang)
+//      Text = Text.mid(1);
     }
   else
     Text.clear();
+*/
   NationalTextEditor TE(ToLang(Text.replace(msPrime, '"').replace(msDoublePrime, '{' ).replace(msTriplePrime,'}' ).replace(msCharNewLine, '\n')) );
   if (TE.exec() == QDialog::Rejected) return;
   *m_pExprPanel->m_pExpr = TE.GetText();
@@ -1283,9 +1288,12 @@ NationalTextEditor::NationalTextEditor(const QString& Text) : QDialog(nullptr, Q
   }
 
 QByteArray NationalTextEditor::GetText() 
-  { 
+  {
+  QByteArray Result = FromLang(m_TextEditor->toPlainText());
+  return Result;
+/*
   QByteArray Result(1, '"');
-  Result += msBaseLang;
+//  Result += msBaseLang;
   if (s_Task.GetLanguage() == lngHebrew)
     {
     QString H = m_TextEditor->toHtml();
@@ -1307,4 +1315,5 @@ QByteArray NationalTextEditor::GetText()
     Result += FromLang(m_TextEditor->toPlainText()).replace('"', msPrime).replace('{', msDoublePrime).replace('}', msTriplePrime).replace('\n', msCharNewLine);
   if (Result.endsWith(msCharNewLine)) Result.remove(Result.count() - 1, 1);
   return Result  + '"';
+  */
   }

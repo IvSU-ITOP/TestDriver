@@ -26,6 +26,12 @@ void MakeCalcDiff(const MathExpr& e, MathExpr& ex1, MathExpr& ex2)
     s_LastError=X_Str("MCannotDiff","Cannot differentiate!");
     return;
     }
+  if( ex.Eq(v) )
+    {
+    ex1 = new TConstant(0);
+    ex2 = ex1;
+    return;
+    }
   s_RootToPower = true;
   bool OldNoRootReduce = s_NoRootReduce;
   bool OldNoLogReduce = s_NoLogReduce;
@@ -375,11 +381,17 @@ MathExpr CalcIntegralExpr(const MathExpr& e)
     s_LastError = X_Str("MCannotInt","Cannot integrate!");
     return Result;
     }
+  s_GlobalVarName = sName = CastPtr(TVariable, v)->Name();
+  if(ex.WriteE().indexOf(sName) == -1)
+    {
+    TExpr::sm_IntegralError = true;
+    s_LastError = X_Str("MCannotInt","Cannot integrate!");
+    return Result;
+    }
   s_RootToPower = true;
   OldNoRootReduce = s_NoRootReduce;
   s_NoRootReduce = true;
   s_IsIntegral = true;
-  s_GlobalVarName = sName = CastPtr(TVariable, v)->Name();
   s_SummExpFactorize = true;
   OldNoLogReduce = s_NoLogReduce;
   s_NoLogReduce = true;
@@ -389,6 +401,7 @@ MathExpr CalcIntegralExpr(const MathExpr& e)
   OldShowDiviMessages = s_ShowDiviMessages;
   s_ShowDiviMessages = false;
   it = rd.Integral(sName);
+  MathExpr itOld = it;
   iTail = -1;
   while( IsThereIntegral( it ) && ! TExpr::sm_IntegralError )
     {
@@ -399,6 +412,12 @@ MathExpr CalcIntegralExpr(const MathExpr& e)
       else
         iTail = TSolutionChain::sm_SolutionChain.AddAndReplace( e, it ) - 1;
       it = ReduceTExprs( it );
+      if(it.Eq(itOld))
+        {
+        TExpr::sm_IntegralError = true;
+        break;
+        }
+      itOld = it;
       }
     catch( char* )
       {
@@ -415,7 +434,7 @@ MathExpr CalcIntegralExpr(const MathExpr& e)
     if( s_IntegralCount > 0 )
       {
       s_IntegralCount = s_IntegralCount - 1;
-      if( s_IntegralCount > 1 ) throw  "";
+      if( s_IntegralCount > 1 ) throw  ErrParser( X_Str("MCannotCalculate", "Cannot calculate!"), peNewErr );
         s_IntegralCount = 0;
       }
     }
@@ -630,8 +649,6 @@ MathExpr CalcLimitExpr(const MathExpr& e)
     Result = new TBinar('=', e.Clone(), Result);
     s_XPStatus.SetMessage(X_Str("XPAnalysisCalcMess", "Limit calculated!"));
     }
-  else
-    Result = e;
   return Result;
   }
 
@@ -647,7 +664,10 @@ void MakeCalcDefIntegral(const MathExpr& e, MathExpr& ex1, MathExpr& ex2, MathEx
     s_LastError = X_Str("XPAnalysisCalcMess", "Cannot integrate!");
     return;
     }
+  bool OldRootToPower = s_RootToPower;
+  s_RootToPower = true;
   rd = ex.Reduce();
+  s_RootToPower = OldRootToPower;
   s_IntegralCount = 0;
   it = rd.Integral(v.WriteE());
   if( TExpr::sm_IntegralError )
@@ -692,8 +712,6 @@ MathExpr CalcDefIntegralExpr(const MathExpr& e)
    Result = new TBinar('=', e.Clone(), new TBinar('=', ex1, new TBinar('=', ex2, ex3)));
    s_XPStatus.SetMessage(X_Str("XPAnalysisCalcMess", "Integrated!"));
    }
-  else
-    Result=e.Clone();
   return Result;
   }
 /*
@@ -1236,11 +1254,22 @@ void CalcSimplifyNew(const MathExpr& exiI, int Oper )
 
 void TDerivative::Solve()
   {
-  m_Expr = CalcDiffExpr(m_Expr);
-  if(m_Expr.IsEmpty())
-    TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotCalculate", "Cannot calculate!") );
+  MathExpr Result = CalcDiffExpr(m_Expr);
+  bool bCalc = !(IsType( TLexp, m_Expr ));
+  if( Result.IsEmpty())
+    {
+    s_GlobalInvalid = false;
+    TSolutionChain::sm_SolutionChain.AddExpr( m_Expr );
+    if(bCalc)
+      {
+      Result = m_Expr.Diff().Reduce();
+      bCalc = !Result.IsEmpty() && !s_GlobalInvalid;
+      }
+    }
+  if(bCalc)
+    TSolutionChain::sm_SolutionChain.AddExpr( Result, X_Str( "MDiffying", "derivative calculated!" ) );
   else
-    TSolutionChain::sm_SolutionChain.AddExpr( m_Expr, X_Str( "MDiffying", "derivative calculated!" ) );
+    TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotCalculate", "Cannot calculate!") );
   m_Expr = new TBool(true);
   }
 
@@ -1260,7 +1289,7 @@ void TDefIntegrate::Solve()
   s_GlobalInvalid = false;
   m_Expr = CalcDefIntegralExpr( m_Expr );
   if(m_Expr.IsEmpty())
-    TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotCalculate", "Cannot calculate!") );
+    TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str("MCannotCalculate", "Cannot calculate!") );
   else
     TSolutionChain::sm_SolutionChain.AddExpr( m_Expr, X_Str( "MIntegrate", "Integral calculated!" ) );
   m_Expr = new TBool(true);
@@ -1271,7 +1300,7 @@ void TLimitCreator::Solve()
   s_GlobalInvalid = false;
   m_Expr = CalcLimitExpr( m_Expr );
   if(m_Expr.IsEmpty())
-    TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotLim", "Cannot Limit calculate!") );
+    TSolutionChain::sm_SolutionChain.AddExpr(new TStr(""), X_Str("MCannotLim", "Cannot Limit calculate!") );
   else
     TSolutionChain::sm_SolutionChain.AddExpr( m_Expr, X_Str( "MLimmed", "Limit calculated!" ) );
   m_Expr = new TBool(true);
@@ -1286,7 +1315,7 @@ void TEigen::Solve()
     {
     ex = CastConstPtr(TMatr, m_Expr)->Eigen();
     if(ex.IsEmpty())
-      TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotEigen", "Cannot Eigen Values calculate!") );
+      TSolutionChain::sm_SolutionChain.AddExpr(new TStr(""), X_Str("MCannotEigen", "Cannot Eigen Values calculate!") );
     else
       TSolutionChain::sm_SolutionChain.AddExpr( m_Expr, X_Str( "MEigenEd", "Eigen Values calculated!" ) );
     }
@@ -1297,13 +1326,13 @@ void TDeterminant::Solve()
   {
   MathExpr ex;
   if( !m_Expr.Matr(ex) )
-    TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotDeterminant", "This is no Matrix!") );
+    TSolutionChain::sm_SolutionChain.AddComment( X_Str("MEnterMatr", "Please enter a matrix!") );
   else
     {
     TMatr::sm_RecursionDepth = 2;
     ex = CastConstPtr(TMatr, m_Expr)->Determinant();
     if(ex.IsEmpty())
-      TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotDeterminant", "Cannot Determinant calculate!") );
+      TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str("MCannotDeterminant", "Cannot Determinant calculate!") );
     else
       {
       TSolutionChain::sm_SolutionChain.AddExpr( m_Expr);
@@ -1317,7 +1346,23 @@ void TTransposer::Solve()
   {
   MathExpr ex;
   if( !m_Expr.Matr(ex) )
-    TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotTranspose", "This is no Matrix!") );
+    {
+    MathExpr Op1, Op2, ex2;
+    if(m_Expr.Power(Op1, Op2))
+      {
+      QByteArray sVar;
+      if(Op1.Matr(ex2) && Op2.Variab( sVar ) && sVar == "T" )
+        {
+        ex = CastPtr(TMatr, Op1)->Transpose();
+        MathExpr TempX = new TBinar( '=', m_Expr, ex );
+        TSolutionChain::sm_SolutionChain.AddExpr( TempX);
+        m_Expr = new TBool(true);
+        TSolutionChain::sm_SolutionChain.AddComment( X_Str("MTranspose", "Transpose calculated") );
+        return;
+        }
+      }
+    TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str("MCannotTranspose", "This is no Matrix!") );
+    }
   else
     {
     ex = CastConstPtr(TMatr, m_Expr)->Transpose();
@@ -1325,8 +1370,12 @@ void TTransposer::Solve()
       TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotTranspose", "Cannot Transpose!") );
     else
       {
-      TSolutionChain::sm_SolutionChain.AddExpr( m_Expr);
-      TSolutionChain::sm_SolutionChain.AddExpr( ex, X_Str( "MDeterminant", "Transpose calculated" ) );
+      MathExpr T = new TVariable(true, "T");
+      MathExpr MT = m_Expr ^ T;
+      MathExpr TempX = new TBinar( '=', MT, ex );
+      TSolutionChain::sm_SolutionChain.AddExpr( TempX );
+      TSolutionChain::sm_SolutionChain.AddComment( X_Str("MTranspose", "Transpose calculated") );
+//      TSolutionChain::sm_SolutionChain.AddExpr( ex, X_Str( "MDeterminant", "Transpose calculated" ) );
       }
     }
   m_Expr = new TBool(true);
@@ -1344,7 +1393,9 @@ void TInverter::Solve()
       TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotInversion", "Cannot Inversion!") );
     else
       {
-      TSolutionChain::sm_SolutionChain.AddExpr( m_Expr);
+      MathExpr P = new TPowr(m_Expr, -1);
+      ex = new TBinar('=', P, ex);
+//      TSolutionChain::sm_SolutionChain.AddExpr( m_Expr);
       TSolutionChain::sm_SolutionChain.AddExpr( ex, X_Str( "MInversion", "Inversion calculated" ) );
       }
     }

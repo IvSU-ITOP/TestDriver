@@ -91,6 +91,22 @@ QByteArray ErrParser::Message()
   return FromLang(m_Message);
   }
 
+QString ErrParser::WMessage()
+  {
+  switch (m_ErrStatus)
+    {
+    case peSyntacs:
+      return X_Str("MsyntaxErr", "Syntax error!" );
+    case peNoSolvType:
+      return X_Str("MNoSolvType", "Wrong type of equation!" );
+    case peOpertn:
+      return X_Str("MInadmOper", "Wrong operation!");
+    case peNoSolv:
+      return X_Str("MNoSolution", "No solution!");
+    }
+  return m_Message;
+  }
+
 TNode::TNode( Parser *pOwner, const PNode Parent ) : m_pParent( Parent ), m_IsLeft( false ), m_IsRight( false ), m_pLeft( nullptr ),
 m_pRight(nullptr), m_pOwner(pOwner), m_Priority(0)
   {
@@ -247,7 +263,7 @@ void Parser::GetToken()
         m_Name += m_Char;
         m_Char = GetChar();
         if( m_Char == 0 )
-          throw ErrParser( "Incorrect string", peName);
+          throw ErrParser( X_Str("MInvalidString", "Incorrect string"), peName);
         } while( m_Char != '"' );
       break;
     default:
@@ -816,14 +832,14 @@ PNode  Parser::Factor( bool &IsName, PNode AParent )
       GetToken();
       pResult = Expression( IsName, AParent );
       if( m_Token != toRightParenthesis )
-        throw ErrParser( "Syntactical error", peSyntacs );
+        throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
       GetToken();
       break;
     case toLeftCurly:
       GetToken();
       pResult = Expression( IsName, AParent );
       if( m_Token != toRightCurly )
-        throw ErrParser( "Syntactical error", peSyntacs );
+        throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
       GetToken();
       break;
     case toFunction:
@@ -838,12 +854,12 @@ PNode  Parser::Factor( bool &IsName, PNode AParent )
       pResult->m_Priority = 0;
       GetToken();
       if( m_Token != toLeftParenthesis )
-        throw ErrParser( "Syntactical error", peSyntacs );
+        throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
       q = List2( IsName, pResult );
       if( pResult->m_Info == "Matric" || pResult->m_Info == "syst" )
         IsName = false;
       if( m_Token != toRightParenthesis )
-        throw ErrParser( "Syntactical error", peSyntacs );
+        throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
       pResult->m_pRight = q;
       pResult->m_IsRight = IsName;
       GetToken();
@@ -902,13 +918,13 @@ PNode  Parser::Factor( bool &IsName, PNode AParent )
       if( m_Token == toMinute )
         {
         if( m_Name.toFloat() >= 60 )
-          throw ErrParser( "Syntactical error", peSyntacs );
+          throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
         pResult->m_Info += m_Name;
         GetToken();
         }
       break;
     default:
-      throw ErrParser( "Syntactical error", peSyntacs );
+      throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
     }
 
   if( m_Token == toLeftCurly )
@@ -918,7 +934,7 @@ PNode  Parser::Factor( bool &IsName, PNode AParent )
     pResult->m_OpSign = 'M';
     pResult->m_pRight = p;
     if( m_Token != toRightCurly )
-      throw ErrParser( "Syntactical error", peSyntacs );
+      throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
     GetToken();
     }
   if( m_Token == toBackApostrophe )
@@ -935,7 +951,7 @@ PNode  Parser::Factor( bool &IsName, PNode AParent )
     pResult->m_pRight = Measure( pResult );
     pResult->m_IsRight = false;
     if( m_Token != toApostrophe )
-      throw ErrParser( "Syntactical error", peSyntacs );
+      throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
     GetToken();
     IsName = false;
     }
@@ -992,7 +1008,7 @@ PNode  Parser::Factor( bool &IsName, PNode AParent )
     p->m_Info = QByteArray( 1, 'I' );
     pResult = p;
     if( m_Token != toRightBracket )
-      throw ErrParser( "Syntactical error", peSyntacs );
+      throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
     GetToken();
     }
   return pResult;
@@ -1073,7 +1089,7 @@ PNode  Parser::Expression( bool &IsName, PNode AParent )
     p->m_Info = "I";
     pResult = p;
     if( m_Token != toRightBracket )
-      throw ErrParser( "Syntactical error", peSyntacs );
+      throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
     GetToken();
     }
   return pResult;
@@ -1136,7 +1152,7 @@ PNode  Parser::Factor1( PNode AParent )
       GetToken();
       pResult = Measure( AParent );
       if( m_Token != toRightParenthesis )
-        throw ErrParser( "Syntactical error", peSyntacs );
+        throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
       GetToken();
       break;
     case toFunction:
@@ -1150,7 +1166,7 @@ PNode  Parser::Factor1( PNode AParent )
       break;
     case toInteger:
       if( m_Name != "1" )
-        throw ErrParser( "Syntactical error", peSyntacs );
+        throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
       m_Constan = true;
       p=new TNode(this);
       p->m_OpSign = 'i';
@@ -1161,7 +1177,7 @@ PNode  Parser::Factor1( PNode AParent )
       GetToken();
       break;
     default:
-      throw ErrParser( "Syntactical error", peSyntacs );
+      throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
     }
   return pResult;
   }
@@ -1176,7 +1192,7 @@ PNode  Parser::Constant( PNode AParent )
       GetToken();
       pResult = Constant( AParent );
       if( m_Token != toRightParenthesis )
-        throw ErrParser( "Syntactical error", peSyntacs );
+        throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
       GetToken();
       break;
     case toInteger:
@@ -1188,7 +1204,7 @@ PNode  Parser::Constant( PNode AParent )
       GetToken();
       break;
     default:
-      throw ErrParser( "Syntactical error", peSyntacs );
+      throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
     }
   return pResult;
   }
@@ -1227,7 +1243,7 @@ PNode  Parser::Measure( PNode AParent )
   while( m_Token == toMultiply || m_Token == toDivide )
     {
     if( m_Constan && m_Token != toDivide )
-      throw ErrParser( "Syntactical error", peSyntacs );
+      throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
     m_Constan = false;
     p=new TNode(this);
     pResult->m_pParent = p;
@@ -1260,7 +1276,7 @@ PNode  Parser::GetMeasure( const QByteArray& ASource )
   GetToken();
   PNode pResult = Measure( PNode() );
   if( m_Token != toEndOfText )
-    throw ErrParser( "Syntactical error", peSyntacs );
+    throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
   return pResult;
   }
 
@@ -1274,7 +1290,7 @@ PNode  Parser::GetExpression( const QByteArray& ASource )
   bool b;
   PNode pResult = Expression( b, PNode() );
   if( m_Token != toEndOfText )
-    throw ErrParser( "Syntactical error", peSyntacs );
+    throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
   return pResult;
   }
 
@@ -1288,7 +1304,7 @@ bool Parser::IsUnknown( QByteArray& ASource )
   bool Result;
   PNode pResult = Expression( Result, PNode() );
   if( m_Token != toEndOfText )
-    throw ErrParser( "Syntactical error", peSyntacs );
+    throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
   return Result;
   }
 
@@ -1316,10 +1332,10 @@ PNode  Parser::Equation( const QByteArray& ASource, const QByteArray& ASelectNam
     GetToken();
     }
   else
-    throw ErrParser( "Syntactical error", peSyntacs );
+    throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
   pResult->m_pRight = Expression( pResult->m_IsRight, pResult );
   if( m_Token != toEndOfText )
-    throw ErrParser( "Syntactical error", peSyntacs );
+    throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
   IsName = pResult->m_IsLeft || pResult->m_IsRight;
   m_MultUnknown = m_MultUnknown || ( pResult->m_IsLeft && pResult->m_IsRight );
   AMultUnknown = m_MultUnknown;
@@ -1341,7 +1357,7 @@ PNode  Parser::OneRel( PNode Parent )
     GetToken();
     }
   else
-    throw ErrParser( "Syntactical error", peSyntacs );
+    throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
   pResult->m_pRight = Expression( pResult->m_IsRight, pResult );
   return pResult;
   }
@@ -1382,7 +1398,7 @@ PNode  Parser::Interval( PNode AParent )
   bool b;
   pResult->m_pLeft = Expression( b, pResult );
   if( m_Token != toSemicolon )
-    throw ErrParser( "Syntactical error", peSyntacs );
+    throw ErrParser(X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
   GetToken();
   pResult->m_pRight = Expression( b, pResult );
   if( m_Token == toRightBracket )
@@ -1391,7 +1407,7 @@ PNode  Parser::Interval( PNode AParent )
     if( m_Token == toRightParenthesis )
       pResult->m_Info += ")";
     else
-      throw ErrParser( "Syntactical error", peSyntacs );
+      throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
   return pResult;
   }
 
@@ -1500,7 +1516,7 @@ PNode  Parser::List1( bool &IsName, PNode AParent )
         }
       if( Second > 0 )
         if( m_Token != toRightParenthesis )
-          throw ErrParser( "Syntactical error", peSyntacs );
+          throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
         else
           GetToken();
       if( Second > 0 ) Second = 0;
@@ -1513,7 +1529,7 @@ PNode  Parser::List1( bool &IsName, PNode AParent )
       }
     } while( Second != 0 && Second <= 1 );
   if( Second > 1 )
-    throw ErrParser( "Syntactical error", peSyntacs );
+    throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
   return pResult;
   }
 
@@ -1554,7 +1570,7 @@ PNode  Parser::List2( bool &IsName, PNode AParent )
         }
       if( Second > 0 )
         if( m_Token != toRightParenthesis )
-          throw ErrParser( "Syntactical error", peSyntacs );
+          throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
         else
           GetToken();
       if( Second > 0 ) Second = 0;
@@ -1582,7 +1598,7 @@ PNode  Parser::AnyExpr( const QByteArray& ASource, const QByteArray& UncnownName
     {
     pResult = List2( b, PNode() );
     if( m_Token != toEndOfText )
-      throw ErrParser( "Syntactical error", peSyntacs );
+      throw ErrParser( X_Str("MUnknwnMult", "Syntactical error"), peSyntacs );
     }
   catch (ErrParser& ErrMsg)
     {
@@ -1753,7 +1769,7 @@ MathExpr Parser::OutPut( PNode p ) // The tree of solution will be transformed t
             Result = new TDivi( op1, op2, p->m_OpSign );
       else
         if( op2.Reduce().Constan( d ) && abs( d ) < 0.0000001 )
-          throw  ErrParser( "No Solutions!", peNoSolv );
+          throw  ErrParser( X_Str("MNoSolution", "No Solutions!"), peNoSolv );
         else
           {
           Result = op1 / op2;
@@ -2162,7 +2178,7 @@ MathExpr Parser::StringToExpr( const QByteArray& ASource )
   s_CheckError = false;
   Parser P;
   MathExpr Result = P.OutPut( P.AnyExpr( P.FullPreProcessor( ASource, "x" ) ) );
-  if( s_GlobalInvalid ) throw  ErrParser( "Argument error", peFunctn );
+  if( s_GlobalInvalid ) throw  ErrParser( X_Str("MFunctn", "Argument error"), peFunctn );
   return Result;
   }
 

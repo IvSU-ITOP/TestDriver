@@ -12,7 +12,7 @@ MathExpr GaussProbability( const MathExpr& Ex )
   { 
   double Value;
   if( !Ex.Constan( Value ) && !Ex.Reduce().Constan( Value ) )
-    throw( ErrParser( "Invalid Argument!", peSyntacs ) );
+    throw( ErrParser( X_Str("MFunctn", "Argument error"), peFunctn ) );
   return Constant( erf( Value ) );
   }
 

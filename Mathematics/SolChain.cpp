@@ -198,6 +198,7 @@ MathExpr TSolutionChain::GetLastExpr()
 
 MathExpr TSolutionChain::GetExpr( int i )
   {
+  if(i >= m_Chains.count()) return nullptr;
   return m_Chains[i].m_Exprs;
   }
 

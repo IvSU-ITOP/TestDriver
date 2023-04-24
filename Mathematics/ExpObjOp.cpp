@@ -857,6 +857,30 @@ MathExpr TMult::Reduce() const
       Append(exp);
     };
 
+  if(sm_ReduceOperands)
+    {
+    if(m_Operand1.Constan(Value1))
+      if( m_Operand2.Constan(Value2))
+         return Constant(Value1 * Value2);
+      else
+        if(Value1 == 1)
+          return m_Operand2;
+        else
+          if(Value1 == -1)
+            return -m_Operand2;
+    char C;
+    if( m_Operand1.Oper_(C, opr1, opr2) && (C == '+' || C == '-') )
+      Op11 = m_Operand1.Reduce();
+    if( m_Operand2.Oper_(C, opr1, opr2) && (C == '+' || C == '-') )
+      if(Op11.IsEmpty())
+        return m_Operand1 * m_Operand2.Reduce();
+      else
+        return Op11 * m_Operand2.Reduce();
+     if(Op11.IsEmpty())
+       return Ethis;
+     return Op11 * m_Operand2;
+     }
+
   if( IsConstType( TMult, m_Operand1 ) || IsConstType( TMult, m_Operand2 ) )
     {
     CreateMultList( Ethis );
@@ -1252,17 +1276,25 @@ MathExpr TMult::Reduce() const
     return new TBinar( '=', ExpandExpr( Op11 * opr1 ), ExpandExpr( Op12 * opr1 ) );
 
   if( opr1.Summa(Op11, Op12 ))
-    return new TSumm( ExpandExpr( Op11 * opr2 ), ExpandExpr( Op12 * opr2 ) );
-
+    {
+    P = new TSumm( ExpandExpr( Op11 * opr2 ), ExpandExpr( Op12 * opr2 ) );
+    return P.Reduce();
+    }
   if( opr1.Subtr(Op11, Op12 ))
-    return new TSubt( ExpandExpr( Op11 * opr2 ), ExpandExpr( Op12 * opr2 ) );
-
+    {
+    P = new TSubt( ExpandExpr( Op11 * opr2 ), ExpandExpr( Op12 * opr2 ) );
+    return P.Reduce();
+    }
   if( opr2.Summa( Op11, Op12 ) )
-    return new TSumm( ExpandExpr( Op11 * opr1 ), ExpandExpr( Op12 * opr1 ) );
-
+    {
+    P = new TSumm( ExpandExpr( Op11 * opr1 ), ExpandExpr( Op12 * opr1 ) );
+    return P.Reduce();
+    }
   if( opr2.Subtr( Op11, Op12 ) )
-    return new TSubt( ExpandExpr( Op11 * opr1 ), ExpandExpr( Op12 * opr1 ) );
-
+    {
+    P = new TSubt( ExpandExpr( Op11 * opr1 ), ExpandExpr( Op12 * opr1 ) );
+    return P.Reduce();
+    }
   return new TMult( opr1, opr2, m_Name );
   }
 
@@ -1312,7 +1344,10 @@ MathExpr TMult::Integral( const QByteArray& d )
   if( df.Eq( this ) )
     {
     if( ++s_IntegralCount > 3 )
-      throw ""; 
+      {
+      TExpr::sm_IntegralError = true;
+      return Ethis;
+      }
     if( ( !m_Operand1.Funct( name, arg ) || name == "ln" ) && !( m_Operand2.Funct( name, arg ) && name == "ln)" ) )
       {
       u = m_Operand1;
@@ -2328,6 +2363,7 @@ MathExpr TDivi::Integral( const QByteArray& d )
 
   if( rd == 0 )
     {
+    rd.Clear();
     if( m_Operand2.Summa( op1, op2 ) )
       {
       if( op2 == 1 )
@@ -2412,7 +2448,7 @@ MathExpr TDivi::Integral( const QByteArray& d )
   if( !Eq( rd ) )
     return rd.Integral( d );
 
-  s_IntegralError = true;
+  TExpr::sm_IntegralError = true;
   return Ethis;
   }
 

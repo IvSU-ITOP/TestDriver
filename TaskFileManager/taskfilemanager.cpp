@@ -2373,6 +2373,7 @@ QString BaseTask::GetFileExtByLang( TLanguages Lang )
 
 int BaseTask::Random( int MaxVal )
   {
+  if(MaxVal == 0) return 0;
   if( m_WorkMode == wrkExam )
     {
     int Val;

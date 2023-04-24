@@ -87,6 +87,7 @@ class TExpr
     virtual bool IsTemplate() {return false;}
     virtual MathExpr Clone() const;
     virtual MathExpr Reduce() const;
+    virtual MathExpr Calculate() const;
     virtual MathExpr Perform() const;
     virtual MathExpr Diff( const QByteArray& d = "x" );
     virtual MathExpr Integral( const QByteArray& d = "x" );
@@ -398,6 +399,7 @@ class MathExpr
     MathExpr ReduceToMultiplicators();
     MATHEMATICS_EXPORT MathExpr Simplify() { TestPtr(); return m_pExpr->Reduce(); }
     MATHEMATICS_EXPORT MathExpr SimplifyFull();
+    MATHEMATICS_EXPORT MathExpr Calculate() { TestPtr(); return m_pExpr->Calculate(); }
     MathExpr FindGreatestCommDivisor() { TestPtr(); return m_pExpr->FindGreatestCommDivisor(); }
     MathExpr Dividend() { TestPtr(); return m_pExpr->Dividend(); }
     MathExpr Divisor() { TestPtr(); return m_pExpr->Divisor(); }
@@ -940,8 +942,9 @@ class TIntegral : public TExpr
     TIntegral( bool Meta, const MathExpr& ex, const MathExpr& Var ) : TExpr(), m_Meta_sign( Meta ), m_Expint( ex ), m_Varint(Var) {}
     virtual MathExpr Clone() const;
     virtual MathExpr Reduce() const;
+    virtual MathExpr Calculate() const;
     virtual MathExpr Perform() const;
-    virtual MathExpr CalcIntegralExpr() const { return Clone(); }
+    virtual MathExpr CalcIntegralExpr() const;
     virtual bool Eq( const MathExpr& E2 ) const;
     virtual bool Equal( const MathExpr& E2 ) const;
 
@@ -953,6 +956,7 @@ class TIntegral : public TExpr
     virtual bool Splitted() const { return false; }
     virtual bool Integr_( MathExpr& ex, MathExpr& vr ) const { ex = m_Expint; vr = m_Varint; return true; }
     virtual void SetReduced( bool Reduced ) { TExpr::SetReduced( Reduced ); m_Expint.SetReduced( Reduced ); m_Varint.SetReduced( Reduced ); }
+    virtual MathExpr Diff(const QByteArray& d = "x" );
   };
 
 class TDefIntegral : public TIntegral
@@ -963,7 +967,9 @@ class TDefIntegral : public TIntegral
     TDefIntegral( bool Meta, const MathExpr& exi, const MathExpr& exll, const MathExpr& exhl, const MathExpr& Var );
     virtual MathExpr Clone() const;
     virtual MathExpr Reduce() const;
+    virtual MathExpr Calculate() const { return Clone(); }
     virtual MathExpr Perform() const;
+    MathExpr CalcIntegralExpr() const;
 
     virtual bool Eq( const MathExpr& E2 ) const;
     virtual bool Equal( const MathExpr& E2 ) const;
@@ -973,6 +979,7 @@ class TDefIntegral : public TIntegral
     virtual QByteArray SWrite() const;
     bool Dfintegr_( MathExpr& exi, MathExpr& exll, MathExpr& exhl, MathExpr& vr ) const;
     void SetReduced( bool Reduced ) { TIntegral::SetReduced( Reduced ); m_Lolimit.SetReduced( Reduced ); m_Hilimit.SetReduced( Reduced ); }
+    MathExpr Diff(const QByteArray& d = "x" );
   };
 
 class TMultIntegral : public TIntegral
@@ -984,6 +991,7 @@ class TMultIntegral : public TIntegral
       const MathExpr& vr3 = MathExpr() );
     virtual MathExpr Clone() const;
     virtual MathExpr Reduce() const;
+    virtual MathExpr Calculate() const { return Clone(); }
     virtual MathExpr Perform() const;
 
     virtual bool Eq( const MathExpr& E2 ) const;
@@ -1003,6 +1011,7 @@ class TCurveIntegral : public TIntegral
     TCurveIntegral( bool Meta, uchar Type, const MathExpr& exi, const MathExpr& exll );
     virtual MathExpr Clone() const;
     virtual MathExpr Reduce() const;
+    virtual MathExpr Calculate() const { return Clone(); }
     virtual MathExpr Perform() const;
 
     virtual bool Eq( const MathExpr& E2 ) const;
@@ -1176,6 +1185,7 @@ class TDeriv : public TExpr
     MathExpr Diff( const QByteArray& d = "x" );
     MathExpr Integral( const QByteArray& d = "x" );
     MathExpr Reduce() const;
+    MathExpr Calculate() const;
     MathExpr Perform() const;
     bool Eq( const MathExpr& E2 ) const;
     bool Equal( const MathExpr& E2 ) const;
@@ -1531,6 +1541,7 @@ inline MathExpr CreateComplex( double Re, double Im ) { return new TComplexExpr(
 inline MathExpr TExpr::TrigTerm( const QByteArray& sName, const MathExpr& exArg ) { return TrigTerm( sName, exArg, MathExpr() ); }
 inline MathExpr TExpr::Clone() const { return nullptr; }
 inline MathExpr TExpr::Reduce() const { return Clone(); }
+inline MathExpr TExpr::Calculate() const {return Clone();}
 inline MathExpr TExpr::Perform() const { return Clone(); }
 inline MathExpr TExpr::Diff( const QByteArray& ) { return nullptr; }
 inline MathExpr TExpr::Integral( const QByteArray& d ) { return nullptr; }

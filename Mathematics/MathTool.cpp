@@ -832,6 +832,7 @@ MathExpr Expand( MathExpr Exi0 )
     return Exi;
     };
 
+//  if(s_InvalidExpand) return Exi0;
   MathExpr Op11, Op12, Op21, Op22, Exi, P;
   int i;
   bool OldSummExpFactorize;
@@ -1417,6 +1418,13 @@ void ConvertRoot( int n, int arg, int& Extern, int& Intern )
 
 MathExpr CalcDeg2Rad( const MathExpr& exi )
   {
+  double V;
+  MathExpr Result;
+  if( !exi.Constan( V ) )
+    {
+    s_LastError = X_Str( "MEnterConst", "Enter constant expression!" );
+    return Result;
+    }
   double SavePrec = s_Precision;
   s_Precision = 0.0000000001;
   bool FullReduce = TExpr::sm_FullReduce;
@@ -1424,9 +1432,7 @@ MathExpr CalcDeg2Rad( const MathExpr& exi )
   MathExpr exo = exi.Reduce();
   s_Precision = SavePrec;
   TExpr::sm_FullReduce = FullReduce;
-  double V;
   MathExpr op1, op2;
-  MathExpr Result;
   if( exo.Constan( V ) )
     Result = new TBinar( '=', new TMeaExpr( exo, Variable( msDegree ) ), Constant( ( V / 180 )*M_PI ) );
   else
@@ -1448,6 +1454,13 @@ MathExpr CalcDeg2Rad( const MathExpr& exi )
 
 MathExpr CalcRad2Deg( const MathExpr& exi )
   {
+  double V;
+  MathExpr Result;
+  if( !exi.Constan( V ) )
+    {
+    s_LastError = X_Str( "MEnterConst", "Enter constant expression!" );
+    return Result;
+    }
   double SavePrec = s_Precision;
   s_Precision = 0.0000000001;
   bool FullReduce = TExpr::sm_FullReduce;
@@ -1455,13 +1468,6 @@ MathExpr CalcRad2Deg( const MathExpr& exi )
   MathExpr exo = Parser::StrToExpr( PiVar2PiConst( exi.WriteE() ) ).ReduceTExprs();
   s_Precision = SavePrec;
   TExpr::sm_FullReduce = FullReduce;
-  double V;
-  MathExpr Result;
-  if( !exo.Constan( V ) )
-    {
-    s_LastError = X_Str( "MEnterConst", "Enter constant expression!" );
-    return Result;
-    }
   Result = new TBinar( '=', exo, new TMeaExpr( Constant( ( V / M_PI ) * 180 ), Variable( msDegree ) ) );
   if( !exo.Eq( exi ) )
     Result = new TBinar( '=', exi, Result );

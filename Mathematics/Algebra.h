@@ -192,7 +192,7 @@ enum Solvers { ESolvTestMode, ESolvReToMult, ESolvSubSqr, ESolvExpand, ESolvSqrS
   ESolvDetLinEqu, ESolvQuaEqu, ESolvDetQuaEqu, ESolvDisQuaEqu, ESolvDetVieEqu, ESolvCalcDetBiQuEqu, EAlgFrEquat, ESqLogEq, ESolvCalcPolinomEqu,
   ESolvCalcSimpleTrigoEq, ESinCosEq, ESolvCalcTrigoEqu, ESolvCalcHomogenTrigoEqu, ESolvCalcEquation,
   ESin, ECos, ETan, ELn, EDegRad, ERadDeg, ECotan, ESciCalc,
-  EDeriv, EIndefInt, ELimit, EDerivFun, EDefInt, EEigenVals, EDeterminant, ETranspose, EMatrixInv, EAngle2, EAngle3, ETan2,
+  EDeriv, EIndefInt, ELimit, EMatrOp, EDefInt, EEigenVals, EDeterminant, ETranspose, EMatrixInv, EAngle2, EAngle3, ETan2,
   EAlpha2, EPriv, ETrigoOfSumma, ESumm_Mult, ETrigo_Summ, EPermutations, EBinomCoeff,
   EAccomodations, EStatistics, ECorrelation, ELineProg, EAlgToTrigo, EComplexOper };
 
@@ -547,12 +547,12 @@ class TSciCalc : public Solver
     MATHEMATICS_EXPORT TSciCalc();
   };
 
-class TDiff : public Solver
+class TMatrixOp : public Solver
   {
   MATHEMATICS_EXPORT virtual void Solve();
   public:
-    TDiff( const MathExpr Expr );
-    MATHEMATICS_EXPORT TDiff();
+    TMatrixOp( const MathExpr Expr );
+    MATHEMATICS_EXPORT TMatrixOp();
   };
 
 #endif

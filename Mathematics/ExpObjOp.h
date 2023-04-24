@@ -50,6 +50,7 @@ class TMult : public TOper
   public:
     MATHEMATICS_EXPORT static bool sm_ShowUnarMinus;
     MATHEMATICS_EXPORT static bool sm_ShowMultSign;
+    static bool sm_ReduceOperands;
     TMult( const MathExpr& ex1, const MathExpr& ex2, uchar sign = '*');
     virtual MathExpr Clone() const;
     virtual MathExpr Reduce() const;

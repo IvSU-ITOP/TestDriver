@@ -23,12 +23,12 @@ int ExpStore::GetValue( const QByteArray& Info )
   if( Info[0] == msMetaSign )
     {
     if( !(Known_var_expr( Info.mid( 1 ), body ) && body.Cons_int( Result ) ) )
-      throw  ErrParser( "Syntactical error", peSyntacs );
+      throw  ErrParser( X_Str("MUnknwnMult", "Syntax error"), peSyntacs );
     return Result;
     }
   bool OK;
   Result = Info.toInt( &OK );
-  if( !OK ) throw  ErrParser( "Syntactical error", peSyntacs );
+  if( !OK ) throw  ErrParser( X_Str("MUnknwnMult", "Syntax error"), peSyntacs );
   return Result;
   }
 

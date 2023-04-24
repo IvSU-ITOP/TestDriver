@@ -11,6 +11,8 @@
 #include "LogExp.h"
 #include "Factors.h"
 #include "Algebra.h"
+#include "Analysis.h"
+
 #include <functional>
 #include "../FormulaPainter/InEdit.h"
 
@@ -28,6 +30,7 @@ TExpr::TrigonomSystem TExpr::sm_TrigonomSystem = tsRad;
 bool TOper::sm_InsideChart = false;
 bool TLexp::sm_Bracketed = true;
 bool Parser::sm_Drop = false;
+bool TMult::sm_ReduceOperands = false;
 
 double TExpr::TriginomValue( double V ) { return sm_TrigonomSystem == tsRad ? V : DegToRad( V ); }
 double TExpr::AngleValue( double V ) { return sm_TrigonomSystem == tsRad ? V : RadToDeg( V ); }
@@ -277,7 +280,7 @@ QByteArray TStr::UnpackValue( const QByteArray& V )
       if( !bOK )
         {
         delete pS;
-        throw ErrParser( "Error; Invalid String", ParserErr::peNewErr );
+        throw ErrParser( X_Str("MInvalidString", "Error; Invalid String"), ParserErr::peNewErr );
         }
       }
     }
@@ -1203,7 +1206,8 @@ MathExpr TFunc::Reduce() const
   else
     {
     bool OldFullReduce = TExpr::sm_FullReduce;
-    TExpr::sm_FullReduce = false;
+    TExpr::sm_FullReduce = true;
+//    TExpr::sm_FullReduce = false;
     arg_Reduced = m_Arg.Reduce();
     TExpr::sm_FullReduce = OldFullReduce;
     }
@@ -1214,7 +1218,7 @@ MathExpr TFunc::Reduce() const
     {
     if( arg_Reduced.Cons_int( N ) )
       {
-      if( N < 0 )  throw ErrParser( X_Str( "MNotAInt", "Operands must be positive integers!" ), peNoSolv );
+      if( N < 0 )  throw ErrParser( X_Str( "MNotAInt", "Operands must be positive integers!" ), peNewErr );
       int f = 1;
       for( int i = 1; i <= N; f *= i++ );
       return new TConstant( f );
@@ -1228,7 +1232,7 @@ MathExpr TFunc::Reduce() const
       first = first->m_pNext;
       if( first->m_Memb.Reduce().Cons_int( N ) )
         {
-        if( K < 0 || N < 0 || K > N ) throw ErrParser( X_Str( "MNotAInt", "Operands must be positive integers!" ), peNoSolv );
+        if( K < 0 || N < 0 || K > N ) throw ErrParser( X_Str( "MNotAInt", "Operands must be positive integers!" ), peNewErr );
         if( K > N / 2 ) K = N - K;
         int D = 1;
         for( int i = 1; i <= K; i++ )
@@ -1250,7 +1254,7 @@ MathExpr TFunc::Reduce() const
       first = first->m_pNext;
       if( first->m_Memb.Reduce().Cons_int( N ) )
         {
-        if( K < 0 || N < 0 || K > N ) throw ErrParser( X_Str( "MNotAInt", "Operands must be positive integers!" ), peNoSolv );
+        if( K < 0 || N < 0 || K > N ) throw ErrParser( X_Str( "MNotAInt", "Operands must be positive integers!" ), peNewErr );
         int D = 1;
         for( int i = N; i >= N - K + 1; i-- ) D *= i;
         return new TConstant( D );
@@ -1287,9 +1291,9 @@ MathExpr TFunc::Reduce() const
     {
     first = CastConst( TLexp, m_Arg )->m_pFirst;
     qint32 A, B, C;
-    if( !first->m_Memb.Cons_int( A ) ) throw ErrParser( "Invalid argment rand_with_prohib", peNoSolv );
+    if( !first->m_Memb.Cons_int( A ) ) throw ErrParser( "Invalid argment rand_with_prohib", peNewErr );
     first = first->m_pNext;
-    if( !first->m_Memb.Cons_int( B ) ) throw ErrParser( "Invalid argment rand_with_prohib", peNoSolv );
+    if( !first->m_Memb.Cons_int( B ) ) throw ErrParser( "Invalid argment rand_with_prohib", peNewErr );
     QVector<int> Exclude;
     for(; !first.isNull(); first = first->m_pNext)
       if( first->m_Memb.Cons_int( C ) )
@@ -1413,7 +1417,7 @@ MathExpr TFunc::Reduce() const
       {
       s_TanCotError = true;
       s_LastError = X_Str( "MDivisBy0", "Division by 0!" ) + X_Str( "MDivInTan", "(tan x == sin x / cos x)" );
-      throw ErrParser( "No Solution", peNoSolv );
+      throw ErrParser( X_Str("MNoSolution", "No Solution"), peNoSolv );
       }
     sm_TrigonomSystem = CurrTS;
     return Result;
@@ -1446,7 +1450,7 @@ MathExpr TFunc::Reduce() const
       {
       s_TanCotError = true;
       s_LastError = X_Str( "MDivisBy0", "Division by 0!" ) + X_Str( "MDivInCot", "(cot x == cos x / sin x)" );
-      throw ErrParser( "No Solution", peNoSolv );
+      throw ErrParser( X_Str("MNoSolution", "No Solution"), peNoSolv );
       }
     sm_TrigonomSystem = CurrTS;
     return Result;
@@ -1460,17 +1464,17 @@ MathExpr TFunc::Reduce() const
     if(sm_ConstOnly)
       return new TConstant( AngleValue( asin( V ) ) );
     V1 = abs( V ), V2;
-    if( V1 > 1.0 ) throw ErrParser( X_Str( "MArgArcsinOut", "Argument out of range!" ), peNoSolv );
+    if( V1 > 1.0 ) throw ErrParser( X_Str( "MArgArcsinOut", "Argument out of range!" ), peNewErr );
     if( V1 == 1.0 )
       V2 = 2.0;
     else
       if( V1 == 0.5 )
         V2 = 6.0;
       else
-        if( abs( V1 - sqrt( 2 ) / 2 ) <= Precision() )
+        if( abs( V1 - sqrt( 2 ) / 2 ) <= TExpr::sm_Accuracy )
           V2 = 4.0;
         else
-          if( abs( V1 - sqrt( 3 ) / 2 ) <= Precision() )
+          if( abs( V1 - sqrt( 3 ) / 2 ) <= TExpr::sm_Accuracy )
             V2 = 3.0;
           else
             {
@@ -1492,7 +1496,7 @@ MathExpr TFunc::Reduce() const
     {
     if(sm_ConstOnly)
       return new TConstant( AngleValue( acos( V ) ) );
-    if( ( V > 1 ) || ( V < -1 ) ) throw ErrParser( X_Str( "MArgArcsinOut", "Argument out of range!" ), peNoSolv );
+    if( ( V > 1 ) || ( V < -1 ) ) throw ErrParser( X_Str( "MArgArcsinOut", "Argument out of range!" ), peNewErr );
     if( V == 0.0 )
       {
       V1 = 1; V2 = 2;
@@ -1840,17 +1844,17 @@ MathExpr TFunc::Reduce() const
     if( m_Name == "GetEl" )
       {
       if( !arg_Performed.List2ex( pMember ) || pMember->m_pNext.isNull() )
-        throw ErrParser( "Invalid Argument!", peSyntacs );
+        throw ErrParser( X_Str("MInvalidArg", "Invalid Argument!"), peNewErr );
       op1 = pMember->m_pNext->m_Memb.Reduce();
       int iLast;
       if( !op1.Cons_int( iLast ) || !pMember->m_Memb.Listex( pMember ) )
-        throw ErrParser( "Invalid Argument!", peSyntacs );
+        throw ErrParser( X_Str("MInvalidArg", "Invalid Argument!"), peNewErr );
 
       for( int iPos = 1; iPos < iLast; iPos++ )
         {
         pMember = pMember->m_pNext;
         if( pMember.isNull() )
-          throw ErrParser( "Invalid Argument!", peSyntacs );
+          throw ErrParser( X_Str("MInvalidArg", "Invalid Argument!"), peNewErr );
         }
       return pMember->m_Memb;
       }
@@ -2616,7 +2620,7 @@ MathExpr TRoot::Diff( const QByteArray& d )
     return Constant( 0 );
     }
   if( s_TruePolynom )
-    throw  ErrParser( "Wrong type of equation!", peNoSolvType ); 
+    throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
   Op1 = m_Operand1.Reduce();
   if( m_Root == 2 )
     return Op1.Diff( d ) / (Constant( m_Root ) * Op1.Root( m_Root ));
@@ -2832,8 +2836,12 @@ bool TMixedFrac::Equal( const MathExpr& E2 ) const
     return Equal( Ar2 );
 
   if( IsConstType( TDivi, E2 ) || IsConstType( TSimpleFrac, E2 ) )
-    return Reduce().Equal( E2 );
-
+    {
+    TExpr::sm_CalcOnly = true;
+    MathExpr R = Reduce();
+    TExpr::sm_CalcOnly = false;
+    return R.Equal( E2 );
+    }
   return false;
   }
 
@@ -3295,7 +3303,7 @@ MathExpr TPowr::Reduce() const
     if( Pow > 0 )
       return Constant( V );
     else
-      if( opr1.Cons_int( N ) && ( V < INT_MAX ) )
+      if( !TExpr::sm_FullReduce && opr1.Cons_int( N ) && ( V < INT_MAX ) )
         return new TSimpleFrac( 1, Round( V ) );
       else
         return Constant( ( 1.0 / V ) );
@@ -3433,6 +3441,8 @@ MathExpr TPowr::Reduce() const
         }
 
   if( P.IsEmpty() )
+    {
+    s_GlobalInvalid = false;
     if( s_IsIntegral && opr1.ConstExpr() && opr2.Multp( op11, op12 ) && ( IsConstType( TConstant, op11 ) ) )
       {
       P = opr1 ^ op11;
@@ -3440,6 +3450,7 @@ MathExpr TPowr::Reduce() const
       }
     else
       return opr1 ^ opr2;
+    }
   else
     return P.Reduce();
   }
@@ -4495,12 +4506,12 @@ MathExpr TIntegral::Clone() const
   return pResult;
   }
 
-MathExpr TIntegral::Reduce() const
+MathExpr TIntegral::Calculate() const
   {
   if( !s_IsIntegral )
     s_IntegralCount = 0;
 
-  MathExpr Result = CalcIntegralExpr();
+  const MathExpr Result(CalcIntegralExpr());
   if( Result == ( TExpr* ) this )
     return Result;
 
@@ -4512,6 +4523,11 @@ MathExpr TIntegral::Reduce() const
     return -ex2;
 
   return Result;
+  }
+
+MathExpr TIntegral::Reduce() const
+  {
+  return new TIntegral( m_Meta_sign, m_Expint->Reduce(), m_Varint->Reduce() );
   }
 
 MathExpr TIntegral::Perform() const
@@ -4592,6 +4608,23 @@ QByteArray TIntegral::SWrite() const
   return Result + m_Expint.SWrite() + "}{" + m_Varint.SWrite() + '}';
   }
 
+MathExpr TIntegral::CalcIntegralExpr() const
+ {
+ return ::CalcIntegralExpr(Clone());
+ }
+
+MathExpr TIntegral::Diff(const QByteArray& d )
+  {
+  return m_Expint;
+/*
+  bool Accumulate = TSolutionChain::sm_SolutionChain.m_Accumulate;
+  TSolutionChain::sm_SolutionChain.m_Accumulate = false;
+  MathExpr Result = CalcIntegralExpr().Diff(d);
+  TSolutionChain::sm_SolutionChain.m_Accumulate = Accumulate;
+  return Result;
+  */
+  }
+
 TDefIntegral::TDefIntegral( bool M, const MathExpr& exi, const MathExpr& exll, const MathExpr& exhl, const MathExpr& Var )
   : TIntegral(), m_Lolimit(exll), m_Hilimit(exhl)
   {
@@ -4605,6 +4638,13 @@ MathExpr TDefIntegral::Clone() const
   TDefIntegral* pResult = new TDefIntegral( m_Meta_sign, m_Expint, m_Lolimit, m_Hilimit, CastPtr( TVariable, m_Varint.Clone() ) );
   pResult->m_WasReduced = m_WasReduced;
   return pResult;
+  }
+
+MathExpr TDefIntegral::CalcIntegralExpr() const
+  {
+  MathExpr  ex1,ex2,ex3;
+  MakeCalcDefIntegral(Clone(),ex1,ex2,ex3);
+  return ex3;
   }
 
 MathExpr TDefIntegral::Perform() const
@@ -4662,6 +4702,13 @@ bool TDefIntegral::Dfintegr_( MathExpr& exi, MathExpr& exll, MathExpr& exhl, Mat
   exhl = m_Hilimit;
   vr = m_Varint;
   return true;
+  }
+
+MathExpr TDefIntegral::Diff(const QByteArray& d)
+  {
+  if(IsType( TConstant, m_Lolimit) && IsType( TConstant, m_Hilimit) )
+    return new TConstant(0);
+  return nullptr;
   }
 
 QByteArray TDefIntegral::SWrite() const
@@ -5363,19 +5410,19 @@ TDeriv::TDeriv( const MathExpr& Stroke, const MathExpr& Part, const MathExpr& ex
 TDeriv::TDeriv( MathExpr& Parms) : TExpr()
   {
   TLexp *pLexp = CastPtr( TLexp, Parms );
-  if( pLexp->m_Count < 4 ) throw ErrParser( "Syntax error!", peSyntacs );
+  if( pLexp->m_Count < 4 ) throw ErrParser( X_Str("MsyntaxErr", "Syntax error!"), peSyntacs );
   m_DerivAsStroke = pLexp->m_pFirst->m_Memb;
   pLexp->DeleteMemb( pLexp->m_pFirst );
-  if( !( IsType( TBool, m_DerivAsStroke ) ) || pLexp->m_pFirst.isNull() ) throw ErrParser( "Syntax error!", peSyntacs );
+  if( !( IsType( TBool, m_DerivAsStroke ) ) || pLexp->m_pFirst.isNull() ) throw ErrParser( X_Str("MsyntaxErr", "Syntax error!"), peSyntacs );
   m_Partial = pLexp->m_pFirst->m_Memb;
   pLexp->DeleteMemb( pLexp->m_pFirst );
-  if( !( IsType( TBool, m_Partial ) ) || pLexp->m_pFirst.isNull() ) throw ErrParser( "Syntax error!", peSyntacs );
+  if( !( IsType( TBool, m_Partial ) ) || pLexp->m_pFirst.isNull() ) throw ErrParser( X_Str("MsyntaxErr", "Syntax error!"), peSyntacs );
   m_Expdif = pLexp->m_pFirst->m_Memb;
   m_HasParenthesis = !(IsType(TVariable, m_Expdif ));
   pLexp->DeleteMemb( pLexp->m_pFirst );
-  if( pLexp->m_pFirst.isNull() ) throw ErrParser( "Syntax error!", peSyntacs );
+  if( pLexp->m_pFirst.isNull() ) throw ErrParser( X_Str("MsyntaxErr", "Syntax error!"), peSyntacs );
   for( PExMemb Memb = pLexp->m_pFirst; !Memb.isNull(); Memb = Memb->m_pNext )
-    if( !( IsType( TVariable, Memb->m_Memb ) ) ) throw ErrParser( "Syntax error!", peSyntacs );
+    if( !( IsType( TVariable, Memb->m_Memb ) ) ) throw ErrParser( X_Str("MsyntaxErr", "Syntax error!"), peSyntacs );
   if( pLexp->m_Count == 1 )
     m_Vardif = pLexp->m_pFirst->m_Memb;
   else
@@ -5388,6 +5435,11 @@ TDeriv::TDeriv( MathExpr& Parms) : TExpr()
 MathExpr TDeriv::Reduce() const
   {
   return new TDeriv( m_DerivAsStroke, m_Partial, m_Expdif.Reduce(), m_Vardif.Reduce() );
+  }
+
+MathExpr TDeriv::Calculate() const
+  {
+  return m_Expdif.Clone().Diff().Reduce();
   }
 
 MathExpr TDeriv::Clone() const
@@ -5815,13 +5867,13 @@ TMatr::TMatr(const MathExpr& ex) : TExpr(), m_IsVisible(true), m_IsNumerical(tru
             m_ColCount = Row.count();
           else
             if( Row.count() != m_ColCount )
-              throw  ErrParser( X_Str( "MWrongMartrix", "Wrong martrix!" ), peSyntacs );
+              throw  ErrParser( X_Str( "MWrongMartrix", "Wrong martrix!" ), peNewErr );
           m_A.push_back( Row );
         }
       else
         {
         if( m_ColCount > 1 )
-          throw  ErrParser( X_Str( "MWrongMartrix", "Wrong martrix!" ), peSyntacs );
+          throw  ErrParser( X_Str( "MWrongMartrix", "Wrong martrix!" ), peNewErr );
         if( f1->m_Memb.Unarminus( arg ) && arg.Constan( val ) )
           f1->m_Memb = Constant( ( -val ) );
         m_ColCount = 1;
@@ -6010,7 +6062,7 @@ MathExpr TMatr::Mult( const MathExpr& exp ) const
     if (B.m_RowCount != m_ColCount)
       {
       s_LastError = "Was mistake at dimensions of matrixes";
-      throw  ErrParser("No Solution", peNoSolv);
+      throw  ErrParser( X_Str("MNoSolution", "No Solution"), peNoSolv);
       }
     int ColCount = B.m_ColCount;
     const MatrixArry &BA = B.m_A;
@@ -6061,7 +6113,7 @@ MathExpr TMatr::Add( const MathExpr& exp ) const
   if( !( IsConstType( TMatr, exp ) ) || ( CastConstPtr( TMatr, exp )->m_RowCount != m_RowCount ) || ( CastConstPtr( TMatr, exp )->m_ColCount != m_ColCount ) )
     {
     s_LastError = "Was mistake at dimensions of matrixes";
-    throw  ErrParser( "No Solution", peNoSolv );
+    throw  ErrParser( X_Str("MNoSolution", "No Solution"), peNoSolv );
     }
   const MatrixArry &BA = ( CastConstPtr( TMatr, exp ) )->m_A;
   MatrixArry TA( m_RowCount );
@@ -6076,7 +6128,7 @@ MathExpr TMatr::Subt( const MathExpr& exp ) const
   if( !( IsConstType( TMatr, exp ) ) || ( CastConstPtr( TMatr, exp )->m_RowCount != m_RowCount ) || ( CastConstPtr( TMatr, exp )->m_ColCount != m_ColCount ) )
     {
     s_LastError = "Was mistake at dimensions of matrixes";
-    throw  ErrParser( "No Solution", peNoSolv );
+    throw  ErrParser( X_Str("MNoSolution", "No Solution"), peNoSolv );
     }
   const MatrixArry &BA = ( CastConstPtr( TMatr, exp ) )->m_A;
   MatrixArry TA( m_RowCount );
@@ -6091,7 +6143,7 @@ MathExpr TMatr::Inversion() const
   if (m_RowCount != m_ColCount)
     {
     s_LastError = "Matrix is ! square";
-    throw  ErrParser("No Solution", peNoSolv);
+    throw  ErrParser(X_Str("MNoSolution", "No Solution"), peNoSolv);
     }
   if (m_IsNumerical)
     {
@@ -6269,7 +6321,7 @@ MathExpr TMatr::Determinant() const
   if( !IsSquare() )
     {
     s_LastError = "Nonsquare matrix";
-    throw  ErrParser( X_Str(  "MEnterSqMatr", "Enter square matrix!" ), peNoSolv );
+    throw  ErrParser( X_Str(  "MEnterSqMatr", "Enter square matrix!" ), peNewErr );
     }
   if( m_RowCount == 1 ) return m_A[0][0];
 
@@ -6635,7 +6687,7 @@ TTable::TTable(const MathExpr& ex) : TMatr(), m_NoFreeze(false)
             } while( !f1.isNull() );
           }
         else
-          throw  ErrParser( X_Str( "MWrongTable", "Wrong table!" ), peSyntacs );
+          throw  ErrParser( X_Str( "MWrongTable", "Wrong table!" ), peNewErr );
     }
   if( ex.List2ex( f1 ) )
     {
@@ -6651,7 +6703,7 @@ TTable::TTable(const MathExpr& ex) : TMatr(), m_NoFreeze(false)
           m_ColCount = Row.count();
         else
           if( Row.count() != m_ColCount )
-            throw  ErrParser( X_Str( "MWrongTable", "Wrong table!" ), peSyntacs );
+            throw  ErrParser( X_Str( "MWrongTable", "Wrong table!" ), peNewErr );
         m_A.push_back( Row );
         }
       else
@@ -6661,7 +6713,7 @@ TTable::TTable(const MathExpr& ex) : TMatr(), m_NoFreeze(false)
             m_ColCount = 1;
           else
             if( m_ColCount != 1 )
-              throw  ErrParser( X_Str( "MWrongTable", "Wrong table!" ), peSyntacs );
+              throw  ErrParser( X_Str( "MWrongTable", "Wrong table!" ), peNewErr );
           QVector< MathExpr > Row;
           Row.push_back( f1->m_Memb );
           m_A.push_back( Row );
@@ -6785,7 +6837,7 @@ TChart::TChart( const MathExpr& ex ) : m_Exp( ex ), m_N( 0 ), m_Scale( 1.0 ), m_
   SetReduced();
   PExMemb F1;
   if( !m_Exp.List2ex( F1 ) )
-    throw  ErrParser( X_Str( "MWrongChart", "Wrong chart!" ), peSyntacs );
+    throw  ErrParser( X_Str( "MWrongChart", "Wrong chart!" ), peNewErr );
   QByteArray S;
   MathExpr exLeft, exRight;
   if( F1->m_Memb->Binar( '=', exLeft, exRight ) && exLeft.Variab( S ) && S == "m" && exRight.Constan( m_Scale ) ) F1 = F1->m_pNext;
@@ -6794,12 +6846,12 @@ TChart::TChart( const MathExpr& ex ) : m_Exp( ex ), m_N( 0 ), m_Scale( 1.0 ), m_
   for( ; !F1.isNull(); F1 = F1->m_pNext )
     {
     if( !F1->m_Memb->Listex( F2 ) )
-      throw  ErrParser( X_Str( "MWrongChart", "Wrong chart!" ), peSyntacs );
+      throw  ErrParser( X_Str( "MWrongChart", "Wrong chart!" ), peNewErr );
     if( ++M == 1 )
       for( ; !F2.isNull(); m_N++, F2 = F2->m_pNext );
     }
   if( M != 3 )
-    throw  ErrParser( X_Str( "MWrongChart", "Wrong chart!" ), peSyntacs );
+    throw  ErrParser( X_Str( "MWrongChart", "Wrong chart!" ), peNewErr );
   F1 = FirstMemb;
   double rPrev = -3e50;
   bool WasError = false;
@@ -6854,21 +6906,21 @@ TChart::TChart( const MathExpr& ex ) : m_Exp( ex ), m_N( 0 ), m_Scale( 1.0 ), m_
             WasError = !F2->m_Memb->Str_();
           }
       if( WasError )
-        throw  ErrParser( X_Str( "MWrongChart", "Wrong chart!" ), peSyntacs );
+        throw  ErrParser( X_Str( "MWrongChart", "Wrong chart!" ), peNewErr );
       }
     if( j < m_N || !F2.isNull() )
-      throw  ErrParser( X_Str( "MWrongChart", "Wrong chart!" ), peSyntacs );
+      throw  ErrParser( X_Str( "MWrongChart", "Wrong chart!" ), peNewErr );
     }
   if( !m_A[1][0].Variab( m_NameX ) )
     if( m_A[1][0].Str_() )
       m_NameX = CastPtr( TStr, m_A[1][0])->Value();
     else
-      throw  ErrParser( X_Str( "MWrongChart", "Wrong chart!" ), peSyntacs );
+      throw  ErrParser( X_Str( "MWrongChart", "Wrong chart!" ), peNewErr );
   if( !m_A[2][0].Variab( m_NameY ) )
     if( m_A[2][0].Str_() )
       m_NameY = CastPtr(TStr, m_A[2][0])->Value();
     else
-      throw  ErrParser( X_Str( "MWrongChart", "Wrong chart!" ), peSyntacs );
+      throw  ErrParser( X_Str( "MWrongChart", "Wrong chart!" ), peNewErr );
 //  m_LabelX = "x";
   int i = m_NameX.indexOf( ':' );
   if( i != -1 )

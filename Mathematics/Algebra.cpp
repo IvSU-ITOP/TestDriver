@@ -744,14 +744,14 @@ MathExpr FreeMember(PNode P, const QByteArray& v = "x" )
       return ( op1 * op2 ).Reduce();
     case '/':
       if( op2.Reduce().Constan( d ) && ( abs( d ) < 0.0000001 ) )
-        throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+        throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
       return ( op1 / op2 ).Reduce();
     case '^': return ( op1^op2 ).Reduce();
     case '~':
       if( op2.Cons_int( Degree ) )
         {
         if( op1.Negative() )
-          throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+          throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
         return op1.Root( Degree ).Reduce();
         }
       return MathExpr( new TRoot1( op1, op2 ) ).Reduce();
@@ -783,7 +783,7 @@ MathExpr FreeMember(PNode P, const QByteArray& v = "x" )
         op2.SimpleFrac_( Nom, Den );
       return MathExpr( new TMixedFrac( Int, Nom, Den ) ).Reduce();
     default:
-      throw  ErrParser( "Wrong operation!", peOpertn );
+      throw  ErrParser( X_Str("MInadmOper", "Wrong operation!"), peOpertn );
     }
   }
 
@@ -1532,7 +1532,7 @@ MathExpr TExpr::ReductionPoly( MathExpArray& Arr, const QByteArray& Name ) const
         L = p->m_pLeft;
         R = p->m_pRight;
         if( R->m_OpSign == '^' && R->m_pLeft->m_OpSign == 'v' && R->m_pLeft->m_Info == "x" &&
-          R->m_pRight->m_OpSign == '/' ) throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+          R->m_pRight->m_OpSign == '/' ) throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
         if( R->m_OpSign == '+' || R->m_OpSign == '-' )
           {
           U = R; D = L; IsName = p->m_IsLeft; sign = R->m_OpSign; Open = 1;
@@ -1571,7 +1571,7 @@ MathExpr TExpr::ReductionPoly( MathExpArray& Arr, const QByteArray& Name ) const
           }
         }
       if(p->m_OpSign == '^' && p->m_pRight->m_OpSign == '/' )
-        throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+        throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
       PreOrder(p->m_pLeft );
       PreOrder(p->m_pRight );
       };
@@ -1597,7 +1597,7 @@ MathExpr TExpr::ReductionPoly( MathExpArray& Arr, const QByteArray& Name ) const
     Arr.push_back( FreeMember( eq, Name ) );
     PlusMinusOld = 0;
     s_TruePolynom = true;
-    for( int i = 1; i < s_DegPoly; i++ )
+    for( int i = 1; i <= s_DegPoly; i++ )
       {
       ex = Expand( ex.Diff( Name ).Reduce() / Constant( i ) ).Reduce();
       eq = P.GetExpression( ex.WriteE() );
@@ -1607,10 +1607,10 @@ MathExpr TExpr::ReductionPoly( MathExpArray& Arr, const QByteArray& Name ) const
         PlusMinusOld = PlusMinusCount;
       else
         if(PlusMinusCount > PlusMinusOld + 3 )
-          throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+          throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
       Arr.push_back( FreeMember( eq, Name ) );
       }
-    Arr.push_back( ex.Diff( Name ).Reduce() );
+//    Arr.push_back( ex.Diff( Name ).Reduce() );
     int n = s_DegPoly;
     double r;
 //    for( int i = 0; i < Arr.count(); i++ )
@@ -2081,7 +2081,7 @@ MathExpr Transfer( MathExpr exp )
     };
 
   if( !exp.Binar_( cRelSign, exL, exR ) || exp.HasUnknown().isEmpty() )
-    throw  ErrParser( "Syntax error!", peSyntacs );
+    throw  ErrParser( X_Str("MUnknwnMult", "Syntax error!"), peSyntacs );
   if( !exR.Cons_int( iRight ) || iRight != 0 )
     {
     exL -= exR;
@@ -2216,7 +2216,7 @@ MathExpr DelSplitted( const MathExpr& ex )
 Lexp SolutionSimpleEquaion(PNode equation, const QByteArray& SelectName )
   {
   if( equation->m_IsLeft && equation->m_IsRight )
-    throw  ErrParser( "Too many unknowns!", peMultipl );
+    throw  ErrParser( X_Str("MTooManyUnknowns", "Too many unknowns!"), peMultipl );
 
   enum TUnknownSide { UnkLeft, UnkRight } UnknownSide;
   PNode LeftPart, RightPart;
@@ -2244,7 +2244,7 @@ Lexp SolutionSimpleEquaion(PNode equation, const QByteArray& SelectName )
     {
     IterCount++;
     if( LeftPart->m_IsLeft && LeftPart->m_IsRight )
-      throw  ErrParser( "Too many unknowns!", peMultipl );
+      throw  ErrParser( X_Str("MTooManyUnknowns", "Too many unknowns!"), peMultipl );
 
     if( LeftPart->m_IsLeft )
       {
@@ -2266,14 +2266,14 @@ Lexp SolutionSimpleEquaion(PNode equation, const QByteArray& SelectName )
         switch( UnknownSide )
           {
           case UnkLeft: RightPart = BinOp( RightPart, Addition, '~', "~", 1 );  break;
-          case UnkRight: throw  ErrParser( "Wrong operation!", peOpertn );
+          case UnkRight: throw  ErrParser( X_Str("MInadmOper", "Wrong operation!"), peOpertn );
           }
         break;
       case '~':
         switch( UnknownSide )
           {
           case UnkLeft: RightPart = BinOp( RightPart, Addition, '^', "^", 1 ); break;
-          case UnkRight: throw  ErrParser( "Wrong operation!", peOpertn );
+          case UnkRight: throw  ErrParser( X_Str("MInadmOper", "Wrong operation!"), peOpertn );
           }
         break;
       case '-':
@@ -2319,9 +2319,9 @@ Lexp SolutionSimpleEquaion(PNode equation, const QByteArray& SelectName )
           break;
           }
         else
-          throw  ErrParser( "Wrong operation!", peOpertn );
+          throw  ErrParser( X_Str("MInadmOper", "Wrong operation!"), peOpertn );
       default:
-        throw  ErrParser( "Wrong operation!", peOpertn );
+        throw  ErrParser( X_Str("MInadmOper", "Wrong operation!"), peOpertn );
       }
 
     PNode DelNode = LeftPart;
@@ -2346,7 +2346,7 @@ Lexp SolutionSimpleEquaion(PNode equation, const QByteArray& SelectName )
 
   if( !Expr1.IsEmpty() )
     {
-    MathExpr Expr2 = Expr1.Reduce();
+    MathExpr Expr2 = Expr1.Reduce(true);
     if( !Expr1.Eq( Expr2 ) )
       Result.Addexp( Expr2 );
     }
@@ -2437,7 +2437,7 @@ Lexp CalcDetLinEqu( const QByteArray& Source, const QByteArray& VarName )
       {
       MathExpr expr = Parser::StrToExpr( Source ), ex1, ex2;
       if( !expr.Binar( '=', ex1, ex2 ) || !ex2.ConstExpr() && !ex2.IsLinear() || !ex1.ConstExpr() && !ex1.IsLinear() )
-        throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+        throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
       if( IsType( TVariable, ex1 ) && IsType( TConstant, ex2 ) )
         {
         Result = new TL2exp;
@@ -2500,14 +2500,14 @@ Lexp CalcDetLinEqu( const QByteArray& Source, const QByteArray& VarName )
           {
           Ratio = true;
           }
-        if( Ratio ) throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+        if( Ratio ) throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
         double d;
         if( MultUnknown || !Ratio && p[1].Constan( d ) && abs( d ) < 0.0000001 )
           {
           if( !Ratio )
             for( int i = s_DegPoly; i >= 2; i-- )
               if( !( p[i].Reduce().Constan( d ) && ( abs( d ) < 0.0000001 ) ) )
-                throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+                throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
           if( !ex.Equal( expr ) )
             TSolutionChain::sm_SolutionChain.AddExpr( expr );
            MathExpr a = p[1].Reduce(true);
@@ -2564,7 +2564,7 @@ Lexp CalcDetLinEqu( const QByteArray& Source, const QByteArray& VarName )
             }
           catch( ErrParser )
             {
-            throw  ErrParser( "No Solutions!", peNoSolv );
+            throw  ErrParser( X_Str("MNoSolution","No Solution"), peNoSolv );
             }
           CastPtr( TL2exp, ex )->Last()->m_Memb.Binar( '=', lp, rp );
           ex1 = rp.CancellationOfMultiNominals( ex2 ).Reduce();
@@ -2575,9 +2575,9 @@ Lexp CalcDetLinEqu( const QByteArray& Source, const QByteArray& VarName )
           Result.Addexp( ex1 );
           PExMemb  F;
           if( Cond.FindEqual( new TBinar( msNotequal, lp, rp ), F ) )
-            throw  ErrParser( "No Solutions!", peNoSolv );
+            throw  ErrParser( X_Str("MNoSolution","No Solution"), peNoSolv );
           if( Cond.FindEqual( new TBinar( msNotequal, lp, ex1 ), F ) )
-            throw  ErrParser( "No Solutions!", peNoSolv );
+            throw  ErrParser( X_Str("MNoSolution","No Solution"), peNoSolv );
 
           if( s_Calculations || !ex2.Equal( expr ) )
             TSolutionChain::sm_SolutionChain.AddExpr( ex2 );
@@ -2671,7 +2671,11 @@ Lexp CalcDetQuEqu( const QByteArray& Source, QByteArray VarName )
     {
     if( Source.isEmpty() ) return Result;
 //    s_NoRootReduce = true;
-    ex = Parser::StrToExpr( Source );
+    bool IsName, Mult;
+    Parser P;
+    PNode eq = P.Equation( Source, VarName, IsName, Mult );
+    if( IsFuncEqu( eq ) || TestFrac( eq ) || IsExpEqu( eq ) ) return ErrResult();
+    ex = Parser().OutPut( eq );
     MathExpr Ex = ex;
     QVector<MathExpr> Equation, Reserve;
     bool bLeft = true;
@@ -2733,18 +2737,14 @@ Lexp CalcDetQuEqu( const QByteArray& Source, QByteArray VarName )
 
     if( VarName == "" )
       {
-      ex = Parser::StrToExpr( Source );
-      VarName = ex.HasUnknown();
+//      ex = Parser::StrToExpr( Source );
+      VarName = Ex.HasUnknown();
       if( VarName.isEmpty() ) return ErrResult();
       }
-    bool IsName, Mult;
-    Parser P;
-    PNode eq = P.Equation( Src, VarName, IsName, Mult );
-    if( IsFuncEqu( eq ) || TestFrac( eq ) || IsExpEqu( eq ) ) return ErrResult();
-    ex = Parser().OutPut( eq );
     MathExpr op1, op2;
-    if( !ex.Binar( '=', op1, op2 ) || !op1.IsLinear() && !op1.ConstExpr() || !op2.IsLinear() && !op2.ConstExpr() )
-      throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+    if( !Ex.Binar( '=', op1, op2 ) || !op1.IsLinear() && !op1.ConstExpr() || !op2.IsLinear() && !op2.ConstExpr() )
+      throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
+    TSolutionChain::sm_SolutionChain.AddExpr( Ex );
     TSolutionChain::sm_SolutionChain.AddExpr( ex );
     if( GetFactorCount( ex, VarName ) > 1 )
       {
@@ -2939,14 +2939,17 @@ Lexp CalcDetQuEqu( const QByteArray& Source, QByteArray VarName )
                   ex = CreateComplex( Constant( 0 ), D.RetNeg().Reduce().Root( 2 ) );
                 ex1 = Constant( 2 ) * a[2];
                 op1 = ( -a[1] - ex ) / ex1;
+                bool OldNoRootReduce = s_NoRootReduce;
+                s_NoRootReduce = false;
                 MathExpr x1 = op1.Reduce().Reduce();
                 ReduceExpr( x1 );
                 x1 = ExpandExpr( x1 );
                 Result.Addexp( x1 );
                 op2 = ( -a[1] + ex ) / ex1;
-                MathExpr x2 = op2.Reduce().Reduce();
+                MathExpr x2 = op2.Reduce().Reduce(true);
                 ReduceExpr( x2 );
                 x2 = ExpandExpr( x2 );
+                s_NoRootReduce = OldNoRootReduce;
                 Result.Addexp( x2 );
                 ex = GetPutRoot( new TBinar( '=', op1, x1 ), VarName );
                 ex = GetPutRoot( new TBinar( '=', op2, x2 ), VarName );
@@ -3015,7 +3018,7 @@ Lexp CalcDetBiQuEqu( const QByteArray& Source, const QByteArray& VarName )
       }
     catch( ErrParser )
       {
-      throw  ErrParser( "No Solutions!", peNoSolv );
+      throw  ErrParser( X_Str("MNoSolution","No Solution"), peNoSolv );
       }
     PExMemb f = Solv.First();
     for( ; f != Solv.Last() && !bComplex; f = f->m_pNext )
@@ -3037,7 +3040,7 @@ Lexp CalcDetBiQuEqu( const QByteArray& Source, const QByteArray& VarName )
       CEx.SetReduced( false );
       R = CEx.Reduce().Root( 2 ).Reduce();
       TExpr::sm_FullReduce = OldFullReduce;
-      if( !( IsType( TLexp, R ) ) ) throw  ErrParser( "No Solutions!", peNoSolv );
+      if( !( IsType( TLexp, R ) ) ) throw  ErrParser( X_Str("MNoSolution","No Solution"), peNoSolv );
       }
     TConstant::sm_ConstToFraction = false;
     return CastPtr( TLexp, R )->First();
@@ -3605,7 +3608,7 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
       return;
       }
     TSolutionChain::sm_SolutionChain.AddExpr( new TBinar( msNotequal, DenValue, Constant( 0 ) ) );
-    if( !Result.IsEmpty()) Result.Addexp( Root );
+    Result.Addexp( Root );
     };
 
   int RootNum;
@@ -3633,9 +3636,9 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
     bool CalcOnlyOld = s_CalcOnly;
     s_CalcOnly = true;
     TSolutionChain::sm_SolutionChain.m_Accumulate = false;
-    Result = CalcDetQuEqu( Source, VarName );
+    Lexp R = CalcDetQuEqu( Source, VarName );
     TSolutionChain::sm_SolutionChain.m_Accumulate = !CalcOnlyOld;
-    if( !Result.IsEmpty() )
+    if( !R.IsEmpty() )
       {
       s_CalcOnly = CalcOnlyOld;
       bool InterRes = TSolutionChain::sm_InterimResult;
@@ -3650,7 +3653,7 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
           }
       return Result;
       }
-    Lexp R = CalcIrratEq( Source );
+    R = CalcIrratEq( Source );
     s_CalcOnly = CalcOnlyOld;
     if( !R.IsEmpty() )
       {
@@ -3692,7 +3695,7 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
     bool IsName, MultUnknown, IsFractions;
     PNode eq = P.Equation( P.FullPreProcessor( Source, VarName ), VarName, IsName, MultUnknown );
     if( IsFuncEqu( eq ) || IsExpEqu( eq ) )
-      throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+      throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
     ex = P.OutPut( eq );
     s_PowerToFraction = true;
     s_EquationSolving = true;
@@ -3783,7 +3786,7 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
                 Result.Addexp( op2 );
                 }
               else
-                throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+                throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
             }
             break;
           case 4: Result = CalcDetBiQuEqu( NewSource, VarName );
@@ -3818,7 +3821,7 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
     ex1 = ex.Reduce();
     bool IsSolv;
     if( ex1.Boolean_( IsSolv ) && !IsSolv )
-      throw  ErrParser( "No Solutions!", peNoSolv );
+      throw  ErrParser( X_Str("MNoSolution", "No Solution"), peNoSolv );
     if( ex1.Boolean_( IsSolv ) ) ex1 = ex;
     if( !ex.Equal( ex1 ) )
       TSolutionChain::sm_SolutionChain.AddExpr( ex1 );
@@ -3864,7 +3867,7 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
               Result.Addexp( ex1 );
               }
             else
-              throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+              throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
             break;
           case 4:
             Result = CalcDetBiQuEqu( NewSource, VarName );
@@ -3872,7 +3875,7 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
         return Final();
         }
       else
-        throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+        throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
       }
     if( !ex1.Equal( ex ) )
       TSolutionChain::sm_SolutionChain.AddExpr( ex );
@@ -3958,7 +3961,7 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
       DegNom = s_DegPoly;
       for( ; DegNom > 0 && p[DegNom].Reduce().Constan( d ) && abs( d ) < 0.0000001; DegNom-- );
       if( DegNom > 4 )
-        throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+        throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
       }
     ex = new TBinar( '=', Nom, Constant( 0 ) );
     TSolutionChain::sm_SolutionChain.AddExpr( ex );
@@ -4008,7 +4011,7 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
           TSolutionChain::sm_InterimResult = InterRes;
           s_FactorizedSolving = !ex1.IsEmpty() && !CastPtr( TL2exp, ex1 )->First().isNull();
           if( !s_FactorizedSolving )
-            throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+            throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
           for( PExMemb memMemb = CastPtr( TL2exp, ex1 )->First(); !memMemb.isNull(); memMemb = memMemb->m_pNext )
             CheckRoot( memMemb->m_Memb, ++i );
           }
@@ -4018,7 +4021,7 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
           {
           ex = Nom.ReduceToMult();
           if( ex.Equal( Nom ) )
-            throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+            throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
           TSolutionChain::sm_SolutionChain.AddExpr( new TBinar( '=', ex, Constant( 0 ) ) );
           FindRoots( ex );
           return Final();
@@ -4063,7 +4066,7 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
               return Final();
               }
             else
-              throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+              throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
 
         if( p[2].Constan( d ) && abs( d ) < 0.0000001 )
           {
@@ -4232,7 +4235,7 @@ void TSolvReToMult::Solve()
     throw Err;
     }
   s_NoRootReduce = OldNoRootReduce;
-  SimplifyExpand();
+//  SimplifyExpand();
   }
 
 void TSolvSubSqr::Solve()
@@ -4250,7 +4253,10 @@ void TSolvSubSqr::Solve()
     throw Err;
     }
   MathExpr::sm_NoReduceByCompare = OldNoReduceByCompare;
-  SimplifyExpand();
+  if(s_GlobalInvalid)
+    m_Expr.Clear();
+  else
+    SimplifyExpand();
   }
 
 MathExpr SqSbSm( const MathExpr& exi )
@@ -4817,7 +4823,7 @@ void TSolvDetLinEqu::Solve()
     {
     TSolutionChain::sm_SolutionChain.AddExpr( m_Expr );
     Lexp Result = CalcDetLinEqu( m_Expr.WriteE() );
-    if( Result.IsEmpty() ) throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+    if( Result.IsEmpty() ) throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
     PExMemb pMemb = Result.First();
     for( ; !pMemb->m_pNext.isNull(); pMemb = pMemb->m_pNext )
       TSolutionChain::sm_SolutionChain.AddExpr( pMemb->m_Memb );
@@ -4867,9 +4873,9 @@ bool CalcSimpleTrigo( const QByteArray& Source )
         switch( E.ErrStatus() )
           {
           case peFunctn:
-          case peOpertn: throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+          case peOpertn: throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
           default:
-            throw  ErrParser( "No Solutions!", peNoSolv );
+            throw  ErrParser( X_Str("MNoSolution", "No Solution"), peNoSolv );
           }
         }
       MathExpr ex0 = CastPtr( TLexp, ex )->Last()->m_Memb;
@@ -4889,7 +4895,7 @@ bool CalcSimpleTrigo( const QByteArray& Source )
       TSolutionChain::sm_SolutionChain.AddExpr( Cond, X_Str( "MTrigoSolved", "Trigonometrical equation is solved." ) );
       }
     else
-      throw  ErrParser( "Wrong type of equation!", peNoSolvType );
+      throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
     }
   catch( ErrParser E )
     {
@@ -5073,7 +5079,7 @@ bool CalcTrigoEqu( const QByteArray& Source )
           }
         catch( ErrParser )
           {
-          throw  ErrParser( "No Solutions!", peNoSolv );
+          throw  ErrParser( X_Str("MNoSolution", "No Solution"), peNoSolv );
           }
         TSolutionChain::sm_SolutionChain.AddExpr( ex );
         if( s_PutAnswer )
@@ -5352,7 +5358,7 @@ bool CalcHomogenTrigoEqu( const QByteArray& Source )
           }
         catch( ErrParser )
           {
-          throw  ErrParser( "No Solutions!", peNoSolv );
+          throw  ErrParser( X_Str("MNoSolution", "No Solution"), peNoSolv );
           }
         TSolutionChain::sm_SolutionChain.AddExpr( ex );
         if( s_PutAnswer )
@@ -5564,7 +5570,7 @@ bool CalcSinCosEqu( const QByteArray& Source )
     if( c.Reduce().Constan( r ) && abs( r ) > 1 )
       {
       TSolutionChain::sm_SolutionChain.AddExpr( new TCommStr( X_Str( "MRightPartGE1", "The right part of the normalized equation is greater than 1" ) ) );
-      throw  ErrParser( "No Solution", peNoSolv );
+      throw  ErrParser( X_Str("MNoSolution", "No Solution"), peNoSolv );
       }
     ex = new TBinar( '=', a, Function( "cos", Variable( msAlpha ) ) );
     TSolutionChain::sm_SolutionChain.AddExpr( ex );
@@ -5607,7 +5613,7 @@ bool CalcSinCosEqu( const QByteArray& Source )
       }
     catch( ErrParser )
       {
-      throw  ErrParser( "No Solution", peNoSolv );
+      throw  ErrParser( X_Str("MNoSolution", "No Solution"), peNoSolv );
       }
     ex = CastPtr( TLexp, exu )->Last()->m_Memb.Substitute( "u", u );
     TSolutionChain::sm_SolutionChain.AddExpr( ex );
@@ -6647,9 +6653,14 @@ bool CalcRootsQuEqu( const QByteArray& Source )
             PNode q = P.GetExpression( a[0].WriteE() );
             if( !NIsConst( q ) )
               {
+//              QString Msg = X_Str( "MInfOrNotSolLeft1", " if( an expression at the left side is equal to zero,\\n" ) +
+//                  X_Str( "MInfOrNotSolLeft2", "the equation has infinite set of solutions,\\n" ) +
+//                  X_Str( "MInfOrNotSolLeft3", "otherwise equation has no solutions." );
+//              TSolutionChain::sm_SolutionChain.AddExpr( new TStr( "" ), Msg );
+
               TSolutionChain::sm_SolutionChain.AddExpr( new TStr( "" ), X_Str( "MInfOrNotSolLeft1", " if( an expression at the left side is equal to zero," ) );
-              TSolutionChain::sm_SolutionChain.AddExpr( new TStr( "" ), X_Str( "MInfOrNotSolLeft2", "the equation has infinite set of solutions," ) );
-              TSolutionChain::sm_SolutionChain.AddExpr( new TStr( "" ), X_Str( "MInfOrNotSolLeft3", "otherwise equation has no solutions." ) );
+              TSolutionChain::sm_SolutionChain.AddExpr( new TStr( " " ), X_Str( "MInfOrNotSolLeft2", "the equation has infinite set of solutions," ) );
+              TSolutionChain::sm_SolutionChain.AddExpr( new TStr( "  " ), X_Str( "MInfOrNotSolLeft3", "otherwise equation has no solutions." ) );
               }
             else
               TSolutionChain::sm_SolutionChain.AddComment( X_Str( "MNoSolution", "No Solutions!" ) );
@@ -6745,6 +6756,7 @@ bool CalcRootsQuEqu( const QByteArray& Source )
   catch( ErrParser E )
     {
     TSolutionChain::sm_SolutionChain.AddExpr( new TStr( "" ), X_Str( E.Name(), E.Message() ) );
+    return BadEquation();
     }
   return Fin();
   }
@@ -6928,15 +6940,15 @@ MathExpr DetVieEqu( const MathExpr& exi )
   return P;
   }
 
+class TPoly : public PascArray<double>
+  {
+  public:
+    TPoly() : PascArray<double>( -10, 23 ) {}
+  };
+
 Lexp CalcPolinomEqu( const QByteArray& Source, const QByteArray&& VarName )
   {
   if( Source.isEmpty() ) return nullptr;
-
-  class TPoly : public PascArray<double>
-    {
-    public:
-      TPoly() : PascArray<double>( -10, 23 ) {}
-    };
 
   auto PolyDiv = [] ( const TPoly& a, TPoly& b, int n, int M, TPoly& d, TPoly& r, int& k1, int& k )
     {
@@ -7223,14 +7235,18 @@ bool CalcEquation( const QByteArray& Source )
   return true;
   }
 
-void TDiff::Solve()
+void TMatrixOp::Solve()
   {
-  TSolutionChain::sm_SolutionChain.AddExpr( m_Expr );
-  m_Expr = m_Expr.Diff().Reduce();
-  if(m_Expr.IsEmpty())
-    TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotCalculate", "Cannot calculate!") );
+  if(!m_Expr.HasMatrix())
+    TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MNotSuitableExpr", "Not suitable expression!" ) );
   else
-    TSolutionChain::sm_SolutionChain.AddExpr( m_Expr, X_Str( "MDiffying", "derivative calculated!" ) );
+    {
+    Simplify();
+    if(m_Expr.IsEmpty() || s_GlobalInvalid)
+      TSolutionChain::sm_SolutionChain.AddComment( X_Str("MCannotCalculate", "Cannot calculate!") );
+    else
+      TSolutionChain::sm_SolutionChain.AddExpr( m_Expr, X_Str( "MCalced", "Calculated!" ) );
+    }
   m_Expr = new TBool(true);
   }
 
@@ -7361,5 +7377,5 @@ TRadDeg::TRadDeg() : Solver() { m_Code = ERadDeg; m_Name = "MCalced"; m_DefaultN
 TSciCalc::TSciCalc( const MathExpr Expr ) : Solver( Expr ) {}
 TSciCalc::TSciCalc() : Solver() { m_Code = ESolvTestMode; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
 
-TDiff::TDiff( const MathExpr Expr ) : Solver( Expr ) {}
-TDiff::TDiff() : Solver() { m_Code = EDeriv; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+TMatrixOp::TMatrixOp( const MathExpr Expr ) : Solver( Expr ) {}
+TMatrixOp::TMatrixOp() : Solver() { m_Code = EDeriv; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }

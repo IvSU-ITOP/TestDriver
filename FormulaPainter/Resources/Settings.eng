@@ -749,7 +749,7 @@ MNotAcceptEquat=Not acceptable sort of the equation
 MLinSolved=Equation was solved!
 MEnterAlgebEquat=Enter algebraic equation
 MEnterEquat=Enter equation!
-MEnterConst=Enter constant expression!
+MEnterConst=Enter constant!
 MEnterLinEquat=Enter linear equation!
 MNoSolutions=No solutions exist!
 MNNoAlgSolutions=No Algebraic solutions
@@ -1536,3 +1536,17 @@ MSimplifyFrInDetail=Computations with Fractions
 ConfirmAnswer=You acknowledge this answer?
 StepPromptSelectResult=Select Step's Result
 MUnaptMethod=Unapth Solution Method
+
+[NewSettings]
+MBadFormula=Bad formula
+MBadDerivative=Bad derivative for:
+MSyntaxErrorIn=Syntax Error in:
+MTooManyUnknowns=Too many unknowns!
+MInvalidString=Error; Invalid String
+MInvalidArg=Invalid Argument!
+MNotAInt=Operands must be positive integers!
+MEnterNonSingMatr=Enter nonsingular matrix!
+INFVAL=Result is infinity
+MFunctn=Argument error
+MDeterminant=Determinant calculated!
+MCannotDeterminant=Cannot Determinant calculate

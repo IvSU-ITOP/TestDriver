@@ -582,6 +582,13 @@ MathExpr TExpr::FindGreatestCommDivisor() const
 
 MathExpr TExpr::CalcFunc( const QByteArray& fname )
   {
+  double V;
+  if(! Constan( V ) )
+    {
+    s_LastError = X_Str( "MEnterConst", "Enter constant" );
+    s_GlobalInvalid = true;
+    return this;
+    }
   double SavePrec = ResetPrecision( 0.0000000001 );
   MathExpr exo = Parser::StrToExpr( PiVar2PiConst( WriteE() ) ).Reduce();
   if( IsTrigonom( fname ) )
@@ -603,7 +610,6 @@ MathExpr TExpr::CalcFunc( const QByteArray& fname )
     exo = Constant( Nom / ( double ) Den );
 
   bool Neg = exo.Unarminus( exo );
-  double V;
   MathExpr op1, op2;
   s_LastError = X_Str( "MEnterConst", "Enter constant expression!" );
   if( exo.Constan( V ) || ( exo.Measur_( op1, op2 ) && op1.Constan( V ) ) )
@@ -756,10 +762,10 @@ MathExpr TExpr::CancellationOfMultiNominals( MathExpr& exf )
       }
     if( !Result2.Eq( Result3 ) )
       {
-      exf = Result2;
+//      exf = Result2;
       Result = Result3;
-      TSolutionChain::sm_SolutionChain.AddExpr( exf, X_Str( "Mfactors", "factors" ) );
-      TSolutionChain::sm_SolutionChain.AddExpr( Result, X_Str( "Mcancel", "cancellation!" ) );
+//      TSolutionChain::sm_SolutionChain.AddExpr( exf, X_Str( "Mfactors", "factors" ) );
+//      TSolutionChain::sm_SolutionChain.AddExpr( Result, X_Str( "Mcancel", "cancellation!" ) );
       }
     }
   return Result;
@@ -770,9 +776,9 @@ MathExpr MathExpr::ReduceToMult() const
   TestPtr();
   MathExpr Arg1, Arg2, exi, exi1, exi2, exi3;
   double ar, br;
-  if( Summa( Arg1, Arg2 ) || Subtr( Arg1, Arg2 ) || ( Multp( Arg1, Arg2 ) ) && Arg1.Constan( ar ) && Arg2.Constan( br ) )
-    exi = Reduce();
-  else
+//  if( Summa( Arg1, Arg2 ) || Subtr( Arg1, Arg2 ) || ( Multp( Arg1, Arg2 ) ) && Arg1.Constan( ar ) && Arg2.Constan( br ) )
+//    exi = Reduce();
+//  else
     exi = *this;
 
   int  n;
@@ -795,7 +801,10 @@ MathExpr MathExpr::ReduceToMult() const
       return exi;
       }
     s_GlobalInvalid = false;
-    return Arg1 * Arg2;
+    TMult::sm_ReduceOperands = true;
+    MathExpr P = (Arg1 * Arg2).Reduce();
+    TMult::sm_ReduceOperands = false;
+    return P;
     }
 
   if( exi.Divis( exi2, exi3 ) )
@@ -820,7 +829,9 @@ MathExpr MathExpr::ReduceToMult() const
     MathExpr P = ToFactors( exi );
     bool SaveGlobalInvalid = s_GlobalInvalid;
     s_GlobalInvalid = false;
+    TMult::sm_ReduceOperands = true;
     P = P.Reduce();
+    TMult::sm_ReduceOperands = false;
     s_GlobalInvalid = SaveGlobalInvalid;
     return P;
     }
@@ -1183,6 +1194,8 @@ void MathExpr::QuaEquCh( MathExpr& ea, MathExpr& eb, MathExpr& ec, bool& check )
     P.QuaEquCh(ea, eb, ec, check );
     return;
     }
+  QByteArray Text = ex1.WriteE();
+  if(Text.indexOf('~') != -1) return;
   ex1.TrinomCh( ea, eb, ec, check );
   s_GlobalInvalid = false;
   }
@@ -1477,8 +1490,8 @@ MathExpr MathExpr::DetLinEqu() const
     {
     s_GlobalInvalid = false;
     if( !b.Constan( cb ) || b.Constan( cb ) && abs( cb ) >= 0.0000001 )
-      throw  ErrParser( X_Str( "MNoSolutions", "No Solutions!" ), peNoSolvType );
-    throw  ErrParser( X_Str( "MInfinSolutions", "Infinit Number of Solutions!" ), peNoSolvType );
+      throw  ErrParser( X_Str( "MNoSolutions", "No Solutions!" ), peNoSolv );
+    throw  ErrParser( X_Str( "MInfinSolutions", "Infinit Number of Solutions!" ), peNewErr );
     }
   if( a.Constan( ca ) && abs( ca - 1 ) <= 0.0000001 )
     {

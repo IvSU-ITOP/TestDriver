@@ -167,7 +167,7 @@ class ErrParser
     void operator = ( const QByteArray &NewName ) { m_MsgName = NewName; }
     void ShowMessage();
     MATHEMATICS_EXPORT QByteArray Message();
-    MATHEMATICS_EXPORT QString WMessage() { return m_Message; }
+    MATHEMATICS_EXPORT QString WMessage();
   };
 
 #endif

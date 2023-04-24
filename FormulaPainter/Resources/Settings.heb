@@ -117,8 +117,8 @@ TangramPlayCaption=שחק טנגרם
 GraphHistoryFilter=History files (*.hst)|*.hst|All files (*.*)|*.*
 TangramFilter=Tangram files|*.tan
 TangramCreateFilter=Tangram files (*.tan)|*.tan|History files (*.hst)|*.hst
-RestoreHistory=Restore History File
-OpenTangrams=Open Tangrams File
+RestoreHistory=שחזור קובץ
+OpenTangrams=פתיחת קובץ
 
 [DlgLinePointStyle]
 SelfLineCaption=צורת קו שרטוט
@@ -428,6 +428,12 @@ MInted=חישוב האינטגרל הסתיים‏
 MCannotInt=לא ניתן לחשב אינטגרל‏
 MLimmed=חישוב הגבול הסתיים‏
 MCannotLim=לא ניתן לחשב את הגבול
+MEigenEd=ערכים עצמיים נמצאו
+MCannotEigen=לא ניתן לחשב
+MTranspose=מטריצה משוחלפת
+MCannotTranspose=לא ניתן לחשב
+MInversion=מטריצה הפוכה
+MCannotInversion=לא ניתן לחשב
 
 [XPCalcMess]
 MInvalInput=הפעולה אינה מתאימה לביטוי
@@ -449,7 +455,7 @@ MGCDfinding=מציאת המחלק המשותף הגדול ביותר
 MLCMfinding=מציאת המכפלה המשותפת הקטנה ביותר
 MLCDfinding=מציאת המכנה המשותף
 MConverting=חישוב הסתיים
-MDiffying=הנגזרת
+MDiffying=נגזרת
 MIntegrate=אינטגרל מחושב
 MSimplifying=...מחשב
 MReduced=חישוב הסתיים
@@ -670,10 +676,11 @@ btnTangramHelpHint=עזרה
 btnNextTangramHint=הצורה הבאה
 btnPrevTangramHint=צורה קודמת
 btnCopyTangramHint=העתק צורה
-btnTangramsSaveHint=Save of Tangrams Set
+btnTangramsSaveHint=שמירת קובץ
 
 [XpExpOb]
 MNotAInt=!המשתנים חייבים להיות שלמים וחיוביים
+MNullPtr=לא ניתן לחשב!
 
 [XPExprLowMess]
 MDivisBy0=חילוק באפס
@@ -738,7 +745,7 @@ MNotAcceptEquat=משוואה לא מתאימה
 MLinSolved=המשוואה פתורה
 MEnterAlgebEquat=רשום משוואה אלגברית
 MEnterEquat=רשום משוואה
-MEnterConst=רשום ביטוי שמכיל מספרים ולא משתנים
+MEnterConst=רשמו מספר
 MEnterLinEquat=!רשום משוואה ממעלה ראשונה
 MNoSolutions=למשוואה אין פתרונות
 MNNoAlgSolutions=אין פתרון אלגברי
@@ -760,8 +767,8 @@ MInfOrNotSolRight1=,אם הביטוי בצד הימני שווה לאפס
 MinfOrNotSolRight2=למשוואה יש אינסוף פתרונות
 MinfOrNotSolRight3=אחרת למשוואה אין פתרון
 MInfOrNotSolLeft1=,אם הביטוי בצד השמאלי שווה לאפס
-MinfOrNotSolLeft2=למשוואה יש אינסוף פתרונות
-MinfOrNotSolLeft3=אחרת למשוואה אין פתרון
+MInfOrNotSolLeft2=למשוואה יש אינסוף פתרונות
+MInfOrNotSolLeft3=אחרת למשוואה אין פתרון
 MRootStranger=שורש זר
 MForGivenValue=עבור הערך הנתון של המשתנה הביטוי
 MExprNotDef=אינו מוגדר
@@ -1530,3 +1537,17 @@ MCommDivisor=מחלק משותף
 MSimplifyFrInDetail=חישוב עם שברים
 ConfirmAnswer=אישור בחירה
 StepPromptSelectResult=בחירת התשובה
+
+[NewSettings]
+MBadFormula=ביטוי לא מתאים.
+MBadDerivative=נגזרת לא מתאימה:
+MSyntaxErrorIn=שגיאת כתיב:
+MTooManyUnknowns=יותר מדי נעלמים.
+MInvalidString=שגיאה; ביטוי לא חוקי. 
+MInvalidArg=משתנה לא חוקי.
+MNotAInt=מספרים חייבים להיות שלמים וחיוביים!
+MEnterNonSingMatr=דטרמיננטה חייבית להיות שונה מאפס!
+INFVAL=התוצאה היא אינסוף
+MFunctn=שגיאת ביטוי
+MDeterminant=דטרמיננטה מחושבת
+MCannotDeterminant=לא ניתן לחשב דטרמיננטה

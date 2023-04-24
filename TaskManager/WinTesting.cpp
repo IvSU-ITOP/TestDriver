@@ -417,6 +417,7 @@ void SolverWidget::SearchSolve()
     if( m_pButtonBox->m_ButtonCount > 0 ) return Final( true );
 
     Solve( new TSolvCalcPolinomEqu, WinTesting::sm_pBottomWindow->GetCalcButton( 2, 2, 2 ) );
+    Solve( new TSolvCalcEquation, WinTesting::sm_pBottomWindow->GetCalcButton( 3, 2, 2 ) );
     Solve( new Log1Eq, WinTesting::sm_pBottomWindow->GetCalcButton( 1, 0, 1 ) );
     Solve( new ExpEq, WinTesting::sm_pBottomWindow->GetCalcButton( 1, 1, 2 ) );
     Solve( new TSolvCalcDetBiQuEqu, WinTesting::sm_pBottomWindow->GetCalcButton( 2, 1, 2 ) );
@@ -432,7 +433,7 @@ void SolverWidget::SearchSolve()
       Solve( new TSolvCalcSimpleTrigoEq, WinTesting::sm_pBottomWindow->GetCalcButton( 3, 1, 1 ) );
     Solve( new TSolvCalcSinCosEqu, WinTesting::sm_pBottomWindow->GetCalcButton( 3, 0, 2 ) );
     Solve( new TSolvCalcTrigoEqu, WinTesting::sm_pBottomWindow->GetCalcButton( 3, 1, 2 ) );
-    Solve( new TSolvFractRatEq, WinTesting::sm_pBottomWindow->GetCalcButton( 3, 2, 0 ) );
+//    Solve( new TSolvFractRatEq, WinTesting::sm_pBottomWindow->GetCalcButton( 3, 2, 0 ) );
     Solve( new TSolvCalcHomogenTrigoEqu, WinTesting::sm_pBottomWindow->GetCalcButton( 3, 2, 1 ) );
     return Final(true);
     }
@@ -1505,7 +1506,7 @@ void WinTesting::CalcDeriv()
   {
   QByteArray Formula = Panel::sm_pEditor->Write();
   if(Formula.isEmpty()) return;
-  Solver *pSolv = new TDiff;
+  Solver *pSolv = new TDerivative;
   ExpStore::sm_pExpStore->Init_var();
   TSolutionChain::sm_SolutionChain.Clear();
   pSolv->SetExpression(Formula);
@@ -2880,7 +2881,7 @@ void Calculus::Limit()
 
 void Calculus::DerivFunc()
   {
-  Solve( new TDiff );
+  Solve( new TMatrixOp );
   }
 
 void Calculus::DefIntegr()

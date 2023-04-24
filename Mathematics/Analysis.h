@@ -4,6 +4,9 @@
 #include "ExpObBin.h"
 #include "Algebra.h"
 
+MathExpr CalcIntegralExpr(const MathExpr& e);
+void MakeCalcDefIntegral(const MathExpr& e, MathExpr& ex1, MathExpr& ex2, MathExpr& ex3);
+
 class TDerivative : public Solver
   {
   MATHEMATICS_EXPORT virtual void Solve();

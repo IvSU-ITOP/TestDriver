@@ -11,6 +11,7 @@ extern int s_DegPoly;
 TExprs s_FactorArray;
 int s_Factor;
 double s_Multiplier;
+bool s_NoSummReduce = false;
 
 bool CompareExpr( const MathExpr& ExprI, const MathExpr& ExprJ )
   {
@@ -296,8 +297,10 @@ MathExpr CommonTerm( MathExpr& TermX, MathExpr& TermY )
     };
 
   if( TermX.IsEmpty() || TermY.IsEmpty() ) return ctExit();
+  s_NoSummReduce = true;
   TMultiNominal MultiX( TermX );
   TMultiNominal MultiY( TermY );
+  s_NoSummReduce = false;
 
   if( ( MultiX.count() > 1 ) && ( MultiY.count() > 1 ) && IsEqualExprs( TermX, TermY ) )
     {
@@ -559,7 +562,10 @@ MathExpr IToFactors( const MathExpr& exi )
   s_GlobalInvalid = true;
   MathExpr Result;
 
+  bool OldNoReduce = s_NoSummReduce;
+  s_NoSummReduce = true;
   TMultiNominal MultiNominal( exi );
+  s_NoSummReduce = OldNoReduce;
 
   if( !( MultiNominal.m_IsCorrect && MultiNominal.m_ResultInt ) || ( MultiNominal.count() < 2 ) )
     return exi;
@@ -590,7 +596,8 @@ MathExpr IToFactors( const MathExpr& exi )
   if( !CommonTerm.IsEmpty() )
     {
     MathExpr FExpr = MultiNominal.FullExpr();
-    Result = CommonTerm * IToFactors( FExpr );
+//    Result = CommonTerm * IToFactors( FExpr );
+    Result = CommonTerm * FExpr;
     s_GlobalInvalid = false;
     return Result;
     }
@@ -709,7 +716,7 @@ MathExpr IToFactors( const MathExpr& exi )
     bool Calc = s_CalcOnly;
     bool PA = s_PutAnswer;
     s_CalcOnly = true;
-    MathExpr ee2 = ExpandOpRes( texp * ( TermX + TermY ) );
+    MathExpr ee2 = Expand( texp * ( TermX + TermY ) );
     bool Res = !ee2.IsEmpty() && !ee2.Equal( exi );
     s_PutAnswer = PA;
     s_CalcOnly = Calc;
@@ -1307,7 +1314,8 @@ bool TMultiNominal::SearchSumma( const MathExpr& exi, bool& ResultInt )
   MathExpr args, arg1, arg2;
   MathExpr narg1, narg2;
   bool Result = true;
-  MathExpr exp = exi.Reduce();
+  MathExpr exp = exi;
+  if(!s_NoSummReduce) exp = exi.Reduce();
   if( exp.Summa( arg1, arg2 ) )
     {
     Result = SearchSumma( arg1, ResultInt );
@@ -1944,7 +1952,7 @@ bool TMultiNominal::ClassicSquare( MathExpr& TermX, MathExpr& TermX1, MathExpr& 
   Part_a1 = 1;
   Part_a2 = 1;
   bool Result = false;
-  int a = ( *this )[0].m_Sign*( *this )[0].GetCoeffInt(), b = 0, c = 0;
+  double a = ( *this )[0].m_Sign*( *this )[0].GetCoeffInt(), b = 0, c = 0;
   switch( count() )
     {
     case 2:
@@ -2347,12 +2355,13 @@ MathExpr ToFactors( const MathExpr& exi )
   {
   MathExpr Result = IToFactors( exi );
   QByteArray VarName = exi.HasUnknown();
+  /*
   if( VarName == "" ) VarName = "x";
   if( !s_GlobalInvalid )
     {
     TMultiNominal MultiNominal( Result );
     if( MultiNominal.m_IsCorrect && MultiNominal.m_ResultInt )
-      return MultiNominal.FullExpr();
+      Result = MultiNominal.FullExpr();
     }
   MathExpr op1, op2;
   if( !s_GlobalInvalid && Result.Multp( op1, op2 ) )
@@ -2361,7 +2370,55 @@ MathExpr ToFactors( const MathExpr& exi )
     s_GlobalInvalid = false;
     return Result;
     }
-  return exi;
+*/
+  MathExpr op1, op2;
+  if( !Result.Multp( op1, op2 ) )
+    Result = IToFactors( exi.Reduce() );
+  if( !s_GlobalInvalid && Result.Multp( op1, op2 ) )
+    return Result;
+  char C;
+  if(exi.Oper_(C, op1, op2) && IsType(TVariable, op1) && IsType(TConstant, op2) )
+    return exi;
+  s_Multiplier = 1;
+  TSolutionChain::sm_SolutionChain.Clear();
+  if(!VarName.isEmpty() && CalcAnyEquation( Result.WriteE() + "=0" ))
+    {
+    Lexp L = TSolutionChain::sm_SolutionChain.GetExpr(1);
+    if( !(IsType( TLexp, L )) ) return exi;
+    PExMemb Memb = L.First();
+    MathExpr op1, op2;
+    if(Memb->m_Memb->Binar('=', op1, op2))
+      {
+      Result = (Variable(VarName) - op2).Reduce();
+      while(Memb->m_pNext != nullptr)
+        {
+        Memb = Memb->m_pNext;
+        if(Memb->m_Memb->Binar('=', op1, op2))
+          Result = Result * (Variable( VarName )- op2).Reduce();
+        }
+      if(abs( s_Multiplier - 1 ) > 0.0001)
+        {
+        MathExpr M = Constant( s_Multiplier );
+        if(Result.Summa( op1, op2))
+          {
+          if(IsType(TConstant, op1))
+            return (M * op1).Reduce() + M * op2;
+          else
+            if(IsType(TConstant, op2))
+              return M * op1 + (M * op2).Reduce();
+           }
+        else
+          if(Result.Subtr(op1, op2))
+            if(IsType(TConstant, op1))
+              return (M * op1).Reduce() - M * op2;
+            else
+              if(IsType(TConstant, op2))
+                return M * op1 - (M * op2).Reduce();
+          return  M * Result;
+          }
+      }
+    }
+  return Result;
   }
   
 MathExpr MakeTrinom( const MathExpr& exp )
@@ -2689,7 +2746,7 @@ TL2exp* RootPolinom( MathExpr ex )
   MathExpr Left, Right;
   if( !ex.Binar( '=', Left, Right ) ) return pResult;
   Left -= Right;
-  ex = ExpandExpr( Left );
+  ex = ExpandExpr( Left ).Reduce();
   N = 0;
   MaxPower( ex );
   if( N < 1 ) return pResult;

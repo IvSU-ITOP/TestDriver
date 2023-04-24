@@ -287,13 +287,13 @@ void Thread::SearchSolve(QByteArray& Formula)
 //  if( m_SolvIndexes.count() > 0 ) return Final();
   Solve( new Alg1Calculator );
   if( m_SolvIndexes.count() > 0 ) return Final();
-  Solve( new TDerivative);
-  if( m_SolvIndexes.count() > 0 ) return Final();
   Solve( new TDefIntegrate);
   if( m_SolvIndexes.count() > 0 ) return Final();
   Solve( new TIndefIntegr);
   if( m_SolvIndexes.count() > 0 ) return Final();
   Solve( new TLimitCreator );
+  if( m_SolvIndexes.count() > 0 ) return Final();
+  Solve( new TDerivative);
   Final();
   }
 
@@ -516,7 +516,32 @@ void Thread::ReadyRead()
           auto TestFormula = [] (QByteArray &Formula)
             {
             int iEqPos = Formula.indexOf('=');
-            if(iEqPos == -1) return Formula;
+            if(iEqPos == -1)
+              {
+              if(Formula.indexOf("Lim") != -1)
+                throw ErrParser( X_Str("MBadFormula", "Bad formula "), ParserErr::peNewErr );
+              if(Formula.indexOf("Integral") != -1)
+                {
+                MathExpr Expr = MathExpr( Parser::StrToExpr( Formula));
+                if(s_GlobalInvalid || Expr.IsEmpty())
+                   throw ErrParser( X_Str("MSyntaxErrorIn", "Bad syntax: ") + Formula, ParserErr::peNewErr );
+                Expr = Expr.Calculate();
+                Formula = Expr.WriteE();
+                if(Formula.indexOf("Integral") != -1)
+                  throw ErrParser( X_Str("MBadFormula", "Bad formula "), ParserErr::peNewErr );
+                return Formula;
+                }
+              if(Formula.indexOf("Der") != -1)
+                {
+                MathExpr Expr = MathExpr( Parser::StrToExpr( Formula));
+                if(s_GlobalInvalid || Expr.IsEmpty())
+                   throw ErrParser( X_Str("MSyntaxErrorIn", "Bad syntax: ") + Formula, ParserErr::peNewErr );
+                Expr = Expr.Calculate();
+                Formula = Expr.WriteE();
+                return Formula;
+                }
+              return Formula;
+              }
             QByteArray Left = Formula.left(iEqPos);
             QByteArray Right = Formula.mid(iEqPos + 1);
             if(Left.count() == 1)
@@ -572,14 +597,14 @@ void Thread::ReadyRead()
 //            if(PosEq != -1)
 //              Formuls[i] = Formuls[i].left(PosEq) + "-(" + Formuls[i].mid(PosEq + 1) + ')';
             if(Formuls[i].indexOf('x') == -1 || Formuls[i].indexOf('=') != -1)
-              throw ErrParser( "Bad formula: " + Formuls[i], ParserErr::peNewErr );
+              throw ErrParser( X_Str("MBadFormula", "Bad formula: ") + Formuls[i], ParserErr::peNewErr );
             if(Formuls[i].endsWith('@'))
               Formuls[i] = Formuls[i].left(Formuls[i].length() - 1);
             if(Formuls[i] == "deriv")
               {
               if(i != 1)
-                throw ErrParser( "Bad formula: " + Formuls[i], ParserErr::peNewErr );
-              Solver *pSolv = new TDiff;
+                throw ErrParser( X_Str("MBadFormula", "Bad formula: ") + Formuls[i], ParserErr::peNewErr );
+              Solver *pSolv = new TDerivative;
               ExpStore::sm_pExpStore->Init_var();
               TSolutionChain::sm_SolutionChain.Clear();
               pSolv->SetExpression(Formuls[0]);
@@ -592,13 +617,13 @@ void Thread::ReadyRead()
                 Exprs.append(EResult);
                 }
               else
-                throw ErrParser( "Bad derivative for: " + Formuls[0], ParserErr::peNewErr );
+                throw ErrParser( X_Str( "MBadDerivative", "Bad derivative for: ") + Formuls[0], ParserErr::peNewErr );
               }
             else
               {
               MathExpr Expr = MathExpr( Parser::StrToExpr( Formuls[i]));
               if(s_GlobalInvalid || Expr.IsEmpty())
-                throw ErrParser( "Bad syntax: " + Formuls[i], ParserErr::peNewErr );
+                throw ErrParser( X_Str("MSyntaxErrorIn", "Bad syntax: ") + Formuls[i], ParserErr::peNewErr );
               Exprs.append(Expr);
               }
             }
@@ -694,17 +719,33 @@ void Thread::ReadyRead()
             {
             if(fabs(X) < TExpr::sm_Accuracy) X = 0;
             Result += QByteArray::number(X) + ',';
+            bool bAddResult = false;
             for(int j = 0; j < FCount; j++)
               {
               MathExpr Value = Values[i][j];
               if( Value.IsEmpty())
                 {
+                if(i > 0 && i < iCount - 1 && !Values[i+1][j].IsEmpty() && !Values[i-1][j].IsEmpty())
+                  {
+                  double val1, val2;
+                  Values[i+1][j].Constan(val1);
+                  Values[i-1][j].Constan(val2);
+                  if(val1 * val2 < 0)
+                    {
+                    if(j == FCount - 1)
+                      Result += "a;";
+                    else
+                      Result += "a,";
+                    LastAsympt[j] = i;
+                    continue;
+                    }
+                  }
                 double dF1 = 0;
                 double Step = X_step / 100;
                 MathExpr ValueX;
                 bool bToMax = true;
                 double dF2, dF, dX;
-                if(( !IsEmpty[j] && i > 0 ) || ( i < iCount - 1 && !Values[i+1][j].IsEmpty()))
+                if(i > 0 && (!IsEmpty[j] || ( i < iCount - 1 && !Values[i+1][j].IsEmpty())))
                   {
                   if(Values[i-1][j].IsEmpty())
                     {
@@ -723,7 +764,7 @@ void Thread::ReadyRead()
                     Values[i+1][j].Constan(dF);
                     }
                   else
-                    {
+                    {                    
                     Values[i-1][j].Constan(dF);
                     dX = X - X_step + Step;
                     }
@@ -742,7 +783,11 @@ void Thread::ReadyRead()
                       break;
                     double NewF;
                     if(!ValueX.Constan(NewF))
+                      {
+                      Value = new TConstant(dF);
+                      bAddResult = true;
                       break;
+                      }
                     dF2 = fabs(NewF - dF);
                     dF = NewF;
                     if(dF1 == 0)
@@ -761,10 +806,19 @@ void Thread::ReadyRead()
                     }
                   }
                 IsEmpty[j] = true;
-                if(j == FCount - 1)
-                  Result += ";";
+                if( bAddResult )
+                  if(j == FCount - 1)
+                    if(Value.IsEmpty())
+                      Result += ";";
+                    else
+                      Result += Value.WriteE() + ";";
+                  else
+                    Result += Value.WriteE() + ",";
                 else
-                  Result += ",";
+                  if(j == FCount - 1)
+                    Result += ";";
+                  else
+                    Result += ",";
                 }
               else
                 {
@@ -986,8 +1040,8 @@ void Thread::ReadyRead()
             case EDefInt:
               pSolv = new TDefIntegrate;
               break;
-            case EDerivFun:
-              pSolv = new TDiff;
+            case EMatrOp:
+              pSolv = new TMatrixOp;
               break;
             case EEigenVals:
               pSolv = new TEigen;
@@ -1058,7 +1112,7 @@ void Thread::ReadyRead()
                           ESqLogEq??,
                           ESinEq?, ETanEq,  ECosEq, ECtnEq, ETrigoBiQudrEq, EAlgFrEq,
                           EPi,
-                          ELimit, EDerivFun, EEigenVals, EDeterminant, ETranspose, EMatrixInv
+                          ELimit, EMatrOp, EEigenVals, EDeterminant, ETranspose, EMatrixInv
 EAngle2, EAngle3, ETan2,
   EAlpha2, EPriv, ETrigoOfSumma, ESumm_Mult, ETrigo_Summ, EPermutations, EBinomCoeff,
   EAccomodations, EStatistics, ECorrelation, ELineProg, EAlgToTrigo, EComplexOper
@@ -1087,12 +1141,12 @@ EAngle2, EAngle3, ETan2,
             if(pSolv != nullptr ) EResult = pSolv->Result();
             MathExpr StepsResult = TSolutionChain::sm_SolutionChain.GetChain();
             if( !StepsResult.IsEmpty() )
-              Result = "Exp#" + StepsResult.SWrite() + '#' ;
+              Result = "Exp&" + StepsResult.SWrite() + '&' ;
             if( EResult.IsEmpty() )
-              Result += "ED";
+              Result += " ";
             else
-              Result += "Exp#" + EResult.SWrite() ;
-            Result += '#' + Err.Message();
+              Result += "Exp&" + EResult.SWrite() ;
+            Result += '&' + Err.WMessage().toUtf8();
             return Final();
             }
           MathExpr EResult = pSolv->Result();
@@ -1150,7 +1204,7 @@ EAngle2, EAngle3, ETan2,
           Expr = MathExpr( Parser::StrToExpr( Parms[0] ) );
           TStr::sm_Server = false;
           }
-        if( s_GlobalInvalid || ( Expr.IsEmpty() && Text.isEmpty() ) ) throw ErrParser( "Syntax Error in: " + Parms[0], ParserErr::peNewErr );
+        if( s_GlobalInvalid || ( Expr.IsEmpty() && Text.isEmpty() ) ) throw ErrParser( X_Str("MSyntaxErrorIn", "Syntax Error in: ") + Parms[0], ParserErr::peNewErr );
 #ifdef DEBUG_TASK
         qDebug() << "Contents Expr" << (Expr.IsEmpty() ? Text : CastPtr( TExpr, Expr )->m_Contents);
 #endif
@@ -1300,12 +1354,19 @@ EAngle2, EAngle3, ETan2,
       }
     else
       PathFiles.append(Parms[prmPathFile]);
+    Q = "Select usr_e_name1 from User where usr_id=" + Parms[prmUser];
+    Query.exec( Q );
+    Query.next();
+    bool NoHelpUser = Query.value(0).toByteArray() != "HelpUser";
     QByteArray FirstTask;
     char InstDots = 'a', PrevDot = '.';
     for(int iFile = 0; iFile < PathFiles.length(); iFile++)
       {
-      Q = "Delete From Task where usr_id=" + Parms[prmUser] + " and URL='" + Parms[prmURL] + "'";
-      Query.exec( Q );
+      if(NoHelpUser)
+        {
+        Q = "Delete From Task where usr_id=" + Parms[prmUser] + " and URL='" + Parms[prmURL] + "'";
+        Query.exec( Q );
+        }
       Task.SetWorkMode( TaskType );
       Task.SetFileName( PathFiles[iFile] );
       XPInEdit::sm_Language = Task.GetLanguage();

@@ -265,27 +265,30 @@ void Thread::SearchSolve(QByteArray& Formula)
     return Final();
     }
   Prompt = X_Str( "MCanAlsoCalculate", "You can also calculate:" );
-  int PosPow = Formula.indexOf( '^' );
-  if( PosPow != -1 )
+  if( Formula.indexOf( "Integral") == -1 && Formula.indexOf("Der") == -1)
     {
-    if( Formula.indexOf( '^', PosPow + 1 ) != -1 )
+    int PosPow = Formula.indexOf('^');
+    if( PosPow != -1 )
       {
-      Solve( new TSolvSubSqr );
-      Solve( new TSolvSumCub );
-      Solve( new TSolvSubCub );
-      if( m_SolvIndexes.count() > 0 ) return Final();
-      }
-    else
-      {
-      Solve( new TSolvSqrSubSum );
-      Solve( new TSolvCubSubSum );
-      }
-    }
-  Solve( new TSolvReToMult );
-  Solve( new TSolvExpand );
-  Solve( new TTrinom );
+      if( Formula.indexOf( '^', PosPow + 1 ) != -1 )
+        {
+        Solve( new TSolvSubSqr );
+        Solve( new TSolvSumCub );
+        Solve( new TSolvSubCub );
+        if( m_SolvIndexes.count() > 0 ) return Final();
+        }
+      else
+        {
+        Solve( new TSolvSqrSubSum );
+        Solve( new TSolvCubSubSum );
+        }
+       }
+    Solve( new TSolvReToMult );
+    Solve( new TSolvExpand );
+    Solve( new TTrinom );
 //  if( m_SolvIndexes.count() > 0 ) return Final();
-  Solve( new Alg1Calculator );
+    Solve( new Alg1Calculator );
+    }
   if( m_SolvIndexes.count() > 0 ) return Final();
   Solve( new TDefIntegrate);
   if( m_SolvIndexes.count() > 0 ) return Final();
@@ -293,7 +296,8 @@ void Thread::SearchSolve(QByteArray& Formula)
   if( m_SolvIndexes.count() > 0 ) return Final();
   Solve( new TLimitCreator );
   if( m_SolvIndexes.count() > 0 ) return Final();
-  Solve( new TDerivative);
+  if(Formula.indexOf("Der") != -1)
+    Solve( new TDerivative );
   Final();
   }
 

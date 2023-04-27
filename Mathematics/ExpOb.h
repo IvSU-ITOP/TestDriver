@@ -1000,6 +1000,7 @@ class TMultIntegral : public TIntegral
     virtual MathExpr Substitute( const QByteArray &vr, const MathExpr& vl );
     virtual QByteArray WriteE() const;
     virtual QByteArray SWrite() const;
+    bool Integr_( MathExpr& ex, MathExpr& vr ) const { return false; }
     virtual bool Multintegr_( MathExpr& exi, MathExpr& exll, MathExpr& vr ) const;
     void SetReduced( bool Reduced ) { TIntegral::SetReduced( Reduced ); m_Region.SetReduced( Reduced ); }
   };
@@ -1020,6 +1021,7 @@ class TCurveIntegral : public TIntegral
     virtual MathExpr Substitute( const QByteArray &vr, const MathExpr& vl );
     virtual QByteArray WriteE() const;
     virtual QByteArray SWrite() const;
+    bool Integr_( MathExpr& ex, MathExpr& vr ) const { return false; }
     virtual bool Curveintegr_( MathExpr& exi, MathExpr& exll, uchar& Type ) const;
   };
 

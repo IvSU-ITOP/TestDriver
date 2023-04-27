@@ -382,12 +382,6 @@ MathExpr CalcIntegralExpr(const MathExpr& e)
     return Result;
     }
   s_GlobalVarName = sName = CastPtr(TVariable, v)->Name();
-  if(ex.WriteE().indexOf(sName) == -1)
-    {
-    TExpr::sm_IntegralError = true;
-    s_LastError = X_Str("MCannotInt","Cannot integrate!");
-    return Result;
-    }
   s_RootToPower = true;
   OldNoRootReduce = s_NoRootReduce;
   s_NoRootReduce = true;
@@ -545,6 +539,7 @@ MathExpr CalcIntegralExpr(const MathExpr& e)
     {
     TSolutionChain::sm_SolutionChain.Expand();
     s_NoRootReduce = OldNoRootReduce;
+
     s_RootToPower = false;
     return Result;
     }
@@ -1645,6 +1640,9 @@ MathExpr TPowr::Integral(const QByteArray& d)
 
   if( TExpr::sm_IntegralError )
     return Clone();
+
+  if( m_Operand1.HasUnknown() != d )
+    return Variable(d) * Clone();
   if( m_Operand1.Funct( s, a1 ) && s == "tan" && IsConst( m_Operand2, 2 ) )
     {
     t = Constant(1) /Function( "cos", a1.Clone())^m_Operand2.Clone() - Constant(1);
@@ -2037,7 +2035,7 @@ MathExpr TFunc::Integral(const QByteArray& d)
   MathExpr  a, b;
   bool check;
 
-  if( m_Arg.HasUnknown() == "" )
+  if( m_Arg.HasUnknown() != d )
     return Variable(d) * Clone();
   m_Arg.BinomX( a,b,check,d);
   if( !check )
@@ -2048,16 +2046,16 @@ MathExpr TFunc::Integral(const QByteArray& d)
   b.Clear();
   if( m_Name == "exp" )
      b = Clone();
-  if( m_Name == "log" )
-    b = m_Arg.Clone() * Function( "log", m_Arg.Clone() ) - m_Arg.Clone();
+  if(m_Name == "ln" )
+    b = m_Arg.Clone() * Function( "ln", m_Arg.Clone() ) - m_Arg.Clone();
   if( m_Name == "sin" )
     b= -Function( "cos" , m_Arg.Clone() );
   if( m_Name == "cos" )
     b = Function("sin", m_Arg.Clone());
   if( m_Name == "tan" )
-    b = -Function( "log", new TAbs(false,Function( "cos", m_Arg.Clone() ) ) );
+    b = -Function( "ln", new TAbs(false,Function( "cos", m_Arg.Clone() ) ) );
   if( m_Name == "cot" )
-    b = Function("log", new TAbs(false,Function( "sin", m_Arg.Clone() ) ) );
+    b = Function("ln", new TAbs(false,Function( "sin", m_Arg.Clone() ) ) );
   if( m_Name == "sh" )
     b = Function( "ch", m_Arg.Clone() );
   if( m_Name == "ch" )

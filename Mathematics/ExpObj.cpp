@@ -874,8 +874,8 @@ MathExpr TVariable::Integral( const QByteArray& d )
     return new TDivi(new TPowr(new TVariable(false, d), new TConstant(2)), new TConstant(2));
   else
     {
-    TVariable V( false, d );
-    return new TMult( this, &V );
+    TVariable *pV = new TVariable( false, d );
+    return new TMult( this, pV );
     }
   }
 
@@ -4511,7 +4511,9 @@ MathExpr TIntegral::Calculate() const
   if( !s_IsIntegral )
     s_IntegralCount = 0;
 
+  TSolutionChain::sm_SolutionChain.m_Accumulate = false;
   const MathExpr Result(CalcIntegralExpr());
+  TSolutionChain::sm_SolutionChain.m_Accumulate = true;
   if( Result == ( TExpr* ) this )
     return Result;
 

@@ -13,7 +13,7 @@ enum DivPolResult {
 
 bool CompareExpr( const MathExpr& ExprI, const MathExpr& ExprJ );
 DivPolResult Divide2Polinoms( const MathExpr& Dividend, const MathExpr& Divisor, MathExpr& Quotient, MathExpr& Rest );
-inline MathExpr ReduceTExprs( const MathExpr& E ) { return E.IsEmpty() ? E : E.Reduce(); }
+inline MathExpr ReduceTExprs( const MathExpr& E ) { return E.IsEmpty() ? E : E.Reduce(true); }
 MathExpr MakePower( const MathExpr& Base, const MathExpr& Power );
 bool IsEqualExprs( const MathExpr& Expr1, const MathExpr& Expr2 );
 int CheckPower( int const Number, int NPower );

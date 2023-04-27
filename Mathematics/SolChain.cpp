@@ -4,6 +4,7 @@
 #include "MathTool.h"
 #include "Parser.h"
 #include "Algebra.h"
+#include "Analysis.h"
 
 TSolutionChain TSolutionChain::sm_SolutionChain;
 bool TSolutionChain::sm_InterimResult = false;
@@ -205,7 +206,9 @@ MathExpr TSolutionChain::GetExpr( int i )
 void TSolutionChain::Expand()
   {
   if( m_Expanded || ( m_Chains.count() == 0 ) ) return;
-  m_Chains.last().m_Exprs = ExpandExpr( m_Chains.last().m_Exprs );
+  MathExpr Exp = m_Chains.last().m_Exprs;
+  if( !IsThereIntegral(Exp) )
+     m_Chains.last().m_Exprs = ExpandExpr( Exp );
   m_Expanded = true;
   }
 

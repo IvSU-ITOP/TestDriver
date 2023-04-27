@@ -54,7 +54,11 @@ MathExpr TSumm::Reduce() const
   QByteArray VarName;
 
   opr1r = m_Operand1.Reduce();
+  if( IsConstType( TIntegral, m_Operand1 ) )
+    opr1r = opr1r.Calculate();
   opr2r = m_Operand2.Reduce();
+  if( IsConstType( TIntegral, m_Operand2 ) )
+    opr2r = opr2r.Calculate();
 
   if( s_IsLogEquation )
     {
@@ -431,8 +435,13 @@ MathExpr TSubt::Reduce() const
 
   s_GlobalInvalid = false;
   opr1r = m_Operand1.Reduce();
+  if( IsConstType( TIntegral, m_Operand1 ) )
+    opr1r = opr1r.Calculate();
   if(s_GlobalInvalid)return Ethis;
   opr2r = m_Operand2.Reduce();
+  if( IsConstType( TIntegral, m_Operand2 ) )
+    opr2r = opr2r.Calculate();
+  else
   if(s_GlobalInvalid)return Ethis;
 
   if( s_IsLogEquation )
@@ -1348,7 +1357,7 @@ MathExpr TMult::Integral( const QByteArray& d )
       TExpr::sm_IntegralError = true;
       return Ethis;
       }
-    if( ( !m_Operand1.Funct( name, arg ) || name == "ln" ) && !( m_Operand2.Funct( name, arg ) && name == "ln)" ) )
+    if( ( !m_Operand1.Funct( name, arg ) || name == "ln" ) && !( m_Operand2.Funct( name, arg ) && name == "ln" ) )
       {
       u = m_Operand1;
       dv = m_Operand2;
@@ -1363,7 +1372,7 @@ MathExpr TMult::Integral( const QByteArray& d )
     du = u.Diff( d );
     vdu = ( v * du ).Reduce();
     it = new TIntegral( false, vdu, new TVariable( false, d ) );
-    return uv - it;
+    return (uv - it).Clone();
     }
   else
     {
@@ -1573,6 +1582,8 @@ QByteArray TMult::SWrite() const
   QByteArray Right( m_Operand2.SWrite() );
   if( Right.left( 1 ) == "-" && sm_ShowUnarMinus || m_Operand2.MustBracketed() == brOperation )
     Right = '(' + Right + ')';
+  if(IsConstType(TFunc, m_Operand1) && IsConstType(TFunc, m_Operand2))
+    return Left + charToTex(m_Name) + Right;
   bool Unvisible = !sm_ShowMultSign && !( IsConstType( TConstant, m_Operand2 ) );
   if( Unvisible )
     {
@@ -1663,7 +1674,7 @@ MathExpr TDivi::Clone() const
   int	linom, liden;
   if( m_Operand1.Cons_int( linom ) && m_Operand2.Cons_int( liden ) )
     return GenerateFraction( linom, liden );
-  return new TDivi( m_Operand1, m_Operand2, m_AsFrac );
+  return new TDivi( m_Operand1.Clone(), m_Operand2.Clone(), m_AsFrac );
   }
 
 MathExpr TDivi::Reduce() const

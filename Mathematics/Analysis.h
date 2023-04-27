@@ -6,6 +6,7 @@
 
 MathExpr CalcIntegralExpr(const MathExpr& e);
 void MakeCalcDefIntegral(const MathExpr& e, MathExpr& ex1, MathExpr& ex2, MathExpr& ex3);
+bool IsThereIntegral(const MathExpr& ex);
 
 class TDerivative : public Solver
   {

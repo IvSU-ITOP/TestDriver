@@ -2431,8 +2431,12 @@ MathExpr TDivi::Integral( const QByteArray& d )
 
   if( n == dpOk )
     {
+    TExpr::sm_IntegralError = true;
+    return Ethis;
+/*
     rd = ( op1 + op2 / m_Operand2 ).ReduceTExprs();
     return rd.Integral( d );
+*/
     }
 
   opr1 = Expand(m_Operand1);

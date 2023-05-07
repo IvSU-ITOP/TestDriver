@@ -381,6 +381,7 @@ MathExpr SysRatInEq( MathExpr ex, int& Count, Lexp& PointVal, Lexp& PointSign, L
   MathExpr syst0 = ex, syst;
 
   Solv.Addexp( syst0 );
+  TSolutionChain::sm_SolutionChain.AddExpr( syst0 );
   Solv.Last()->m_Visi = false;
   if( !ex.Syst_( syst ) )
     syst = ex;
@@ -439,9 +440,10 @@ MathExpr SysRatInEq( MathExpr ex, int& Count, Lexp& PointVal, Lexp& PointSign, L
   syst = syst1;
   if( !syst.Equal( syst0 ) )
     {
+    TSolutionChain::sm_SolutionChain.AddExpr( syst );
     Solv.Addexp( syst );
     Solv.Last()->m_Visi = false;
-    }
+   }
 
   Count = 0;
   for( int i = 1; i <= n; i++ )
@@ -463,12 +465,15 @@ MathExpr SysRatInEq( MathExpr ex, int& Count, Lexp& PointVal, Lexp& PointSign, L
     j++;
     if( n > 1 )
       {
+      TSolutionChain::sm_SolutionChain.AddExpr(f->m_Memb);
       Solv.Addexp( f->m_Memb );
       Solv.Last()->m_Visi = false;
       }
     Solv.Addexp( new TCommStr( X_Str( "MCriticalPointExpr", "Critical point" ) ) );
     Solv.Last()->m_Visi = false;
-    Solv.Addexp( new TBinar( '=', Nom[j].Reduce(), Constant( 0 ) ) );
+    MathExpr CP = new TBinar( '=', Nom[j].Reduce(), Constant( 0 ) );
+    Solv.Addexp( CP );
+    TSolutionChain::sm_SolutionChain.AddExpr( CP, X_Str( "MCriticalPointExpr", "Critical point" ) );
     Solv.Addexp( new TStr( " " ) );
     Solv.Last()->m_Visi = false;
     Lexp NomRoots = Roots( Nom[j], VarName );
@@ -480,15 +485,22 @@ MathExpr SysRatInEq( MathExpr ex, int& Count, Lexp& PointVal, Lexp& PointSign, L
       CastPtr(TLexp, syst0 )->Addexp( new TBinar( '=', Variable( VarName + "_" + NumberToStr( i ) ), f1->m_Memb ) );    
       }
     if( i > 0 )
+      {
+      TSolutionChain::sm_SolutionChain.AddExpr( syst0);
       Solv.Addexp( syst0 );
+      }
     else
-    Solv.Addexp( new TCommStr( X_Str( "MNotFoundRootsExpr", "No roots found" ) ) );
+      {
+      TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MNotFoundRootsExpr", "No roots found" ) );
+      Solv.Addexp( new TCommStr( X_Str( "MNotFoundRootsExpr", "No roots found" ) ) );
+      }
     Solv.Last()->m_Visi = false;
     int i1 = i;
     Lexp DenRoots;
     if( !Den[j].IsEmpty() )
       {
       Solv.Addexp( new TBinar( '=', Den[j], Constant( 0 ) ) );
+      TSolutionChain::sm_SolutionChain.AddExpr( new TBinar( '=', Den[j], Constant( 0 )));
       Solv.Addexp( new TStr( " " ) );
       Solv.Last()->m_Visi = false;
       DenRoots = Roots( Den[j], VarName );
@@ -499,9 +511,15 @@ MathExpr SysRatInEq( MathExpr ex, int& Count, Lexp& PointVal, Lexp& PointSign, L
         CastPtr( TLexp, syst0 )->Addexp( new TBinar( '=', Variable( VarName + "_" + NumberToStr( i ) ), f1->m_Memb ) );
         }
       if( i > i1 )
+        {
         Solv.Addexp( syst0 );
+        TSolutionChain::sm_SolutionChain.AddExpr( syst0 );
+        }
       else
-      Solv.Addexp( new TCommStr( X_Str( "MNotFoundRootsExpr", "No roots found" ) ) );
+        {
+        Solv.Addexp( new TCommStr( X_Str( "MNotFoundRootsExpr", "No roots found" ) ) );
+        TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MNotFoundRootsExpr", "No roots found" ) );
+        }
       Solv.Last()->m_Visi = false;
       }
     Count = 0;
@@ -536,15 +554,23 @@ MathExpr SysRatInEq( MathExpr ex, int& Count, Lexp& PointVal, Lexp& PointSign, L
         L3.Addexp( new TBool( Value ) );
         }
       if( Count > 0 )
+        {
+        TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MAcceptablisSetExpr", "Solution set" ) );
         Solv.Addexp( new TCommStr( X_Str( "MAcceptablisSetExpr", "Solution set" ) ) );
+        }
       else
         if( Value )
+          {
+          TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MAllNumbersExpr", "Solution set: all real numbers" ) );
           Solv.Addexp( new TCommStr( X_Str( "MAllNumbersExpr", "Solution set: all real numbers" ) ) );
-      else 
-        {
-        Solv.Addexp( new TCommStr( X_Str( "MEmptySetExpr", "Solution set: the empty set" ) ) );
-        IsSolv = false;
-        }
+          }
+        else
+          {
+          TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MEmptySetExpr", "Solution set: the empty set" ) );
+          Solv.Addexp( new TCommStr( X_Str( "MEmptySetExpr", "Solution set: the empty set" ) ) );
+          IsSolv = false;
+          }
+      TSolutionChain::sm_SolutionChain.AddExpr( new TInterval( a, Len, L1, L2, L3 ) );
       Solv.Addexp( new TInterval( a, Len, L1, L2, L3 ) );
       Solv.Last()->m_Visi = false;
       }
@@ -588,7 +614,6 @@ MathExpr SysRatInEq( MathExpr ex, int& Count, Lexp& PointVal, Lexp& PointSign, L
     Interval[i] = FinishValue;
     IntervalVal.Addexp( new TBool( FinishValue ) );
     }
-
   for( int i = 1; i <= Count; i++ )
     if( Points[i].m_Sign )
       {
@@ -610,13 +635,16 @@ MathExpr SysRatInEq( MathExpr ex, int& Count, Lexp& PointVal, Lexp& PointSign, L
     PointVal.Addexp( Points[i].m_ExX );
     PointSign.Addexp( new TBool( Points[i].m_Sign ) );
     }
+//  TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MResultingSetExpr", "Solution set" ) );
   Solv.Addexp( new TCommStr( X_Str( "MResultingSetExpr", "Solution set" ) ) );
-
   Solv.Last()->m_Visi = false;
   Solv.Addexp( new TInterval( Points[0].m_X, Points[Count + 1].m_X - Points[0].m_X,
     PointVal, PointSign, IntervalVal ) );
+  TSolutionChain::sm_SolutionChain.AddExpr( new TInterval( Points[0].m_X, Points[Count + 1].m_X - Points[0].m_X,
+      PointVal, PointSign, IntervalVal ), X_Str( "MResultingSetExpr", "Solution set" ) );
   Solv.Last()->m_Visi = false;
   Solv.Addexp( Solve() );
+  TSolutionChain::sm_SolutionChain.AddExpr( Solve());
   s_DegPoly = OldDegPoly;
   return Solv;
   }
@@ -951,8 +979,8 @@ bool CalcRatInEq( const QByteArray& InSource )
         int Count;
         Lexp L1 = new TLexp, L2 = new TLexp, L3 = new TLexp;
         bool IsSolv;
-        MathExpr ex1 = SysRatInEq( ex, Count, L1, L2, L3, IsSolv, VarName );
-        TSolutionChain::sm_SolutionChain.AddExpr( ex1 );
+        SysRatInEq( ex, Count, L1, L2, L3, IsSolv, VarName );
+//        TSolutionChain::sm_SolutionChain.AddExpr( ex1 );
         TSolutionChain::sm_SolutionChain.AddComment( X_Str( "MCalced", "Calculated!" ) );
         Result = true;
         }
@@ -3129,9 +3157,10 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
         ex1 = new TSyst( syst1 );
       else
         ex1 = syst1;
-      MathExpr ex2 = SysRatInEq( ex1, SystCount1, Points, Signs, Intervals, IsSolvInEq, VarName );
+      SysRatInEq( ex1, SystCount1, Points, Signs, Intervals, IsSolvInEq, VarName );
+//      MathExpr ex2 = SysRatInEq( ex1, SystCount1, Points, Signs, Intervals, IsSolvInEq, VarName );
       TSolutionChain::sm_SolutionChain.AddExpr( new TStr( "" ), X_Str( "MDomain", "DOMAIN" ) );
-      TSolutionChain::sm_SolutionChain.AddExpr( ex2 );
+//      TSolutionChain::sm_SolutionChain.AddExpr( ex2 );
       }
     catch( ErrParser E )
       {

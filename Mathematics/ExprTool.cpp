@@ -486,7 +486,7 @@ MathExpr TExpr::AlgToGeometr( double Scale, bool PutExpr ) const
       Lexp exResult = new TL2exp;
       exResult.Addexp( new TBinar( '=', ( TExpr* ) this, ex1 ) );
       exResult.First()->m_Visi = false;
-      exResult.Addexp( new TTrigoComplex( a, b, Scale ) );
+//      exResult.Addexp( new TTrigoComplex( a, b, Scale ) );
       Result = exResult;
       }
     else

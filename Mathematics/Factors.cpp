@@ -513,9 +513,15 @@ MathExpr ExpandOpRes( const MathExpr& exi )
     }
   else
     if( P.Eq( exi ) )
-      Result = new TBinar( '=', new TBinar( '=', exi, new TNewLin ), exi_E );
+      if(s_CalcOnly)
+        Result = exi_E;
+      else
+        Result = new TBinar( '=', new TBinar( '=', exi, new TNewLin ), exi_E );
     else
-    Result = new TBinar( '=', new TBinar( '=', exi, new TNewLin ), P.Reduce() );
+      if(s_CalcOnly)
+        Result = P.Reduce();
+      else
+        Result = new TBinar( '=', new TBinar( '=', exi, new TNewLin ), P.Reduce() );
     s_GlobalInvalid = false;
 
   if( !s_CalcOnly )

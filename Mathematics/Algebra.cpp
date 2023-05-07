@@ -1203,9 +1203,10 @@ MathExpr SubtCube( const MathExpr& exi )
     }
   if( !WasReduced )
     {
-    s_LastError = X_Str( "MCanNotFactor", "I can`t factor it!" );
-    s_GlobalInvalid = true;
-    Result = exi;
+    throw ErrParser( X_Str("MCanNotFactor", "I can`t factor it!"), ParserErr::peNewErr );
+//    s_LastError = X_Str( "MCanNotFactor", "I can`t factor it!" );
+//    s_GlobalInvalid = true;
+//    Result = exi;
     }
   s_NoRootReduce = OldNoRootReduce;
   return Result;
@@ -4276,35 +4277,43 @@ MathExpr SqSbSm( const MathExpr& exi )
     MathExpr a_2 = a^pow;
     MathExpr b_2 = b^pow;
     MathExpr ab2 = a * b;
-    MathExpr ab2r = (pow * ab2.Reduce());
+    MathExpr ab2r = pow * ab2.Reduce();
+    bool OldExpandDetailed = s_ExpandDetailed;
+    bool OldExpandPower = s_ExpandPower;
+    bool OldCalcOnly = s_CalcOnly;
+    s_ExpandDetailed = false;
+    s_ExpandPower = true;
+    s_CalcOnly = true;
+    MathExpr a_2r = ExpandOpRes(a*a);
+    s_ExpandDetailed = OldExpandDetailed;
+    s_ExpandPower = OldExpandPower;
+    s_CalcOnly = OldCalcOnly;
     ab2 *= pow;
     MathExpr P, Pr;
     if( SbSm.Subtr( a, b ) )
       {
       P = a_2 - ab2;
-      Pr = a_2.Reduce() - ab2r.Reduce();
+      Pr = a_2r - ab2r.Reduce(true);
       }
 
     if( SbSm.Summa( a, b ) )
       {
       P = a_2 + ab2;
-      Pr = a_2.Reduce() + ab2r.Reduce();
+      Pr = a_2r + ab2r.Reduce(true);
       }
-
     P += b_2;
-    Pr += b_2.Reduce();
-    MathExpr sq = new TBinar( '=', exi1, P );
+    Pr += b_2.Reduce(true);
+    MathExpr sq = new TBinar( '=', new TBinar('=',exi1, new TNewLin ), P );
     if(Pr.Eq(P ) )
       Result = sq;
     else
       {
-      MathExpr sqr = new TBinar( '=', sq, Pr );
-
+      MathExpr sqr = new TBinar( '=', new TBinar('=', sq, new TNewLin ), Pr );
       MathExpr ex12 = Pr.Reduce(true);
       if(Pr.Eq( ex12 ) )
         Result = sqr;
       else
-        Result = new TBinar( '=', sqr, ex12 );
+        Result = new TBinar( '=', new TBinar('+', sqr, new TNewLin), ex12 );
       }
     }
   else
@@ -4487,7 +4496,6 @@ void TSolvSubCub::Solve()
     throw Err;
     }
   MathExpr::sm_NoReduceByCompare = OldNoReduceByCompare;
-  SimplifyExpand();
   s_LastError = X_Str( "MCanNotFactor", "I can`t factor it!" );
   }
 
@@ -4537,6 +4545,7 @@ void Alg1Calculator::Solve()
 
 void TLg::Solve()
   {
+  s_NoLogReduce = false;
   m_Expr = m_Expr.CalcFunc( "lg" );
   }
 
@@ -4562,6 +4571,7 @@ void TCotan::Solve()
 
 void TLn::Solve()
   {
+  s_NoLogReduce = false;
   m_Expr = m_Expr.CalcFunc( "ln" );
   }
 

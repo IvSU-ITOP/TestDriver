@@ -736,11 +736,19 @@ void Thread::ReadyRead()
                   Values[i-1][j].Constan(val2);
                   if(val1 * val2 < 0)
                     {
-                    if(j == FCount - 1)
-                      Result += "a;";
+                    if(val1 + val2 < 0.0000001 && abs(val1) < 0.1)
+                      if(j == FCount - 1)
+                        Result += "0;";
+                      else
+                        Result += "0,";
                     else
-                      Result += "a,";
-                    LastAsympt[j] = i;
+                      {
+                      if(j == FCount - 1)
+                        Result += "a;";
+                      else
+                        Result += "a,";
+                      LastAsympt[j] = i;
+                      }
                     continue;
                     }
                   }
@@ -1110,18 +1118,9 @@ void Thread::ReadyRead()
             case ELimit:
               pSolv = new TLimitCreator;
             break;
+            case EAlg2InEqXYGrph:
+              pSolv = new RatInEq;
             }
-          /*
-                          EAlg2InEqXYGrph,
-                          ESqLogEq??,
-                          ESinEq?, ETanEq,  ECosEq, ECtnEq, ETrigoBiQudrEq, EAlgFrEq,
-                          EPi,
-                          ELimit, EMatrOp, EEigenVals, EDeterminant, ETranspose, EMatrixInv
-EAngle2, EAngle3, ETan2,
-  EAlpha2, EPriv, ETrigoOfSumma, ESumm_Mult, ETrigo_Summ, EPermutations, EBinomCoeff,
-  EAccomodations, EStatistics, ECorrelation, ELineProg, EAlgToTrigo, EComplexOper
-          */
-//          TStr::sm_Server = true;
           QByteArray Result;
           auto Final = [&] ()
             {

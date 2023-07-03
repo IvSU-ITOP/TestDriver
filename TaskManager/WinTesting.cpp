@@ -3112,6 +3112,7 @@ void CalcWidget::Solve( Solver *pSolver )
     ExpStore::sm_pExpStore->Init_var();
     Solver::m_OldExpr.Clear();
     TSolutionChain::sm_SolutionChain.Clear();
+    TSolutionChain::sm_SolutionChain.m_Accumulate = true;
     s_LastError.clear();
     pSolver->SetExpression( Formula );
     }

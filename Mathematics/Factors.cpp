@@ -534,7 +534,10 @@ MathExpr InsertY( const MathExpr& exi, const MathExpr& TermY )
   exi.TestPtr();
   TermY.TestPtr();
   MathExpr Result;
+  bool OldSummReduce = s_NoSummReduce;
+  s_NoSummReduce = true;
   TMultiNominal multi( exi );
+  s_NoSummReduce = OldSummReduce;
   if( multi.count() == 1 )
     for( int I = 0; I < multi[0].count(); I++ )
       {
@@ -744,8 +747,13 @@ MathExpr IToFactors( const MathExpr& exi )
     return Result;
     }
 
-  if( Result.IsEmpty() && MultiNominal.count() > 1 && MultiNominal.IsForm( TermX, TermY ) )
-    return InsertY( IToFactors( CallExpand( MultiNominal.FullExpr() ) ), TermY );
+  if( Result.IsEmpty() && MultiNominal.count() > 1 && MultiNominal.IsForm( TermX, TermY ))
+    {
+    texp = MultiNominal.FullExpr();
+    tpexp = CallExpand(texp);
+    texp = IToFactors(tpexp);
+    return InsertY( texp, TermY );
+    }
 
   if( Result.IsEmpty() && MultiNominal.IsClassic() )
     {
@@ -2289,7 +2297,7 @@ DivPolResult Divide2Polinoms( const MathExpr& Dividend, const MathExpr& Divisor,
     std::function<void( const MathExpr& )> PreOrder = [&] ( const MathExpr& ex )
       {
       MathExpr op1, op2;
-      char c;
+      uchar c;
       if( ex.Variab( VName ) )
         {
         if( Name.isEmpty() )
@@ -2361,7 +2369,6 @@ MathExpr ToFactors( const MathExpr& exi )
   {
   MathExpr Result = IToFactors( exi );
   QByteArray VarName = exi.HasUnknown();
-  /*
   if( VarName == "" ) VarName = "x";
   if( !s_GlobalInvalid )
     {
@@ -2376,14 +2383,14 @@ MathExpr ToFactors( const MathExpr& exi )
     s_GlobalInvalid = false;
     return Result;
     }
-*/
-  MathExpr op1, op2;
+//  MathExpr op1, op2;
   if( !Result.Multp( op1, op2 ) )
     Result = IToFactors( exi.Reduce() );
   if( !s_GlobalInvalid && Result.Multp( op1, op2 ) )
     return Result;
-  char C;
-  if(exi.Oper_(C, op1, op2) && IsType(TVariable, op1) && IsType(TConstant, op2) )
+  uchar C;
+  if(exi.Oper_(C, op1, op2) && (IsType(TVariable, op1) && IsType(TConstant, op2) ||
+    IsType(TVariable, op2) && IsType(TConstant, op1) ) )
     return exi;
   s_Multiplier = 1;
   TSolutionChain::sm_SolutionChain.Clear();
@@ -2607,7 +2614,7 @@ TL2exp* RootPolinom( MathExpr ex )
   {
   const int ItMax = 50, NDigit = 10;
   int N, TermPower;
-  char Name;
+  uchar Name;
   QByteArray Unknown;
   PascArray<double> h( -2, 103 ), b( -2, 103 ), c( -2, 103 ), d( -2, 103 ), e( -2, 103 ), acc( 1, 99 );
 
@@ -2645,7 +2652,17 @@ TL2exp* RootPolinom( MathExpr ex )
       }
     if( Name == '^' && Right.Cons_int( TermPower ) )
       {
-      Left.Variab( sName );
+      if(!Left.Variab( sName ))
+        {
+        MathExpr L, R;
+        Left.Oper_(Name, L, R);
+        if(!L.Variab(sName))
+          if(!R.Variab(sName))
+            {
+            N = -1;
+            return;
+            }
+        }
       if( Unknown.isEmpty() )
         Unknown = sName;
       else
@@ -2665,7 +2682,7 @@ TL2exp* RootPolinom( MathExpr ex )
     MathExpr Left, Right, exTmp;
     double V;
     int pwr, Nom, Denom;
-    char Name;
+    uchar Name;
     if( ex.Oper_( Name, Left, Right ) )
       {
       if( Name == '-' || Name == '+' )
@@ -2755,7 +2772,7 @@ TL2exp* RootPolinom( MathExpr ex )
   ex = ExpandExpr( Left ).Reduce();
   N = 0;
   MaxPower( ex );
-  if( N < 1 ) return pResult;
+  if( N < 1 || N >= 4) return pResult;
   int iOut;
   if( !ex.Oper_( Name, Left, Right ) )
     {

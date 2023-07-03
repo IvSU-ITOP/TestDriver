@@ -158,7 +158,7 @@ MathExpr TBinar::Substitute( const QByteArray& vr, const MathExpr& vl )
   return new TBinar( m_Name, m_Operand1.Substitute( vr, vl ), m_Operand2.Substitute( vr, vl ) );
   }
 
-bool TBinar::Binar( char N, MathExpr& op1, MathExpr& op2 ) const
+bool TBinar::Binar( uchar N, MathExpr& op1, MathExpr& op2 ) const
   {
   if( N != m_Name ) return false;
   op1 = m_Operand1;

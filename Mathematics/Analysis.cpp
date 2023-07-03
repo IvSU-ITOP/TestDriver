@@ -81,7 +81,7 @@ bool IsThereIntegral(const MathExpr& ex)
     {
     MathExpr op1,op2;
     QByteArray name;
-    char c;
+    uchar c;
     if( ex.Integr_(op1,  op2) )
       throw ' ';
     else
@@ -116,7 +116,7 @@ MathExpr CalcIntegralExpr(const MathExpr& e)
   std::function<MathExpr( MathExpr&)> GetPowerX = [&] (MathExpr& exp)
     {
     MathExpr exLeft, exRight, exTmp, exL, exR, op1, op2, exCoeff;
-    char cOper;
+    uchar cOper;
     int root;
     QByteArray sName;
 
@@ -132,7 +132,7 @@ MathExpr CalcIntegralExpr(const MathExpr& e)
       {
       if(expReplaced) return true;
       MathExpr exLeft, exRight;
-      char cOper;
+      uchar cOper;
       QByteArray sName;
       if( exp.Oper_( cOper, exLeft, exRight ) )
         {
@@ -350,7 +350,7 @@ MathExpr CalcIntegralExpr(const MathExpr& e)
   std::function<void( MathExpr&)> ArgToAbsArg = [&] ( MathExpr& exp)
     {
     MathExpr exLeft, exRight, exArg;
-    char cOper;
+    uchar cOper;
     if( exp.Funct( sName, exArg ) || exp.Abs_( exArg ) )
       {
       ArgToAbsArg( exArg );
@@ -847,7 +847,7 @@ bool CalcSimplifyPrvEx(const MathExpr& exiI)
 
   std::function<void( MathExpr& )> ConvertToRad = [&]( MathExpr& ex)
     {
-    char cOper ;
+    uchar cOper ;
     MathExpr exLeft, exRight, exArg ;
 
     auto Convert = [&]( MathExpr& arg)
@@ -1109,7 +1109,7 @@ MathExpr OutDegree( MathExpr& exi)
   MathExpr ex1,exm1;
   MathExpr ex2,exm2;
   double V;
-  char Oper;
+  uchar Oper;
   if( TExpr::sm_TrigonomSystem == TExpr::tsDeg && exi.Funct(FuncName, Argument) && IsTrigonom(FuncName) &&
     (Argument.Oper_(Oper,Op1, Op2 ) && (Oper == '+' || Oper == '-' )) && !Op1.Measur_(ex1,exm1) && !Op2.Measur_(ex2,exm2) )
     {
@@ -1133,7 +1133,7 @@ MathExpr OutDegree1(MathExpr& exi)
   MathExpr Argument1, Argument2;
   MathExpr ex, exm;
   double V ;
-  char Oper;
+  uchar Oper;
   if( TExpr::sm_TrigonomSystem == TExpr::tsDeg && (exi.Oper_(Oper,Op1, Op2 ) && (Oper == '+' || Oper == '-' || Oper == '*') ) &&
     (Op1.Funct(FuncName1,Argument1) && IsTrigonom(FuncName1)) && (Op2.Funct(FuncName2, Argument2) && FuncName1 == FuncName2) &&
     ( !Argument1.Measur_(ex,exm) && !Argument2.Measur_(ex,exm)) )
@@ -1855,7 +1855,7 @@ MathExpr TPowr::Lim(const QByteArray& v, const MathExpr& lm) const
   bool nl1, nl2, un1, cn1, lg1, in2, od2, ng1, ng2;
   double vl;
   int n, dn;
-  char cOper ;
+  uchar cOper ;
 
   if( m_Operand1.Divis( op1, op2 ) && op1.HasUnknown(v) != "" &&
       op2.HasUnknown( v ) != "" && m_Operand2.HasUnknown( v ) != "" )

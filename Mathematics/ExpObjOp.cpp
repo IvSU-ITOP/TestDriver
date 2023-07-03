@@ -343,7 +343,7 @@ bool TSumm::Summa( MathExpr& op1, MathExpr& op2 ) const
 
 bool TSumm::IsLinear() const
   {
-  return true;
+  return m_Operand1.IsLinear() && m_Operand2.IsLinear();
   }
 
 bool  TSumm::Negative() const
@@ -385,7 +385,7 @@ QByteArray TSumm::SWrite() const
       return Left + "\\longminus\n" + (Constant(-Val) * Op2).SWrite();
     }
   QByteArray Name("\\longplus\n");
-  char Op;
+  uchar Op;
   if (!(IsConstType(TSumm, m_Operand2)) &&
     (IsConstType(TUnar, m_Operand2) || IsConstType(TUnapm, m_Operand2) ||
     (m_Operand2.Constan(Val) && Val < 0.0) ||
@@ -809,7 +809,7 @@ QByteArray TSubt::SWrite() const
   QByteArray Name(charToTex(m_Name));
   if (Name[0] == '\\') Name += '\n';
   if ( !TOper::sm_InsideChart) Name = "\\longminus\n";
-  char Op;
+  uchar Op;
   if ((IsConstType(TUnar, m_Operand2) || IsConstType(TUnapm, m_Operand2) ||
     (m_Operand2.Constan(Val) && Val < 0.0) ||
     m_Operand2.MustBracketed() == brOperation || (m_Operand2.Oper_(Op, Op1, Op2) &&
@@ -877,7 +877,7 @@ MathExpr TMult::Reduce() const
         else
           if(Value1 == -1)
             return -m_Operand2;
-    char C;
+    uchar C;
     if( m_Operand1.Oper_(C, opr1, opr2) && (C == '+' || C == '-') )
       Op11 = m_Operand1.Reduce();
     if( m_Operand2.Oper_(C, opr1, opr2) && (C == '+' || C == '-') )
@@ -918,7 +918,10 @@ MathExpr TMult::Reduce() const
     return result;
     }
 
-  if( m_Operand1.SimpleFrac_( N1, D1 ) && m_Operand2.SimpleFrac_( N2, D2 ) )
+  opr1 = m_Operand1.Reduce();
+  opr2 = m_Operand2.Reduce();
+
+  if( opr1.SimpleFrac_( N1, D1 ) && opr2.SimpleFrac_( N2, D2 ) )
     {
     GlobInvOld = s_GlobalInvalid;
     s_GlobalInvalid = false;
@@ -932,9 +935,6 @@ MathExpr TMult::Reduce() const
     s_GlobalInvalid = GlobInvOld;
     return GenerateFraction( NR, DR ).Reduce();
     }
-
-  opr1 = m_Operand1.Reduce();
-  opr2 = m_Operand2.Reduce();
 
   if( sm_FullReduce && m_Operand1.Constan( Value1 ) && m_Operand2.Constan( Value2 ) )
     return Constant( Value1 * Value2 );
@@ -1463,7 +1463,24 @@ bool TMult::Eq( const MathExpr& E2 ) const
   {
   MathExpr op21, op22;
   if( E2.Multp( op21, op22 ) )
-    return m_Operand1.Eq( op21 ) && m_Operand2.Eq( op22 ) || m_Operand1.Eq( op22 ) && m_Operand2.Eq( op21 );
+    {
+    QVector<MathExpr> Opers = GetOperands();
+    QVector<MathExpr> EOpers = CastConstPtr(TMult, E2)->GetOperands();
+    if(Opers.length() != EOpers.length()) return false;
+    for(int i = 0; i < Opers.length(); i++)
+      {
+      bool Found = false;
+      for(int j = 0; !Found && (j < EOpers.length()); j++)
+        {
+        Found = Opers[i].Eq(EOpers[j]);
+        if(Found)
+          EOpers.removeAt(j);
+        }
+      if(!Found) return false;
+      }
+    return true;
+//    return m_Operand1.Eq( op21 ) && m_Operand2.Eq( op22 ) || m_Operand1.Eq( op22 ) && m_Operand2.Eq( op21 );
+    }
   if( s_EqualPicture && E2.Unarminus( op21 ) && IsConstType( TMult, op21 ) )
       {
       bool OldEqualPicture = s_EqualPicture;
@@ -1597,7 +1614,7 @@ QByteArray TMult::SWrite() const
         if( !Unvisible )
           {
           MathExpr Op1, Op2;
-          char Sign;
+          uchar Sign;
           if( IsConstType( TConstant, m_Operand1 ) || m_Operand1.Oper_( Sign, Op1, Op2 ) && IsConstType( TConstant, Op2 ) )
             Unvisible = !( m_Operand2.Multp( Op1, Op2 ) && IsConstType( TConstant, Op1 ) ||
             m_Operand2.Power( Op1, Op2 ) && IsConstType( TConstant, Op1 ) || m_Operand2.Measur_(Op1, Op2 ) );
@@ -1652,6 +1669,22 @@ MathExpr TMult::TrigTerm( const QByteArray& sName, const MathExpr& exArg, const 
 bool TMult::Positive() const
   {
   return m_Operand1.Positive() && m_Operand2.Positive();
+  }
+
+QVector<MathExpr> TMult::GetOperands() const
+  {
+  QVector<MathExpr> Result;
+  const TMult *pOper = CastConst(TMult, m_Operand1);
+  if(pOper == nullptr)
+    Result.append(m_Operand1);
+  else
+    Result.append(pOper->GetOperands());
+  pOper = CastConst(TMult, m_Operand2);
+  if(pOper == nullptr)
+    Result.append(m_Operand2);
+  else
+    Result.append(pOper->GetOperands());
+  return Result;
   }
 
 TDivi::TDivi( const MathExpr& ex1, const MathExpr& ex2, bool AsFrac, char Name ) : TOper( ex1, ex2, Name ), m_AsFrac( AsFrac )
@@ -1728,7 +1761,7 @@ MathExpr TDivi::Reduce() const
   std::function<MathExpr( MathExpr& )> ExpToPolynom = [&] ( MathExpr ex )
     {
     MathExpr  exLeft, exRight, exArg, result;
-    char cOper;
+    uchar cOper;
     QByteArray sName;
     TOper *pExOper;
     if( ex.Funct( sName, exArg ) && sName == "exp" )
@@ -1770,7 +1803,7 @@ MathExpr TDivi::Reduce() const
   std::function<MathExpr( MathExpr& )> PolynomToExp = [&] ( MathExpr ex )
     {
     MathExpr  exLeft, exRight, exArg;
-    char cOper;
+    uchar cOper;
     TOper *pExOper;
 
     if( ex.Oper_( cOper, exLeft, exRight ) )
@@ -1823,8 +1856,8 @@ MathExpr TDivi::Reduce() const
     else if( Op12.Root_( Op21, Op22, NR ) && Op21.SimpleFrac_( N1, D1 ) )
       return Expand( m_Operand1 * GenerateFraction( D1, N1 ).Reduce().Root( NR ) / Op11 );
 
-  opr1 = m_Operand1.Reduce();
-  opr2 = m_Operand2.Reduce();
+  opr1 = m_Operand1.Reduce(true);
+  opr2 = m_Operand2.Reduce(true);
 
   if( sm_FullReduce && opr1.Constan( Value1 ) && opr2.Constan( Value2 ) )
     {
@@ -2045,7 +2078,7 @@ MathExpr TDivi::Reduce() const
         return ( ( Op11 / Op21 ) ^ Op12 ).Reduce();
 
     MathExpr exLeft, exRight;
-    char cOper;
+    uchar cOper;
     if( Op11.Cons_int( N1 ) && Op21.Cons_int( N2 ) && N2 % N1 == 0 && Op12.Oper_( cOper, exLeft, exRight ) )
       {
       N1 = N2 / N1;
@@ -2473,7 +2506,7 @@ MathExpr TDivi::Lim(const QByteArray& v, const MathExpr& lm) const
   bool nl1,nl2,ng1,ng2;
   int iNomPower, iDenomPower, Deep = 0;
   QByteArray sName ;
-  char cOper ;
+  uchar cOper ;
 
   auto OpenAmbiguity = [&] ( MathExpr operand1, MathExpr operand2 )
     {
@@ -2503,7 +2536,7 @@ MathExpr TDivi::Lim(const QByteArray& v, const MathExpr& lm) const
     std::function<void(const MathExpr& )> GetExponent = [&] (const MathExpr& exp)
       {
       MathExpr exLeft, exRight, exArg ;
-      char cOper ;
+      uchar cOper ;
       QByteArray Name ;
       int iVal ;
       if( exp.Unarminus( exArg ) )
@@ -2880,7 +2913,7 @@ QByteArray TDivi::SWrite() const
   MathExpr Op1, Op2;
   QByteArray Name(charToTex(m_Name));
   if (Name[0] == '\\') Name += '\n';
-  char Op;
+  uchar Op;
   double Val;
   QByteArray Left = m_Operand1.SWrite();
   if (m_Operand1.MustBracketed() == brOperation) Left = '(' + Left + ')';
@@ -2904,7 +2937,7 @@ bool TDivi::AsFraction()
 
 bool TDivi::IsLinear() const
   {
-  return true;
+  return m_Operand1.IsLinear() && m_Operand2.IsNumerical();
   }
 
 MathExpr TDivi::TrigTerm( const QByteArray& sName, const MathExpr& exArg, const MathExpr& exPower )

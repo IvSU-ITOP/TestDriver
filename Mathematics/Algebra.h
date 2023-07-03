@@ -6,6 +6,7 @@
 #include "Parser.h"
 #include "LogExp.h"
 #include "Factors.h"
+#include "SolChain.h"
 #include <functional>
 
 typedef QVector<MathExpr> TExprs;
@@ -218,7 +219,10 @@ class Solver
       {
       m_OldExpr = Parser::StringToExpr( Expr );
       m_Expr = m_OldExpr;
+      TSolutionChain::sm_SolutionChain.m_Accumulate = true;
+      TExpr::sm_CalcOnly = true;
       Solve();
+      TExpr::sm_CalcOnly = false;
       }
     MATHEMATICS_EXPORT MathExpr Result() { return m_Expr; }
     MATHEMATICS_EXPORT bool Success() { return !m_Expr.IsEmpty() && !m_Expr.Eq( m_OldExpr ); }

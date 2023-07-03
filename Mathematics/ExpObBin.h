@@ -15,7 +15,7 @@ class TBinar : public TOper
     bool Eq( const MathExpr& E2 ) const;
     bool Equal( const MathExpr& E2 ) const;
     virtual MathExpr Substitute( const QByteArray& vr, const MathExpr& vl );
-    bool Binar( char N, MathExpr& op1, MathExpr& op2 ) const;
+    bool Binar( uchar N, MathExpr& op1, MathExpr& op2 ) const;
     bool Binar_( uchar& N, MathExpr& op1, MathExpr& op2 ) const;
     bool Infinity( bool& ANeg );
     virtual bool operator < ( const MathExpr& );

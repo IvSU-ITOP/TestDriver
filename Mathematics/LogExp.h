@@ -8,5 +8,4 @@ Lexp CalcIrratEq( const QByteArray& Source, bool PutSource = true, bool Recurs =
 void LogPropertiesEx( MathExpr Ex, int Prop );
 bool CalcSysInEq( const QByteArray& InEq );
 bool CalcRatInEq( const QByteArray& InSource );
-
 #endif

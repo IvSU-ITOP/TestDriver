@@ -705,7 +705,7 @@ QByteArray TExpr::HasUnknown( const QByteArray& Name ) const
     }
   if( Funct( sV, ex1 ) )
     return ex1.HasUnknown( VarName );
-  char cV;
+  uchar cV;
   if( !Oper_( cV, ex1, ex2 ) )
     {
     Syst_( ex1 );

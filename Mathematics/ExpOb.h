@@ -121,8 +121,8 @@ class TExpr
     virtual bool Cons_int( int& I ) const { return false; }
     virtual bool Listex( PExMemb& F ) const { return false; }
     virtual bool Listord( PExMemb& F ) const { return false; }
-    virtual bool Oper_( char& N, MathExpr& op1, MathExpr& op2 ) const { return false; }
-    virtual bool Binar( char N, MathExpr& op1, MathExpr& op2 ) const { return false; }
+    virtual bool Oper_( uchar& N, MathExpr& op1, MathExpr& op2 ) const { return false; }
+    virtual bool Binar( uchar N, MathExpr& op1, MathExpr& op2 ) const { return false; }
     virtual bool Binar_( uchar &N, MathExpr& op1, MathExpr& op2 ) const { return false; }
     virtual bool Indx_( MathExpr& op1, MathExpr& op2 ) const { return false; }
     virtual bool Summa( MathExpr& op1, MathExpr& op2 ) const { return false; }
@@ -310,8 +310,8 @@ class MathExpr
     bool Cons_int( int& I ) const { TestPtr(); return m_pExpr->Cons_int( I ); }
     bool Listex( PExMemb& F ) const { TestPtr(); return m_pExpr->Listex( F ); }
     bool Listord( PExMemb& F ) const { TestPtr(); return m_pExpr->Listord( F ); }
-    bool Oper_( char& N, MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Oper_( N, op1, op2 ); }
-    bool Binar( char N, MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Binar( N, op1, op2 ); }
+    bool Oper_( uchar& N, MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Oper_( N, op1, op2 ); }
+    bool Binar( uchar N, MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Binar( N, op1, op2 ); }
     bool Binar_( uchar& N, MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Binar_( N, op1, op2 ); }
     bool Indx_( MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Indx_( op1, op2 ); }
     bool Summa( MathExpr& op1, MathExpr& op2 ) const { TestPtr(); return m_pExpr->Summa( op1, op2 ); }
@@ -773,7 +773,7 @@ class TOper : public TExpr
   friend class TChart;
   protected:
     static bool sm_InsideChart;
-    char m_Name;
+    uchar m_Name;
     MathExpr m_Operand1;
     MathExpr m_Operand2;
   public:
@@ -783,7 +783,7 @@ class TOper : public TExpr
     MATHEMATICS_EXPORT virtual QByteArray WriteE() const;
     virtual QByteArray SWrite() const;
 
-    bool Oper_( char& N, MathExpr& op1, MathExpr& op2 ) const;
+    bool Oper_( uchar& N, MathExpr& op1, MathExpr& op2 ) const;
     virtual bool Replace( const MathExpr& Target, const MathExpr& Source );
     virtual bool Splitted() const;
     virtual bool Negative() const;

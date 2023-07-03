@@ -47,6 +47,7 @@ class TSubt : public TOper
 
 class TMult : public TOper
   {
+  QVector<MathExpr> GetOperands() const;
   public:
     MATHEMATICS_EXPORT static bool sm_ShowUnarMinus;
     MATHEMATICS_EXPORT static bool sm_ShowMultSign;

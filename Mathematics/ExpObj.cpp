@@ -1028,6 +1028,7 @@ MathExpr TConstant::Reduce() const
   double RNom = abs(m_Value);
   bool bSign = m_Value < 0;
   for( ; acc < 1.0 && Frac( RNom ) >= acc; Denom *= 10, RNom *= 10.0, acc *= 10.0 );
+  if(RNom > INT_MAX || Denom > INT_MAX) return Ethis;
   int Nom = Round( RNom );
   CancFrac( Nom, Denom );
   MathExpr Result = new TSimpleFrac( Nom, Denom );
@@ -1967,7 +1968,7 @@ MathExpr TFunc::Reduce() const
     if( Name[0] == '\\' ) Name += '\n';
     if( m_Name == '-' && !sm_InsideChart ) Name = "\\longminus\n";
     if( m_Name == '+' ) Name = "\\longplus\n";
-    char Op;
+    uchar Op;
     double Val;
     QByteArray Left = m_Operand1.SWrite();
     if (m_Name == ':' && m_Operand1.MustBracketed() == brOperation ) Left = '(' + Left + ')';
@@ -2222,7 +2223,7 @@ MathExpr TRoot::Reduce() const
   int N, D, M, iPrev, iOutRoot, iInRoot, iMult;
   MathExpr RootList;
   bool OldRootToPower, OldCalcOnly, IsNegative;
-  char cOper;
+  uchar cOper;
   static MathExpr PreviousExp;
 
   std::function<void( const MathExpr& ex )>  Multiplicators = [&] ( const MathExpr& ex )
@@ -3118,9 +3119,10 @@ MathExpr TPowr::Reduce() const
       return -P;
     return P;
     }
-
+  bool CToFOld = TConstant::sm_ConstToFraction;
+  TConstant::sm_ConstToFraction = false;
   opr1 = m_Operand1.Reduce();
-
+  TConstant::sm_ConstToFraction = CToFOld;
   if( opr1 == 1 )
     return opr1;
 
@@ -3702,7 +3704,7 @@ bool TOper::Replace( const MathExpr& Target, const MathExpr& Source )
   return Result;
   }
 
-bool TOper::Oper_( char& N, MathExpr& op1, MathExpr& op2 ) const
+bool TOper::Oper_( uchar& N, MathExpr& op1, MathExpr& op2 ) const
   {
   N = m_Name;
   op1 = m_Operand1;
@@ -3827,7 +3829,7 @@ MathExpr TSimpleFrac::Reduce() const
     N = -N;
     D = -D;
     }
-  if(sm_CalcOnly && abs(N) > abs(D))
+  if(!sm_CalcOnly && abs(N) > abs(D))
     return new TMixedFrac(0, N, D);
   return GenerateFraction( N, D );  
   }
@@ -6890,7 +6892,7 @@ TChart::TChart( const MathExpr& ex ) : m_Exp( ex ), m_N( 0 ), m_Scale( 1.0 ), m_
           WasError = !( IsConstType( TVariable, F2->m_Memb ) ) && !( IsConstType( TStr, F2->m_Memb ) );
         else
           {
-          char cOper;
+          uchar cOper;
           if( m_Type == "ThickCol" && i == 1 )
             WasError = !F2->m_Memb->Oper_( cOper, exLeft, exRight ) || cOper != '-' || !( IsConstType( TConstant, exLeft ) ) ||
             !( IsConstType( TConstant, exRight ) );

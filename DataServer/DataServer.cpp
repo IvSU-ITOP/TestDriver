@@ -229,9 +229,10 @@ void Thread::SearchSolve(QByteArray& Formula)
     {
     if( Sign != '=' )
       {
-      Solve( new RatInEq );
       Solve( new SysInEq );
-      Prompt = X_Str( "MCanAlsoCalculate", "You can also calculate:" );
+      if( m_SolvIndexes.count() == 1) return Final();
+      Solve( new RatInEq );
+//      Prompt = X_Str( "MCanAlsoCalculate", "You can also calculate:" );
       return Final();
       }
     Solve( new TSolvDetLinEqu );
@@ -248,8 +249,9 @@ void Thread::SearchSolve(QByteArray& Formula)
     Solve( new Log1Eq );
     Solve( new ExpEq );
     Solve( new TSolvCalcDetBiQuEqu );
-    Solve( new TSolvFractRatEq );
     Solve( new TSolvCalcIrratEq );
+    if( m_SolvIndexes.count() > 0 ) return Final();
+    Solve( new TSolvFractRatEq );
     if( Formula.indexOf( "sin" ) != -1 )
       Solve( new TSolvCalcSimpleTrigoEq );
     if( Formula.indexOf( "tan" ) != -1 )
@@ -260,7 +262,6 @@ void Thread::SearchSolve(QByteArray& Formula)
       Solve( new TSolvCalcSimpleTrigoEq );
     Solve( new TSolvCalcSinCosEqu );
     Solve( new TSolvCalcTrigoEqu );
-    Solve( new TSolvFractRatEq );
     Solve( new TSolvCalcHomogenTrigoEqu );
     return Final();
     }
@@ -329,6 +330,7 @@ void Thread::ReadyRead()
       QByteArray TaskName;
       QByteArray Ref = Parms[0];
       for(; Parms.count() < 9; Parms.append(""));
+//      Parms[prmTaskType] = "wrkExam";
       Parms[prmTaskType] = "wrkTrain";
       Parms[prmDatabase] = "testingdriver";
       if(Parms.count() == 1)
@@ -1128,8 +1130,22 @@ void Thread::ReadyRead()
             s_CalcOnly = true;
             TExpr::sm_Accuracy = OldPrecision;
             Result = Result.replace("\\neq", "\\seq").replace("\\newline", "\\sewline");
-            m_pSocket->write(Result.replace( '\\', "\\\\\\\\" ).replace( '\n', "\\\\n" ).replace( '\'', "\\'" ) + "\n\n" );
-            m_pSocket->flush();
+            Result = Result.replace( '\\', "\\\\\\\\" ).replace( '\n', "\\\\n" ).replace( '\'', "\\'" );
+            int ResultCount = Result.count();
+            int iStart = 0;
+            while(true)
+              {
+              if(ResultCount - iStart < 2000)
+                {
+                m_pSocket->write( Result.mid(iStart) + "&&&&\n\n" );
+                m_pSocket->flush();
+                break;
+                }
+              m_pSocket->write( Result.mid(iStart, 2000) + "\n\n" );
+              m_pSocket->flush();
+//              m_pSocket->readAll();
+              iStart += 2000;
+              }
             };
           try {
               ExpStore::sm_pExpStore->Init_var();
@@ -1157,7 +1173,8 @@ void Thread::ReadyRead()
           QString Comment;
           if( EResult.IsEmpty() )
             {
-            Result = s_LastError.toUtf8();
+            Result = X_Str("MNoSolutions", "No solutions exist!").toUtf8();
+//            Result = s_LastError.toUtf8();
             return Final();
             }
           bool V;

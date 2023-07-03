@@ -1651,7 +1651,7 @@ MathExpr RemDenominator( MathExpr ex, Lexp& Cond )
   std::function<bool( MathExpr, Lexp& )> SearchFractions = [&] ( MathExpr exp, Lexp& List )
     {
     MathExpr exL, exR;
-    char cSign;
+    uchar cSign;
     if( !exp.Oper_( cSign, exL, exR ) )
       {
       List.Addexp( exp );
@@ -1699,7 +1699,7 @@ MathExpr RemDenominator( MathExpr ex, Lexp& Cond )
   std::function<MathExpr( MathExpr&, PExMemb& )> GetNumerators = [&] ( MathExpr& ex, PExMemb& exMemb )
     {
     MathExpr exL, exR;
-    char cSign;
+    uchar cSign;
     int N, D;
     if( !ex.Oper_( cSign, exL, exR ) )
       {
@@ -1750,7 +1750,7 @@ MathExpr TExpr::ReToMult()
     MathExpr ex1, ex2, op1, op2;
     int N, D;
     double v;
-    char c;
+    uchar c;
     QByteArray name;
     if( ex.SimpleFrac_( N, D ) || ex.Constan( v ) || ex.Variab( name ) )
       return ( ex * LCM ).Reduce();
@@ -1784,7 +1784,7 @@ MathExpr TExpr::ReToMult()
       MathExpr op1, op2;
       int N, D;
       double v;
-      char c;
+      uchar c;
       if( ex.SimpleFrac_( N, D ) || ( ex.Constan( v ) && !ex.Cons_int( N ) ) )
         Frac.append( ex );
       else
@@ -1832,7 +1832,7 @@ MathExpr TExpr::ReToMult()
     {
     MathExpr exLeft, exRight, exArg;
     QByteArray sName;
-    char cOper;
+    uchar cOper;
     MathExpr Result;
     if( exp.Funct( sName, exArg ) && sName == "exp" )
       return MathExpr( exp );
@@ -1993,7 +1993,7 @@ MathExpr Transfer( MathExpr exp )
 
   std::function<void( char, MathExpr& )> Form = [&] ( char cPrevSign, MathExpr& exTerm )
     {
-    char cSign;
+    uchar cSign;
     MathExpr exL, exR, ex, exNew;
     int iVal;
     if( exTerm.Oper_( cSign, exL, exR ) )
@@ -2059,7 +2059,7 @@ MathExpr Transfer( MathExpr exp )
   std::function<bool( MathExpr&, int& )> ReduceMultipliers = [&] ( MathExpr& exp, int& PlusMinusCount )
     {
     MathExpr exL, exR, ex;
-    char cSign;
+    uchar cSign;
     if( !exp.Oper_( cSign, exL, exR ) ) return false;
     if( cSign == '+' || cSign == '-' )
       {
@@ -2188,7 +2188,7 @@ bool IsExpEqu(PNode Expr )
 
 MathExpr DelSplitted( const MathExpr& ex )
   {
-  char c;
+  uchar c;
   MathExpr op1, op2, ex1, ex2;
   if( ex.Oper_( c, op1, op2 ) )
     {
@@ -2683,7 +2683,7 @@ Lexp CalcDetQuEqu( const QByteArray& Source, QByteArray VarName )
     while(true)
       {
       MathExpr Left, Right;
-      char Name;
+      uchar Name;
       if( !ex.Oper_(Name, Left, Right) )
         {
         Equation.append(ex);
@@ -2729,7 +2729,7 @@ Lexp CalcDetQuEqu( const QByteArray& Source, QByteArray VarName )
       for(int i = 1; i < VCommDiv.count(); i++ )
         CommDiv *= VCommDiv[i];
       MathExpr Left, Right;
-      char Sign;
+      uchar Sign;
       Ex.Oper_(Sign, Left, Right);
       Left = (Left * CommDiv).SimplifyFull();
       Right = (Right * CommDiv).SimplifyFull();
@@ -2746,7 +2746,7 @@ Lexp CalcDetQuEqu( const QByteArray& Source, QByteArray VarName )
     if( !Ex.Binar( '=', op1, op2 ) || !op1.IsLinear() && !op1.ConstExpr() || !op2.IsLinear() && !op2.ConstExpr() )
       throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
     TSolutionChain::sm_SolutionChain.AddExpr( Ex );
-    TSolutionChain::sm_SolutionChain.AddExpr( ex );
+//    TSolutionChain::sm_SolutionChain.AddExpr( ex );
     if( GetFactorCount( ex, VarName ) > 1 )
       {
       s_FinalComment = true;
@@ -2920,8 +2920,8 @@ Lexp CalcDetQuEqu( const QByteArray& Source, QByteArray VarName )
               if( D.Constan( r ) && abs( r ) < 0.0000001 )
                 {
                 ex1 = ( -a[1] / ( Constant( 2 ) * a[2] ) ).Reduce().Reduce();
-                ex = new TBinar( '=', Variable( VarName + QByteArray::number( s_RootCount + 1 ), true ),
-                  new TBinar( '=', Variable( VarName + QByteArray::number( s_RootCount + 2 ), true ), ex1 ) );
+                ex = new TBinar( '=', Variable( VarName + '_' + QByteArray::number( s_RootCount + 1 ), true ),
+                  new TBinar( '=', Variable( VarName + + '_' + QByteArray::number( s_RootCount + 2 ), true ), ex1 ) );
                 s_RootCount += 2;
                 TSolutionChain::sm_SolutionChain.AddExpr( ex );
                 Result.Addexp( ex1.Reduce() );
@@ -3631,19 +3631,19 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
     };
 
   bool OldNoRootReduce = s_NoRootReduce;
-  s_NoRootReduce = true;
+  s_NoRootReduce = false;
   if( CalcBiQ )
     {
     bool CalcOnlyOld = s_CalcOnly;
     s_CalcOnly = true;
     TSolutionChain::sm_SolutionChain.m_Accumulate = false;
     Lexp R = CalcDetQuEqu( Source, VarName );
-    TSolutionChain::sm_SolutionChain.m_Accumulate = !CalcOnlyOld;
     if( !R.IsEmpty() )
       {
       s_CalcOnly = CalcOnlyOld;
       bool InterRes = TSolutionChain::sm_InterimResult;
       TSolutionChain::sm_InterimResult = true;
+      TSolutionChain::sm_SolutionChain.m_Accumulate = !CalcOnlyOld;
       Result = CalcDetQuEqu( Source, VarName );
       TSolutionChain::sm_InterimResult = InterRes;
       for( PExMemb memMemb = Result.First(); !memMemb.isNull(); memMemb = memMemb->m_pNext )
@@ -3655,6 +3655,7 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
       return Result;
       }
     R = CalcIrratEq( Source );
+    TSolutionChain::sm_SolutionChain.m_Accumulate = !CalcOnlyOld;
     s_CalcOnly = CalcOnlyOld;
     if( !R.IsEmpty() )
       {
@@ -3916,16 +3917,21 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
         TSolutionChain::sm_SolutionChain.AddExpr( ex );
       TExprs AddMult;
       AddMult.append( Constant( 1 ) );
-      CommDen = ToFactors( DivEx[1].m_DenEx );
+//      CommDen = ToFactors( DivEx[1].m_DenEx );
+      CommDen = DivEx[1].m_DenEx;
       MathExpr Mult;
       for( int i = 2; i < DivEx.count(); i++ )
         {
-        Mult = ToFactors( DivEx[i].m_DenEx );
+        Mult = DivEx[i].m_DenEx;
+//        Mult = ToFactors( DivEx[i].m_DenEx );
         MathExpr CommExp = GetCommon( CommDen, Mult );
         for( int j = 0; j < i-1; j++ )
-          AddMult[j] = ( AddMult[j] * Mult ).Reduce();
-        AddMult.append( CommDen.Reduce() );
-        CommDen = MultExprs( CommExp, MultExprs( CommDen, Mult ) ).Reduce();
+          AddMult[j] = ( AddMult[j] * Mult );
+//        AddMult[j] = ( AddMult[j] * Mult ).Reduce();
+        AddMult.append( CommDen );
+//        AddMult.append( CommDen.Reduce() );
+        CommDen = MultExprs( CommExp, MultExprs( CommDen, Mult ) );
+//        CommDen = MultExprs( CommExp, MultExprs( CommDen, Mult ) ).Reduce();
         }
       Mult = ExpandExpr( DivEx[1].m_NomEx * AddMult[0] );
       Nom = Mult;
@@ -4107,14 +4113,14 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
           MathExpr D1 = ( p[1] ^ 2 ) - Constant( 4 ) * p[2] * p[0];
           MathExpr D2 = D1.Reduce();
           if( D2.Eq( D1 ) )
-            ex = new TBinar( '=', Variable( "d" ), D1 );
+            ex = new TBinar( '=', Variable( "D" ), D1 );
           else
             {
             MathExpr D3 = D2.Reduce();
             if( D2.Eq( D3 ) )
-              ex = new TBinar( '=', Variable( "d" ), new TBinar( '=', D1, D2 ) );
+              ex = new TBinar( '=', Variable( "D" ), new TBinar( '=', D1, D2 ) );
             else
-              ex = new TBinar( '=', Variable( "d" ), new TBinar( '=', D1, new TBinar( '=', D2, D3 ) ) );
+              ex = new TBinar( '=', Variable( "D" ), new TBinar( '=', D1, new TBinar( '=', D2, D3 ) ) );
             D2 = D3;
             }
           TSolutionChain::sm_SolutionChain.AddExpr( ex );
@@ -4408,8 +4414,11 @@ void TSolvExpand::Solve()
         if(iEqu != -1)
           E = Parser::StrToExpr( Formula.mid(iEqu + 1) );
         MathExpr exTmp = E.Reduce();
-        if( !exTmp.Eq( E ) )
-          m_Expr = new TBinar( '=', m_Expr, exTmp );
+        if(m_OldExpr.Eq(E))
+          m_Expr = m_OldExpr;
+        else
+          if( !exTmp.Eq( E ) )
+            m_Expr = new TBinar( '=', m_Expr, exTmp );
         }
       }
     }
@@ -4608,6 +4617,7 @@ void SysInEqXY::Solve()
   bool OldConstToFraction = TConstant::sm_ConstToFraction;
   TConstant::sm_ConstToFraction = true;
   m_Expr = new TBool( CalcSysInEqXY( m_Expr.WriteE() ) );
+  TConstant::sm_ConstToFraction = OldConstToFraction;
   }
 
 void RatInEq::Solve()
@@ -5694,7 +5704,7 @@ bool CalcSubstitution( const QByteArray& Equation, MathExpr BaseSubst )
           Cond.Addexp( exR );
         return;
         }
-      char cSign;
+      uchar cSign;
       if( !exp.Oper_( cSign, exL, exR ) ) return;
       SearchFractions( exL );
       SearchFractions( exR );
@@ -6349,7 +6359,7 @@ bool CalcExchange( const QByteArray& Equation )
   std::function<MathExpr( MathExpr&, MathExpr& )> VarChange = [&] ( MathExpr& exSource, MathExpr& exTarget )
     {
     MathExpr exOp1, exOp2, exOp, exPower;
-    char cOper;
+    uchar cOper;
     MathExpr Result;
     if( exTarget.Oper_( cOper, exOp1, exOp2 ) )
       {

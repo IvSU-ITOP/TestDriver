@@ -9,15 +9,21 @@
 TSolutionChain TSolutionChain::sm_SolutionChain;
 bool TSolutionChain::sm_InterimResult = false;
 
-TSolutionChain::TSolutionChain() : m_Accumulate(false), m_Expanded(false), m_AddBinar(false)
+TSolutionChain::TSolutionChain() : m_Accumulate(true), m_Expanded(false), m_AddBinar(false)
   {
   }
 
 int TSolutionChain::AddExpr( const MathExpr& ex, const QString& msg, bool Main )
   {
   if( !m_Accumulate ) return 0;
-  for( auto pPair = m_Chains.begin(); pPair != m_Chains.end(); pPair++)
-    if( pPair->m_Exprs.Eq(ex) ) return m_Chains.count();
+  int i=0;
+  for( auto pPair = m_Chains.begin(); pPair != m_Chains.end(); pPair++, i++)
+    if( pPair->m_Exprs.Eq(ex) )
+      {
+      if(msg != "")
+        m_Comments[i] = msg;
+      return m_Chains.count();
+      }
   m_Chains.append( Pair( ex, Main && !sm_InterimResult ) );
   m_Comments.append( msg );
   return m_Chains.count();
@@ -99,8 +105,8 @@ MathExpr TSolutionChain::GetChain()
       LResult.Addexp( *pExpr );
       LResult.Last()->m_Visi = false;
       }
-    LResult.Addexp( new TStr(EdStr::sm_pCodec->fromUnicode( X_Str( "MAcceptablisSetExpr", "Solution set" ) ) ) );
-    LResult.Last()->m_Visi = false;
+//    LResult.Addexp( new TStr(EdStr::sm_pCodec->fromUnicode( X_Str( "MAcceptablisSetExpr", "Solution set" ) ) ) );
+//    LResult.Last()->m_Visi = false;
     return MathExpr(LResult);
     };
 
@@ -183,7 +189,7 @@ void TSolutionChain::Clear()
   {
   if( !m_Chains.isEmpty() && !Solver::m_OldExpr.IsEmpty() && Solver::m_OldExpr.Eq(m_Chains[0].m_Exprs ) ) return;
   DockTail( 0 );
-  m_Accumulate = true;
+//  m_Accumulate = true;
   m_Expanded = false;
   }
 

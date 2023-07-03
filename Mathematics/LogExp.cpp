@@ -11,12 +11,13 @@ extern bool s_ShowDiviMessages;
 
 bool s_ExpControl = false;
 bool s_FirstCalculation;
+bool s_NoSolInEq = false;
 
 bool CheckUnknownInExp( const MathExpr& ex, const QByteArray& VarName )
   {
   MathExpr exLeft, exRight;
   QByteArray Name;
-  char cOper;
+  uchar cOper;
   if( ex.Unarminus( exLeft ) )
     return CheckUnknownInExp( exLeft, VarName );
   if( ex.Oper_( cOper, exLeft, exRight ) )
@@ -56,7 +57,7 @@ MathExpr ExprToRatFrac( const MathExpr& ex, MathExpr& Nom, MathExpr& Den, const 
     std::function<void( const MathExpr& )> FactorAnalyse = [&]( const MathExpr& exp )
       {
       MathExpr exLeft, exRight, exArg;
-      char cOper;
+      uchar cOper;
       if( exp.Unarminus( exArg ) )
         {
         FactorAnalyse( exArg );
@@ -116,6 +117,7 @@ MathExpr ExprToRatFrac( const MathExpr& ex, MathExpr& Nom, MathExpr& Den, const 
     {
     MathExpArray p;
     DivEx.append( TDivExpr( P.OutPut( Divis[0].m_Nom ).ReductionPoly( p, VarName ).Reduce() ) );
+    DivEx[0].m_DenEx = Constant(1);
     }
   else
     DivEx.append(Constant( 0 ));
@@ -137,7 +139,7 @@ MathExpr ExprToRatFrac( const MathExpr& ex, MathExpr& Nom, MathExpr& Den, const 
     AddMult.append( Constant( 1 ) );
     MathExpr Mult;
     CommDen = ToFactors( DivEx[0].m_DenEx );
-    for( i = 2; i < Divis.count(); i++ )
+    for( i = 1; i < Divis.count(); i++ )
       {
       Mult = ToFactors( DivEx[i].m_DenEx );
       MathExpr CommExp = GetCommon( CommDen, Mult );
@@ -150,8 +152,8 @@ MathExpr ExprToRatFrac( const MathExpr& ex, MathExpr& Nom, MathExpr& Den, const 
     Nom = Mult;
     for( i = 1; i < Divis.count(); i++ )
       Nom += ExpandExpr( DivEx[i].m_NomEx * AddMult[i] );
-    if( !( DivEx[0].m_NomEx.Reduce().Constan( d ) && abs( d ) < 0.0000001 ) )
-      Nom += ExpandExpr( DivEx[0].m_NomEx * CommDen );
+//    if( !( DivEx[0].m_NomEx.Reduce().Constan( d ) && abs( d ) < 0.0000001 ) )
+//      Nom += ExpandExpr( DivEx[0].m_NomEx * CommDen );
     }
   else 
     {
@@ -190,7 +192,12 @@ Lexp Roots( MathExpr ex, const QByteArray& VarName )
       if( a[1].Constan( v ) && abs( v ) < 0.0000001 )
         return;
       else
+        {
+        bool OldFullReduce = TExpr::sm_FullReduce;
+        TExpr::sm_FullReduce = true;
         Result.Addexp( ( -a[0] / a[1] ).Reduce() );
+        TExpr::sm_FullReduce = OldFullReduce;
+        }
     else 
       {
       MathExpr D = ( ( a[1] ^ 2 ) - Constant( 4 ) * a[2] * a[0] ).Reduce();
@@ -286,6 +293,25 @@ MathExpr SysRatInEq( MathExpr ex, int& Count, Lexp& PointVal, Lexp& PointSign, L
     Point() {}
     };
 
+  std::function<void(MathExpr&)> TestPower = [&TestPower](MathExpr& ex)
+    {
+    uchar Name;
+    MathExpr Op1, Op2;
+    if(ex.Oper_(Name, Op1, Op2))
+      {
+      if(Name == '^')
+        {
+        double Val;
+        if(!Op2.Constan(Val) || Val > 2)
+           throw  ErrParser( X_Str( "MnotSuitableInEq", "Improper inequality!" ), peNewErr );
+        return;
+        }
+      TestPower(Op1);
+      TestPower(Op2);
+      }
+    };
+
+  TestPower(ex);
   QVector<Point> Points;
   Points.resize( 100 );
   bool Interval[100];
@@ -329,7 +355,9 @@ MathExpr SysRatInEq( MathExpr ex, int& Count, Lexp& PointVal, Lexp& PointSign, L
         }
       if( !sResult.isEmpty() )
         return Parser::StrToExpr( VarName + QByteArray( 1, msAddition ) + sResult );
-    return MathExpr(new TCommStr( X_Str( "MNoSolution", "No Solutions!" ) ) );
+      s_NoSolInEq = true;
+      TSolutionChain::sm_SolutionChain.AddExpr(new TStr(""), X_Str( "MNoSolution", "No Solutions!" ));
+    return MathExpr(new TStr("") );
     };
 
   auto AddPoints = [&]( Lexp& Roots, bool ASign )
@@ -347,9 +375,17 @@ MathExpr SysRatInEq( MathExpr ex, int& Count, Lexp& PointVal, Lexp& PointSign, L
       if( !ex.Constan( v ) )
         {
         int Nom, Den;
-        if( !ex.SimpleFrac_( Nom, Den ) )
-          throw  ErrParser( X_Str( "MnotSuitableInEq", "Improper inequality!" ), peNewErr );
-        v = (double) Nom / Den;
+        if( ex.SimpleFrac_( Nom, Den ) )
+          v = (double) Nom / Den;
+        else
+          {
+          bool OldFullReduce = TExpr::sm_FullReduce;
+          TExpr::sm_FullReduce = true;
+          ex = ex.Reduce(true);
+          TExpr::sm_FullReduce = OldFullReduce;
+          if( !ex.Constan( v ) )
+             throw  ErrParser( X_Str( "MnotSuitableInEq", "Improper inequality!" ), peNewErr );
+          }
         }
       int i = 1;
       for( ; i <= Count && v > Points[i].m_X; i++ );
@@ -446,9 +482,19 @@ MathExpr SysRatInEq( MathExpr ex, int& Count, Lexp& PointVal, Lexp& PointSign, L
    }
 
   Count = 0;
+  bool AllNumbers = false;
   for( int i = 1; i <= n; i++ )
     {
     Lexp LN(Roots( Nom[i], VarName) );
+    if( LN.Count() == 0 && Den[i].IsEmpty())
+      {
+      bool OldFullReduce = TExpr::sm_FullReduce;
+      TExpr::sm_FullReduce = true;
+      ex.Substitute( VarName, new TConstant(0) ).Reduce().Boolean_( AllNumbers );
+      if(AllNumbers) break;
+      TExpr::sm_FullReduce = OldFullReduce;
+      throw  ErrParser( X_Str( "MnotSuitableInEq", "Improper inequality!" ), peNewErr );
+      }
     AddPoints( LN, Signs[i] );
     if( !Den[i].IsEmpty() )
       {
@@ -456,193 +502,214 @@ MathExpr SysRatInEq( MathExpr ex, int& Count, Lexp& PointVal, Lexp& PointSign, L
       AddPoints( LD, false );
       }
     }
-  double a = Points[1].m_X - 1;
-  double Len = Points[Count].m_X + 1 - a;
-  IsSolv = true;
-  int j = 0;
-  for( f = syst1.First(); !f.isNull(); f = f->m_pNext )
+  if(AllNumbers)
     {
-    j++;
-    if( n > 1 )
+    IsSolv = true;
+    IntervalVal = new TLexp;
+    IntervalVal.Addexp( new TBool( true ) );
+    Interval[1] = Interval[0] = true;
+    Points[0].m_Sign = Signs[1];
+    Points[1].m_Sign = true;
+    TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MAllNumbersExpr", "Solution set: all real numbers" ) );
+    Solv.Addexp( new TCommStr( X_Str( "MAllNumbersExpr", "Solution set: all real numbers" ) ) );
+    Lexp L1 = new TLexp, L2 = new TLexp, L3 = new TLexp;
+    L3.Addexp( new TBool( true ) );
+//    TSolutionChain::sm_SolutionChain.AddExpr( new TInterval( -1, 1, L1, L2, L3 ) );
+    Solv.Addexp( new TInterval( -1, 1, L1, L2, L3 ) );
+    Solv.Last()->m_Visi = false;
+    }
+  else
+    {
+    double a = Points[1].m_X - 1;
+    double Len = Points[Count].m_X + 1 - a;
+    IsSolv = true;
+    int j = 0;
+    for( f = syst1.First(); !f.isNull(); f = f->m_pNext )
       {
-      TSolutionChain::sm_SolutionChain.AddExpr(f->m_Memb);
-      Solv.Addexp( f->m_Memb );
+      j++;
+      if( n > 1 )
+        {
+        TSolutionChain::sm_SolutionChain.AddExpr(f->m_Memb);
+        Solv.Addexp( f->m_Memb );
+        Solv.Last()->m_Visi = false;
+        }
+      Solv.Addexp( new TCommStr( X_Str( "MCriticalPointExpr", "Critical point" ) ) );
       Solv.Last()->m_Visi = false;
-      }
-    Solv.Addexp( new TCommStr( X_Str( "MCriticalPointExpr", "Critical point" ) ) );
-    Solv.Last()->m_Visi = false;
-    MathExpr CP = new TBinar( '=', Nom[j].Reduce(), Constant( 0 ) );
-    Solv.Addexp( CP );
-    TSolutionChain::sm_SolutionChain.AddExpr( CP, X_Str( "MCriticalPointExpr", "Critical point" ) );
-    Solv.Addexp( new TStr( " " ) );
-    Solv.Last()->m_Visi = false;
-    Lexp NomRoots = Roots( Nom[j], VarName );
-    int i = 0;
-    syst0 = new TLexp;   
-    for( PExMemb f1 = NomRoots.First(); !f1.isNull(); f1 = f1->m_pNext )
-      {
-      i++;
-      CastPtr(TLexp, syst0 )->Addexp( new TBinar( '=', Variable( VarName + "_" + NumberToStr( i ) ), f1->m_Memb ) );    
-      }
-    if( i > 0 )
-      {
-      TSolutionChain::sm_SolutionChain.AddExpr( syst0);
-      Solv.Addexp( syst0 );
-      }
-    else
-      {
-      TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MNotFoundRootsExpr", "No roots found" ) );
-      Solv.Addexp( new TCommStr( X_Str( "MNotFoundRootsExpr", "No roots found" ) ) );
-      }
-    Solv.Last()->m_Visi = false;
-    int i1 = i;
-    Lexp DenRoots;
-    if( !Den[j].IsEmpty() )
-      {
-      Solv.Addexp( new TBinar( '=', Den[j], Constant( 0 ) ) );
-      TSolutionChain::sm_SolutionChain.AddExpr( new TBinar( '=', Den[j], Constant( 0 )));
+      MathExpr CP = new TBinar( '=', Nom[j].Reduce(), Constant( 0 ) );
+      Solv.Addexp( CP );
+      TSolutionChain::sm_SolutionChain.AddExpr( CP, X_Str( "MCriticalPointExpr", "Critical point" ) );
       Solv.Addexp( new TStr( " " ) );
       Solv.Last()->m_Visi = false;
-      DenRoots = Roots( Den[j], VarName );
+      Lexp NomRoots = Roots( Nom[j], VarName );
+      int i = 0;
       syst0 = new TLexp;
-      for( PExMemb f1 = DenRoots.First(); !f1.isNull(); f1 = f1->m_pNext )
+      for( PExMemb f1 = NomRoots.First(); !f1.isNull(); f1 = f1->m_pNext )
         {
         i++;
-        CastPtr( TLexp, syst0 )->Addexp( new TBinar( '=', Variable( VarName + "_" + NumberToStr( i ) ), f1->m_Memb ) );
+        CastPtr(TLexp, syst0 )->Addexp( new TBinar( '=', Variable( VarName + "_" + NumberToStr( i ) ), f1->m_Memb ) );
         }
-      if( i > i1 )
+      if( i > 0 )
         {
+        TSolutionChain::sm_SolutionChain.AddExpr( syst0);
         Solv.Addexp( syst0 );
-        TSolutionChain::sm_SolutionChain.AddExpr( syst0 );
         }
       else
         {
-        Solv.Addexp( new TCommStr( X_Str( "MNotFoundRootsExpr", "No roots found" ) ) );
         TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MNotFoundRootsExpr", "No roots found" ) );
+        Solv.Addexp( new TCommStr( X_Str( "MNotFoundRootsExpr", "No roots found" ) ) );
         }
       Solv.Last()->m_Visi = false;
-      }
-    Count = 0;
-    AddPoints( NomRoots, Signs[j] );
-    if( Den[j] != nullptr )
-      AddPoints( DenRoots, false );
-    if( n > 1 )
-      {
-      Lexp L1 = new TLexp, L2 = new TLexp;
-      for( i = 1; i <= Count; i++ )
+      int i1 = i;
+      Lexp DenRoots;
+      if( !Den[j].IsEmpty() )
         {
-        L1.Addexp( Points[i].m_ExX );
-        L2.Addexp( new TBool( Points[i].m_Sign ) );
-        }
-      Points[0].m_X = Points[1].m_X - 1;
-      Points[0].m_ExX = ( Points[1].m_ExX - 1 ).Reduce();
-      Points[Count + 1].m_X = Points[Count].m_X + 1;
-      Points[Count + 1].m_ExX = ( Points[Count].m_ExX + 1 ).Reduce();
-      Lexp L3 = new TLexp;
-      bool Value;
-      for( i = 0; i <= Count; i++ )
-        {
-        MathExpr ValueX = Constant( ( Points[i].m_X + Points[i + 1].m_X ) / 2 );
-        try
+        Solv.Addexp( new TBinar( '=', Den[j], Constant( 0 ) ) );
+        TSolutionChain::sm_SolutionChain.AddExpr( new TBinar( '=', Den[j], Constant( 0 )));
+        Solv.Addexp( new TStr( " " ) );
+        Solv.Last()->m_Visi = false;
+        DenRoots = Roots( Den[j], VarName );
+        syst0 = new TLexp;
+        for( PExMemb f1 = DenRoots.First(); !f1.isNull(); f1 = f1->m_pNext )
           {
-          f->m_Memb.Substitute( VarName, ValueX ).Reduce().Boolean_( Value );
+          i++;
+          CastPtr( TLexp, syst0 )->Addexp( new TBinar( '=', Variable( VarName + "_" + NumberToStr( i ) ), f1->m_Memb ) );
           }
-        catch( ErrParser )
+        if( i > i1 )
           {
-           Value = false;
-          }
-        L3.Addexp( new TBool( Value ) );
-        }
-      if( Count > 0 )
-        {
-        TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MAcceptablisSetExpr", "Solution set" ) );
-        Solv.Addexp( new TCommStr( X_Str( "MAcceptablisSetExpr", "Solution set" ) ) );
-        }
-      else
-        if( Value )
-          {
-          TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MAllNumbersExpr", "Solution set: all real numbers" ) );
-          Solv.Addexp( new TCommStr( X_Str( "MAllNumbersExpr", "Solution set: all real numbers" ) ) );
+          Solv.Addexp( syst0 );
+          TSolutionChain::sm_SolutionChain.AddExpr( syst0 );
           }
         else
           {
-          TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MEmptySetExpr", "Solution set: the empty set" ) );
-          Solv.Addexp( new TCommStr( X_Str( "MEmptySetExpr", "Solution set: the empty set" ) ) );
-          IsSolv = false;
+          Solv.Addexp( new TCommStr( X_Str( "MNotFoundRootsExpr", "No roots found" ) ) );
+          TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MNotFoundRootsExpr", "No roots found" ) );
           }
-      TSolutionChain::sm_SolutionChain.AddExpr( new TInterval( a, Len, L1, L2, L3 ) );
-      Solv.Addexp( new TInterval( a, Len, L1, L2, L3 ) );
-      Solv.Last()->m_Visi = false;
-      }
-    }
-
-  Count = 0;
-  for( int i = 1; i <= n; i++ )
-    {
-    Lexp LN(Roots( Nom[i], VarName) );
-    AddPoints( LN, Signs[i] );
-    if( !Den[i].IsEmpty() )
-      {
-      Lexp LD(Roots( Den[i], VarName) );
-      AddPoints( LD, false );
-      }
-    }
-  Points[0].m_X = Points[1].m_X - 1;
-  Points[0].m_Sign = false;
-  Points[Count + 1].m_X = Points[Count].m_X + 1;
-  Points[Count + 1].m_Sign = true;
-  IntervalVal = new TLexp;
-  syst.Syst_( syst );
-  bool FinishValue;
-  for( int i = 0; i <= Count; i++ )
-    {
-    FinishValue = true;
-    MathExpr ValueX = Constant( ( Points[i].m_X + Points[i + 1].m_X ) / 2 );   
-    for( f = CastPtr( TL2exp, syst )->First(); !f.isNull(); f = f->m_pNext )
-      {
-      try
+        Solv.Last()->m_Visi = false;
+        }
+      Count = 0;
+      AddPoints( NomRoots, Signs[j] );
+      if( Den[j] != nullptr )
+        AddPoints( DenRoots, false );
+      if( n > 1 )
         {
+        Lexp L1 = new TLexp, L2 = new TLexp;
+        for( i = 1; i <= Count; i++ )
+          {
+          L1.Addexp( Points[i].m_ExX );
+          L2.Addexp( new TBool( Points[i].m_Sign ) );
+          }
+        Points[0].m_X = Points[1].m_X - 1;
+        Points[0].m_ExX = ( Points[1].m_ExX - 1 ).Reduce();
+        Points[Count + 1].m_X = Points[Count].m_X + 1;
+        Points[Count + 1].m_ExX = ( Points[Count].m_ExX + 1 ).Reduce();
+        Lexp L3 = new TLexp;
         bool Value;
-        f->m_Memb.Substitute( VarName, ValueX ).Reduce().Boolean_( Value );
-        FinishValue = FinishValue && Value;
-        }
-      catch( ErrParser )
-        {
-        FinishValue = false;
+        for( i = 0; i <= Count; i++ )
+           {
+          MathExpr ValueX = Constant( ( Points[i].m_X + Points[i + 1].m_X ) / 2 );
+          try
+            {
+            f->m_Memb.Substitute( VarName, ValueX ).Reduce().Boolean_( Value );
+            }
+          catch( ErrParser )
+            {
+            Value = false;
+            }
+          L3.Addexp( new TBool( Value ) );
+          }
+        if( Count > 0 )
+          {
+          TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MAcceptablisSetExpr", "Solution set" ) );
+          Solv.Addexp( new TCommStr( X_Str( "MAcceptablisSetExpr", "Solution set" ) ) );
+          }
+        else
+          if( Value )
+            {
+            TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MAllNumbersExpr", "Solution set: all real numbers" ) );
+            Solv.Addexp( new TCommStr( X_Str( "MAllNumbersExpr", "Solution set: all real numbers" ) ) );
+            }
+          else
+            {
+            TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MEmptySetExpr", "Solution set: the empty set" ) );
+            Solv.Addexp( new TCommStr( X_Str( "MEmptySetExpr", "Solution set: the empty set" ) ) );
+            IsSolv = false;
+            }
+        TSolutionChain::sm_SolutionChain.AddExpr( new TInterval( a, Len, L1, L2, L3 ) );
+        Solv.Addexp( new TInterval( a, Len, L1, L2, L3 ) );
+        Solv.Last()->m_Visi = false;
         }
       }
-    Interval[i] = FinishValue;
-    IntervalVal.Addexp( new TBool( FinishValue ) );
-    }
-  for( int i = 1; i <= Count; i++ )
-    if( Points[i].m_Sign )
+    Count = 0;
+    for( int i = 1; i <= n; i++ )
+      {
+      Lexp LN(Roots( Nom[i], VarName) );
+      AddPoints( LN, Signs[i] );
+      if( !Den[i].IsEmpty() )
+        {
+        Lexp LD(Roots( Den[i], VarName) );
+        AddPoints( LD, false );
+        }
+      }
+    Points[0].m_X = Points[1].m_X - 1;
+    Points[0].m_Sign = false;
+    Points[Count + 1].m_X = Points[Count].m_X + 1;
+    Points[Count + 1].m_Sign = true;
+    IntervalVal = new TLexp;
+    syst.Syst_( syst );
+    bool FinishValue;
+    for( int i = 0; i <= Count; i++ )
       {
       FinishValue = true;
-      MathExpr ValueX = Constant( Points[i].m_X );
+      MathExpr ValueX = Constant( ( Points[i].m_X + Points[i + 1].m_X ) / 2 );
       for( f = CastPtr( TL2exp, syst )->First(); !f.isNull(); f = f->m_pNext )
         {
-        bool Value;
-        f->m_Memb.Substitute( VarName, ValueX ).Reduce().Boolean_( Value );
-        FinishValue = FinishValue && Value;
+        try
+          {
+          bool Value;
+          bool OldFullReduce = TExpr::sm_FullReduce;
+          TExpr::sm_FullReduce = true;
+          f->m_Memb.Substitute( VarName, ValueX ).Reduce().Boolean_( Value );
+          TExpr::sm_FullReduce = OldFullReduce;
+          FinishValue = FinishValue && Value;
+          }
+        catch( ErrParser )
+          {
+          FinishValue = false;
+          }
         }
-      Points[i].m_Sign = FinishValue;
+      Interval[i] = FinishValue;
+      IntervalVal.Addexp( new TBool( FinishValue ) );
       }
+    for( int i = 1; i <= Count; i++ )
+      if( Points[i].m_Sign )
+        {
+        FinishValue = true;
+        MathExpr ValueX = Constant( Points[i].m_X );
+        for( f = CastPtr( TL2exp, syst )->First(); !f.isNull(); f = f->m_pNext )
+          {
+          bool Value;
+          f->m_Memb.Substitute( VarName, ValueX ).Reduce().Boolean_( Value );
+          FinishValue = FinishValue && Value;
+          }
+        Points[i].m_Sign = FinishValue;
+        }
 
-  PointVal = new TLexp;
-  PointSign = new TLexp;
-  for( int i = 1; i <= Count; i++ )
-    {
-    PointVal.Addexp( Points[i].m_ExX );
-    PointSign.Addexp( new TBool( Points[i].m_Sign ) );
-    }
+    PointVal = new TLexp;
+    PointSign = new TLexp;
+    for( int i = 1; i <= Count; i++ )
+      {
+      PointVal.Addexp( Points[i].m_ExX );
+      PointSign.Addexp( new TBool( Points[i].m_Sign ) );
+      }
 //  TSolutionChain::sm_SolutionChain.AddExpr( new TStr(""), X_Str( "MResultingSetExpr", "Solution set" ) );
-  Solv.Addexp( new TCommStr( X_Str( "MResultingSetExpr", "Solution set" ) ) );
-  Solv.Last()->m_Visi = false;
-  Solv.Addexp( new TInterval( Points[0].m_X, Points[Count + 1].m_X - Points[0].m_X,
-    PointVal, PointSign, IntervalVal ) );
-  TSolutionChain::sm_SolutionChain.AddExpr( new TInterval( Points[0].m_X, Points[Count + 1].m_X - Points[0].m_X,
+    Solv.Addexp( new TCommStr( X_Str( "MResultingSetExpr", "Solution set" ) ) );
+    Solv.Last()->m_Visi = false;
+    Solv.Addexp( new TInterval( Points[0].m_X, Points[Count + 1].m_X - Points[0].m_X,
+      PointVal, PointSign, IntervalVal ) );
+    TSolutionChain::sm_SolutionChain.AddExpr( new TInterval( Points[0].m_X, Points[Count + 1].m_X - Points[0].m_X,
       PointVal, PointSign, IntervalVal ), X_Str( "MResultingSetExpr", "Solution set" ) );
-  Solv.Last()->m_Visi = false;
+    Solv.Last()->m_Visi = false;
+    }
   Solv.Addexp( Solve() );
   TSolutionChain::sm_SolutionChain.AddExpr( Solve());
   s_DegPoly = OldDegPoly;
@@ -652,6 +719,7 @@ MathExpr SysRatInEq( MathExpr ex, int& Count, Lexp& PointVal, Lexp& PointSign, L
 bool CalcSysInEq( const QByteArray& InEq )
   {
   if( InEq.isEmpty() ) return false;
+  s_NoSolInEq = false;
   QByteArray Res;
   QByteArray VarName;
   std::function<void( const MathExpr& )> UnpackBinary = [&] ( MathExpr exBinary )
@@ -666,32 +734,37 @@ bool CalcSysInEq( const QByteArray& InEq )
       }
 
     TSimpleInterval &SInt = *CastPtr( TSimpleInterval, exBinary );
+/*
     if( IsType( TInfinity, SInt.Left() ) )
       {
-      Res += VarName;
+      Res += SInt.Left().WriteE() + VarName;
       if( SInt.m_Brackets[1] == ']' )
         Res += QByteArray( 1, msMinequal );
       else
         Res += '<';
-      Res += SInt.Right().Reduce().WriteE();
+      Res += SInt.Right().WriteE();
+//      Res += SInt.Right().Reduce().WriteE();
       }
     else
       {
-      Res += SInt.Left().Reduce().WriteE();
+*/
+      Res += SInt.Left().WriteE();
+//      Res += SInt.Left().Reduce().WriteE();
       if( SInt.m_Brackets[0] == '[' )
         Res += QByteArray( 1, msMinequal );
       else
         Res += '<';
       Res += VarName;
-      if( !( IsType( TInfinity, SInt.Right() ) ) )
-        {
+//      if( !( IsType( TInfinity, SInt.Right() ) ) )
+//        {
         if( SInt.m_Brackets[1] == ']' )
           Res += QByteArray( 1, msMinequal );
         else
           Res += '<';
-        Res += SInt.Right().Reduce().WriteE();
-        }
-      }
+        Res += SInt.Right().WriteE();
+//        Res += SInt.Right().Reduce().WriteE();
+//        }
+//      }
     };
 
   int OldDegPoly = s_DegPoly;
@@ -732,18 +805,21 @@ bool CalcSysInEq( const QByteArray& InEq )
         else
           {
           IsSolv = IsConstType( TStr, f->m_Memb );
-          if( IsSolv ) TSolutionChain::sm_SolutionChain.AddExpr( f->m_Memb );
+//          if( IsSolv )
+//          TSolutionChain::sm_SolutionChain.AddExpr( f->m_Memb );
           }
         f = f->m_pNext;
-        } while( true );
-        TSolutionChain::sm_SolutionChain.AddExpr( new TStr( Res ) );
+        } while( !f.isNull() );
+        TSolutionChain::sm_SolutionChain.AddExpr( P.StrToExpr( Res ) );
+//        TSolutionChain::sm_SolutionChain.AddExpr( new TStr( Res ) );
         if( s_PutAnswer && !s_Answer.IsEmpty() ) s_Answer = P.StrToExpr( Res );
         TSolutionChain::sm_SolutionChain.AddComment( X_Str( "MCalced", "Calculated!" ) );
         Result = true;
       }
     catch( int )
       {
-      TSolutionChain::sm_SolutionChain.AddComment( X_Str( "MNotSuitableInEq", "Wrong kind of inequality!" ) );
+      if(!s_NoSolInEq)
+         TSolutionChain::sm_SolutionChain.AddComment( X_Str( "MNotSuitableInEq", "Wrong kind of inequality!" ) );
       }
     return Final();
     };
@@ -751,10 +827,15 @@ bool CalcSysInEq( const QByteArray& InEq )
   try
     {
     PNode eq = P.AnyExpr( P.FullPreProcessor( InEq, "x" ) );
-    if( IsFuncEqu( eq ) || TestFrac( eq ) ) return Final();
+    if( IsFuncEqu( eq )) return Final();
     MathExpr  ex = P.OutPut( eq );
     VarName = ex.HasUnknown();
     if( VarName.isEmpty() ) return Label1();
+    if(TestFrac( eq ))
+      {
+      ex1 = ex;
+      return Label1();
+      }
     MathExpr  syst0 = ex;
     uchar RelSign;
     MathExpr op1, op2, syst;
@@ -890,17 +971,19 @@ bool CalcSysInEq( const QByteArray& InEq )
         }
       else
         {
+        MathExpr CMinV(new TConstant(MinV)), CMaxV(new TConstant(MaxV));
+        QByteArray sMinV = CMinV.WriteE(), sMaxV = CMaxV.WriteE();
         switch( 2 * MinBound + MaxBound )
           {
           case 1:
-            Res = VarName + QByteArray( 1, LastMaxSign ) + QByteArray::number( MaxV );
+            Res = VarName + QByteArray( 1, LastMaxSign ) + sMaxV;
             break;
           case 2:
-            Res = VarName + QByteArray( 1, LastMinSign ) + QByteArray::number( MinV );
+            Res = VarName + QByteArray( 1, LastMinSign ) + sMinV;
             break;
           case  3:
             if( MaxV == MinV )
-              Res = VarName + "=" + QByteArray::number( MinV );
+              Res = VarName + "=" + sMinV;
             else
               {
               switch( LastMaxSign )
@@ -911,7 +994,7 @@ bool CalcSysInEq( const QByteArray& InEq )
                 case msMaxequal:
                   LastMaxSign = msMinequal;
                 }
-              Res = QByteArray::number( MaxV ) + QByteArray( 1, LastMaxSign ) + VarName + QByteArray( 1, LastMinSign ) + QByteArray::number( MinV );
+              Res = sMaxV + QByteArray( 1, LastMaxSign ) + VarName + QByteArray( 1, LastMinSign ) + sMinV;
               }
           }
         TSolutionChain::sm_SolutionChain.AddExpr( new TStr( Res ) );
@@ -936,11 +1019,12 @@ bool CalcSysInEq( const QByteArray& InEq )
 bool CalcRatInEq( const QByteArray& InSource )
   {
   if( InSource.isEmpty() ) return false;
+  s_NoSolInEq = false;
   MathExpr exLogBase, exLogArg;
   std::function<bool( const MathExpr& )> ImpossibleFunc = [&] ( const MathExpr& exp )
     {
     MathExpr exLeft, exRight;
-    char cOper;
+    uchar cOper;
     if( exp.Log( exLeft, exRight ) )
       {
       if( !exLogArg.IsEmpty() ) return true;
@@ -1333,8 +1417,8 @@ Lexp CalcIrratEq( const QByteArray& Source, bool PutSource, bool Recurs )
           if( LCount == 2 )
             {
             MoveRadical( eq, LRoots[1], 0 );
-            LRoots.removeAt( 1 );
-            LArgs.removeAt( 1 );
+//            LRoots.removeAt( 1 );
+//            LArgs.removeAt( 1 );
             LCount = 1;
             RCount++;
             RArgs.append( LArgs[1] );
@@ -1388,7 +1472,7 @@ Lexp CalcIrratEq( const QByteArray& Source, bool PutSource, bool Recurs )
       if( ex.Equal( Subst ) ) return Variable( "y" );
       return Variable( "y" ) ^ 2;
       }
-    char c;
+    uchar c;
     if( ex.Oper_( c, op1, op2 ) )
       {
       ex1 = SubstY( op1 );
@@ -1447,7 +1531,7 @@ Lexp CalcIrratEq( const QByteArray& Source, bool PutSource, bool Recurs )
         return Variable( "y" + NumberToStr( num ) );
         }
 
-      char c;
+      uchar c;
       if( ex.Oper_( c, op1, op2 ) )
         {
         MathExpr ex1 = SubstVar( op1 );
@@ -1469,6 +1553,8 @@ Lexp CalcIrratEq( const QByteArray& Source, bool PutSource, bool Recurs )
       return MathExpr( ex );
       };
 
+    bool Acc = TSolutionChain::sm_SolutionChain.m_Accumulate;
+    TSolutionChain::sm_SolutionChain.m_Accumulate = false;
     SubstExpr = SubstVar( ex );
     if( SubstExpr.Unarminus( ex ) )
       Mult = ex.ReduceToMult();
@@ -1478,13 +1564,14 @@ Lexp CalcIrratEq( const QByteArray& Source, bool PutSource, bool Recurs )
       Mult = Mult.Substitute( "y" + NumberToStr( i ), Radicals[i] );
     Count = 0;
     PreOrder( Mult );
+    TSolutionChain::sm_SolutionChain.m_Accumulate = Acc;
     return Result;
     };
 
   std::function<MathExpr( const MathExpr& )> MultRootReduce = [&] ( const MathExpr& ex )
     {
     MathExpr op1, op2;
-    char c;
+    uchar c;
     if( ex.Oper_( c, op1, op2 ) )
       {
       MathExpr ex1 = MultRootReduce( op1 );
@@ -1521,7 +1608,7 @@ Lexp CalcIrratEq( const QByteArray& Source, bool PutSource, bool Recurs )
       {
       MathExpr op1, op2, op3, op4;
       int rt;
-      char c;
+      uchar c;
       if( e.IsEmpty() || e.Root_( op1, op2, rt ) ) return;
       if( e.Divis( op1, op2 ) && op2.Root_( op3, op4, rt ) )
         {
@@ -1574,7 +1661,7 @@ Lexp CalcIrratEq( const QByteArray& Source, bool PutSource, bool Recurs )
       };
 
     MathExpr exLeft, exRight;
-    char cOp;
+    uchar cOp;
     if( !ex.Oper_( cOp, exLeft, exRight ) ) return PTRResult;
     CastPtr( TOper, ex )->Left() = ConvertIfPossible( CastPtr( TOper, ex )->Left() );
     if( cOp != '^' && cOp != '~' )
@@ -1740,6 +1827,15 @@ Lexp CalcIrratEq( const QByteArray& Source, bool PutSource, bool Recurs )
       }
     expOut = ex;
     TSolutionChain::sm_SolutionChain.AddExpr( expOut );
+    MathExpr op3, op4, op5, op6;
+    if( op1.Divis( op3, op4 ) && IsType(TRoot, op4) && op2.Divis(op5, op6) && IsType(TRoot, op6))
+      {
+      ex1 = new TBinar('=',(op3 * op6), (op5 * op4));
+      TSolutionChain::sm_SolutionChain.AddExpr( ex1 );
+      ex = ex1;
+      eq = P.AnyExpr( ex.WriteE() );
+      }
+
     ex1 = ReduceFrac( ex );
     if( !ex1.Equal( ex ) )
       {
@@ -2170,7 +2266,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
       if( IsConstType( TFunc, ex ) ) return op1.Log( op2 );
       return ex;
       }
-    char c;
+    uchar c;
     if( ex.Oper_( c, op1, op2 ) )
       {
       MathExpr ex1 = LogProp( op1 );
@@ -2206,7 +2302,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
       if( IsType( TPowr, op2 ) ) return ex;
       return op1.Log( op2.ReduceToMult() );
       }
-    char c;
+    uchar c;
     if( ex.Oper_( c, op1, op2 ) )
       {
       MathExpr ex1 = ReLog( op1 );
@@ -2253,7 +2349,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
         }
       return ex;
       }
-    char c;
+    uchar c;
     if( ex.Oper_( c, op1, op2 ) )
       {
       MathExpr ex1 = ChangeBasis( op1 );
@@ -2327,7 +2423,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
 
     MathExpr op1, op2;
     bool OldNoRootReduce;
-    char c;
+    uchar c;
     if( ex.Log( op1, op2 ) && ( !op1.ConstExpr() || !op2.ConstExpr() ) )
       {
       OldNoRootReduce = s_NoRootReduce;
@@ -2355,7 +2451,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
   std::function<void( const MathExpr& )> FindBasisArg = [&] ( const MathExpr& ex )
     {
     MathExpr op1, op2, op3, op4;
-    char c;
+    uchar c;
     if( ex.Log( op1, op2 ) )
       {
       int i = 0;
@@ -2412,7 +2508,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
     TLexp ConstList;
     MathExpr op1, op2;
     int C;
-    char op;
+    uchar op;
     for( int i = 0; i < basis0.count(); i++ )
       if( basis0[i].Cons_int( C ) || ( basis0[i].Oper_( op, op1, op2 ) && ( op1.Cons_int( C ) || op2.Cons_int( C ) ) ) )
         ConstList.Addexp( Constant( C ) );
@@ -2426,7 +2522,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
     InOper1 = false;
     if( arg0.count() < 2 ) return;
     MathExpr op1, op2;
-    char c;
+    uchar c;
     for( int i = 0; i < arg0.count(); i++ )
       if( arg0[i].Oper_( c, op1, op2 ) )
         InOper1 = InOper1 || In( c, "+-" );
@@ -2445,7 +2541,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
       if( ex.Unarminus( exp1 ) ) return FindLogPower( exp1 );
       bool Result = false;
       MathExpr exLeft, exRight;
-      char cOper;
+      uchar cOper;
       if( ex.Oper_( cOper, exLeft, exRight ) )
         {
         if( cOper == '^' )
@@ -2486,7 +2582,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
       MathExpr exp( Exp );
       if( exp.Unarminus( exp ) )
         return FindLog( exp );
-      char cOper;
+      uchar cOper;
       if( exp.Oper_( cOper, exLeft, exRight ) )
         return FindLog( exLeft ) || FindLog( exRight );
       return false;
@@ -2535,7 +2631,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
           }
 
         MathExpr exLeft, exRight, exBase;
-        char cOper;
+        uchar cOper;
         if( exp.Oper_( cOper, exLeft, exRight ) )
           {
           MathExpr &Left = CastPtr( TOper, exp )->Left();
@@ -2600,7 +2696,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
     std::function<bool( const MathExpr& )> HasConstOperand = [&] ( const MathExpr& ex )
       {
       MathExpr exLeft, exRight;
-      char cOper;
+      uchar cOper;
       if( ex.Oper_( cOper, exLeft, exRight ) && In( cOper, "+-" ) )
         {
         if( exLeft.ConstExpr() || HasConstOperand( exLeft ) ) return true;
@@ -2621,7 +2717,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
         }
 
       MathExpr exLeft, exRight;
-      char cOper;
+      uchar cOper;
       QByteArray Name;
       if( ex.Oper_( cOper, exLeft, exRight ) )
         {
@@ -2658,7 +2754,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
         if( exp.Unarminus( exArg ) ) return GetFactor( exArg );
 
         MathExpr exLeft, exRight, exBase;
-        char cOper;
+        uchar cOper;
         if( exp.Oper_( cOper, exLeft, exRight ) )
           return GetFactor( exLeft ) && GetFactor( exRight );
         if( exp.Log( exBase, exArg ) )
@@ -2685,7 +2781,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
     std::function<void( MathExpr& )> BaseReduction = [&] ( MathExpr& ex )
       {
       MathExpr exRight, exLeft, exArg, exBase;
-      char cOper;
+      uchar cOper;
 
       auto GetOperand = [&] ( MathExpr& exp )
         {
@@ -3178,7 +3274,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
     if( op2.Cons_int( n ) && n == 0 )
       {
       MathExpr op3, op4;
-      char cOper;
+      uchar cOper;
       op1.Oper_( cOper, op3, op4 );
       if( cOper == '+' || cOper == '-' )
         try
@@ -3532,7 +3628,7 @@ bool CalcExpEq( const QByteArray& Source, bool Recurs )
       }
     else
       {
-      char c;
+      uchar c;
       MathExpr res1, res2;
       if( ex.Oper_( c, op1, op2 ) )
         {
@@ -3620,7 +3716,7 @@ bool CalcExpEq( const QByteArray& Source, bool Recurs )
     {
     MathExpr ex1, ex2, op1, op2;
     MathExpr op11, op12, op21, op22;
-    char c;
+    uchar c;
     if( ex.Oper_( c, op1, op2 ) )
       {
       ex1 = MultPowReduce( op1 );
@@ -3663,7 +3759,7 @@ bool CalcExpEq( const QByteArray& Source, bool Recurs )
   std::function<bool( MathExpr& )> ReplaceFractions = [&] ( MathExpr& ex )
     {
     MathExpr exLeft, exRight, exNom, exDenom;
-    char cOper;
+    uchar cOper;
     int Nom, Denom;
     bool Result = true;
     if( ex.Oper_( cOper, exLeft, exRight ) && cOper != '~' && cOper != '^' )
@@ -3697,7 +3793,7 @@ bool CalcExpEq( const QByteArray& Source, bool Recurs )
     {
     MathExpr exLeft, exRight, exBase, exPower;
     int root;
-    char cOper;
+    uchar cOper;
     bool Result = true;
     if( ex.Oper_( cOper, exLeft, exRight ) )
       {
@@ -3737,7 +3833,7 @@ bool CalcExpEq( const QByteArray& Source, bool Recurs )
     {
     if( bNewSystem ) return ex;
     MathExpr exLeft, exRight, exBase, exPower, ex1;
-    char cOper;
+    uchar cOper;
     MathExpr Result = ex;
     if( ex.Oper_( cOper, exLeft, exRight ) )
       {
@@ -3768,7 +3864,7 @@ bool CalcExpEq( const QByteArray& Source, bool Recurs )
   std::function<MathExpr( const MathExpr& )> GetExponent = [&] ( const MathExpr& ex )
     {
     MathExpr exLeft, exRight, exp;
-    char cOper;
+    uchar cOper;
     if( ex.Oper_( cOper, exLeft, exRight ) )
       {
       if( cOper == '^' ) return MathExpr( ex );
@@ -3787,7 +3883,7 @@ bool CalcExpEq( const QByteArray& Source, bool Recurs )
   std::function<bool( MathExpr& )> IsExponentialEquation = [&] ( MathExpr& ex )
     {
     MathExpr exLeft, exRight, exLeftOld, exRightOld;
-    char cOper;
+    uchar cOper;
     QByteArray Name;
     bool Result = false;
     if( ex.Funct( Name, exRight ) )
@@ -3837,7 +3933,7 @@ bool CalcExpEq( const QByteArray& Source, bool Recurs )
 
     std::function<void( MathExpr& )> SearchBase = [&] ( MathExpr& ex )
       {
-      char cOper;
+      uchar cOper;
       MathExpr exLeft, exRight, exBase, exPower;
       int val;
 
@@ -3937,7 +4033,7 @@ bool CalcExpEq( const QByteArray& Source, bool Recurs )
   std::function<void( MathExpr& )> MultToCommonBasis = [&] ( MathExpr& ex )
     {
     MathExpr exLeft, exRight, exBase, exPower;
-    char cOper;
+    uchar cOper;
 
     auto GetPower = [&] ( const MathExpr& exp )
       {
@@ -4172,7 +4268,7 @@ bool CalcExpEq( const QByteArray& Source, bool Recurs )
     else
     if( op2.Unarminus( ex1 ) ) bWithoutLog = false;
     s_NoRootReduce = OldNoRootReduce;
-    char cOper;
+    uchar cOper;
     if( op2.Cons_int( Nom ) )
       if( Nom == 0 )
         if( !op1.Oper_( cOper, ex1, ex2 ) || cOper != '-' )
@@ -4548,7 +4644,7 @@ bool CalcExpEq( const QByteArray& Source, bool Recurs )
               ex3 = ex2.ReductionPoly( a, "y" );
               TSolutionChain::sm_SolutionChain.AddExpr( new TBinar( '=', ex3, Constant( 0 ) ) );
               MathExpr d = ( ( a[1] ^ 2 ) - Constant( 4 ) * a[2] * a[0] ).Reduce();
-              TSolutionChain::sm_SolutionChain.AddExpr( new TBinar( '=', Variable( "d" ), d ) );
+              TSolutionChain::sm_SolutionChain.AddExpr( new TBinar( '=', Variable( "D" ), d ) );
               if( d.Constan( v ) && ( v < 0 ) )
                 throw  ErrParser( X_Str("MNoSolution", "No Solutions!"), peNoSolv );
               if( d.Constan( v ) && abs( v ) < 0.0000001 )

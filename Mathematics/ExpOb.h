@@ -183,6 +183,7 @@ class TExpr
     virtual bool ImUnit() const { return false;  }
     virtual Bracketed MustBracketed() const { return brNone; }
     virtual void SetReduced( bool Reduced ) { m_WasReduced = Reduced; }
+    virtual int MaxPower(const QByteArray& sName) const {return 0;}
     MathExpr Lconcat( const MathExpr& B ) const;
     MathExpr FactList() const;
     MathExpr ExpandChain( MathExpr&, MathExpr& ) const;
@@ -249,12 +250,7 @@ class MathExpr
       m_pExpr->m_Counter++;
       m_Contents = E.m_Contents;
       }
-    MathExpr( TExpr* pE ) : m_pExpr( pE )
-      {
-      if( m_pExpr == nullptr ) return;
-      m_pExpr->m_Counter++;
-      m_Contents = m_pExpr->WriteE();
-      }
+    MathExpr( TExpr* pE );
 //#endif
     MATHEMATICS_EXPORT MathExpr(const QString&);
     virtual ~MathExpr()
@@ -417,6 +413,7 @@ class MathExpr
 
     bool SetOfFractions( MathExpr& E ) { TestPtr(); return m_pExpr->SetOfFractions(E); }
     QByteArray HasUnknown( const QByteArray& Name = "" ) const { TestPtr(); return m_pExpr->HasUnknown( Name ); }
+    int MaxPower(const QByteArray& sName) const { TestPtr(); return m_pExpr->MaxPower(sName); }
     bool operator == ( int Value ) const;
     bool operator != ( int Value ) const { return !( ( *this ) == Value ); }
     MathExpr& operator *= ( const MathExpr& E );
@@ -547,7 +544,7 @@ class Lexp : public MathExpr
   public:
     Lexp() : MathExpr() {}
     MATHEMATICS_EXPORT PExMemb& First();
-    PExMemb& Last();
+    MATHEMATICS_EXPORT PExMemb& Last();
     Lexp( const MathExpr& E ) : MathExpr( E ) {}
     Lexp( TExpr *pE ) : MathExpr( pE ) {}
     bool FindEq( const MathExpr& E, PExMemb& F );
@@ -556,7 +553,7 @@ class Lexp : public MathExpr
     void Appendz( const MathExpr& A );
     void DeleteMemb( PExMemb& M );
     Lexp LeastCommonDenominator( bool bReduce );
-    int Count();
+    MATHEMATICS_EXPORT int Count();
 //    MathExpr CreateObject();
   };
 
@@ -616,6 +613,7 @@ class TVariable : public TExpr
     QByteArray Name() const { return m_Name;  }
     bool ConstExpr() const;
     bool IsIndexed() const { return m_IsIndexed; }
+    int MaxPower(const QByteArray& sName) const {return m_Name == sName ? 1 : 0; }
   };
 
 class TInfinity : public TExpr
@@ -796,6 +794,7 @@ class TOper : public TExpr
     MathExpr& Right() { return m_Operand2; }
     void SetName( char Name ) { m_Name = Name; }
     void SetReduced( bool Reduced ) { TExpr::SetReduced( Reduced ); m_Operand1.SetReduced( Reduced ); m_Operand2.SetReduced( Reduced ); }
+    virtual int MaxPower(const QByteArray& sName) const { return max(m_Operand1.MaxPower(sName), m_Operand2.MaxPower(sName)); }
   };
 
 class TIndx : public TOper
@@ -850,6 +849,7 @@ class TPowr : public TOper
     bool Replace( const MathExpr& Target, const MathExpr& Source );
     bool Root_( MathExpr& op1, MathExpr& op2, int& rt ) const;
     bool Positive() const;
+    int MaxPower(const QByteArray& sName) const;
   };
 
 class TRoot :public  TPowr
@@ -1520,6 +1520,8 @@ class TMathGraph : public TExpr
     QByteArray Source() const { return m_Source; }
   };
 
+
+
 inline MathExpr::MathExpr(const QString& S) : MathExpr( new TCommStr(S) ) { }
 inline MathExpr TExpr::ReducePoly() const { MathExpArray A; return  ReductionPoly( A, "x" ); }
 inline MathExpr Power( const QByteArray& Name, int V ) { return new TPowr( new TVariable( false, Name ), new TConstant( V ) ); }
@@ -1555,7 +1557,14 @@ inline MathExpr TExpr::SimplifyInDetail() { return this; }
 inline MathExpr TExpr::RandList() { return this; }
 inline MathExpr TExpr::FindLeastCommMult() { s_GlobalInvalid = true; return this; }
 inline MathExpr TExpr::SortList( bool ) const { return Clone(); }
-
+inline MathExpr::MathExpr( TExpr* pE ) : m_pExpr( pE )
+  {
+  if( m_pExpr == nullptr ) return;
+  m_pExpr->m_Counter++;
+  if(m_pExpr->m_Counter > 800 && Cast(TOper,m_pExpr) != nullptr )
+     throw 1;
+  m_Contents = m_pExpr->WriteE();
+  }
 bool CheckInputOfEquationsSystem( const MathExpr&, MathExpArray& List, bool MakeFull, Lexp DenomList = MathExpr() );
 MathExpr CalcR( MathExpr divisor, MathExpr dividend, Lexp& limits );
 

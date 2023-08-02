@@ -81,6 +81,7 @@ MenterSinCosEquat=введите уравнение типа: a * sinx+b * cosx=c !
 MenterTrigoQuEq=введите уравнение типа: a*Trigo (x)^2+b*Trigo (x)+c=0 !
 MInfiniteSetSol=бесконечное множество решений
 MNoSolution=никаких решений не существует
+MCannotSolve=не могу решить, или уравнение не имеет решений
 MInfOrNotSolRight1=если выражение в правой части равно нулю,
 MinfOrNotSolRight2=уравнение имеет бесконечное множество решений,
 MinfOrNotSolRight3=в противном случае уравнение не имеет решения.

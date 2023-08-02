@@ -55,12 +55,12 @@ bool CalcSubstitution( const QByteArray& Equation, MathExpr BaseSubst = MathExpr
 bool GetAnswer( const MathExpr& expr, QByteArray Name = "" );
 bool CalcLinear( const QByteArray& Equation );
 bool CalcExchange( const QByteArray& Equation );
-bool CalcRootsQuEqu( const QByteArray& Source );
+MATHEMATICS_EXPORT bool CalcRootsQuEqu( const QByteArray& Source, const QByteArray& VarName = "x" );
 bool CalcDiscrim( const QByteArray& Source );
 MathExpr DetVieEqu( const MathExpr& exi );
 Lexp CalcPolinomEqu( const QByteArray& Source, const QByteArray&& VarName = "x" );
 bool CalcEquation( const QByteArray& Source );
-bool CalcAnyEquation( const QByteArray& Source );
+bool CalcAnyEquation( const QByteArray& Source, bool PutMessage = false );
 bool IsConst(const MathExpr& Ex, int val);
 
 class TNodes : public PascArray<PNode>

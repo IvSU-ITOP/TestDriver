@@ -997,7 +997,7 @@ bool CalcSysInEq( const QByteArray& InEq )
               Res = sMaxV + QByteArray( 1, LastMaxSign ) + VarName + QByteArray( 1, LastMinSign ) + sMinV;
               }
           }
-        TSolutionChain::sm_SolutionChain.AddExpr( new TStr( Res ) );
+//        TSolutionChain::sm_SolutionChain.AddExpr( new TStr( Res ) );
         if( s_PutAnswer && s_Answer.IsEmpty() ) s_Answer = P.StrToExpr( Res );
         TSolutionChain::sm_SolutionChain.AddComment( X_Str( "MCalced", "Calculated!" ) );
         Result = true;
@@ -1821,27 +1821,117 @@ Lexp CalcIrratEq( const QByteArray& Source, bool PutSource, bool Recurs )
           }
       if( MaySubst && !NotOnlyInRad( eq ) && ARoots.count() > 1 )
         {
-        jj = 1;
+        jj = 0;
         return Label3();
         }
       }
     expOut = ex;
     TSolutionChain::sm_SolutionChain.AddExpr( expOut );
     MathExpr op3, op4, op5, op6;
-    if( op1.Divis( op3, op4 ) && IsType(TRoot, op4) && op2.Divis(op5, op6) && IsType(TRoot, op6))
+    int iLeft;
+    if(op2.Cons_int(iLeft) && iLeft == 0 && op1.Subtr(op3, op4))
       {
-      ex1 = new TBinar('=',(op3 * op6), (op5 * op4));
-      TSolutionChain::sm_SolutionChain.AddExpr( ex1 );
-      ex = ex1;
-      eq = P.AnyExpr( ex.WriteE() );
+      ex = new TBinar('=', op3, op4 );
+      TSolutionChain::sm_SolutionChain.AddExpr( ex );
+      op1 = op3;
+      op2 = op4;
       }
-
+    if( op1.Divis( op3, op4 ) )
+      if(IsType(TRoot, op4) && op2.Divis(op5, op6) && IsType(TRoot, op6))
+        {
+        ex1 = new TBinar('=',(op3 * op6), (op5 * op4));
+        TSolutionChain::sm_SolutionChain.AddExpr( ex1 );
+        ex = ex1;
+        eq = P.AnyExpr( ex.WriteE() );
+        }
+      else
+        {
+        uchar Sign1, Sign2;
+        if(op3.Oper_(Sign1, op5, op6) && Sign1 != '~')
+          {
+          MathExpr op7, op8, op9, op10;
+          QByteArray name;
+          int rt, Nom, Denom;
+          if(op4.Oper_(Sign2, op7, op8) && Sign1 != Sign2 &&
+            (Sign1 == '+' || Sign1 == '-') && (Sign2 == '+' || Sign2 == '-') &&
+            op7.Eq(op5) && op8.Eq(op6) && op5.Variab(name) && name == "x" &&
+            op8.Root_(op9, op10, rt ) && rt == 2 && op2.SimpleFrac_(Nom, Denom) )
+            {
+            double X;
+            double VarY;
+            MathExpr Y = Variable("y");
+            Lexp Syst = new TL2exp;
+            TSolutionChain::sm_SolutionChain.AddExpr( new TBinar('=',Y , op8) );
+            if(Sign1 == '-')
+              {
+              TSolutionChain::sm_SolutionChain.AddExpr( new TBinar('=',
+                new TDivi( new TSubt(op5, Y), new TSumm(op5, Y) ), op2 ) );
+              Syst.Addexp(new TBinar( '=', new TSubt(op5, Y), new TConstant(Nom) ));
+              Syst.Addexp(new TBinar( '=', new TSumm(op5, Y), new TConstant(Denom) ));
+              TSolutionChain::sm_SolutionChain.AddExpr( Syst );
+              VarY = (Denom - Nom)/2.0;
+              X = Denom - VarY;
+              }
+            else
+              {
+              TSolutionChain::sm_SolutionChain.AddExpr( new TBinar('=',
+                new TDivi( new TSumm(op5, Y), new TSubt(op5, Y) ), op2 ) );
+              Syst.Addexp(new TBinar( '=', new TSumm(op5, Y), new TConstant(Nom) ));
+              Syst.Addexp(new TBinar( '=', new TSubt(op5, Y), new TConstant(Denom) ));
+              TSolutionChain::sm_SolutionChain.AddExpr( Syst );
+              VarY = (Nom - Denom)/2.0;
+              X = Denom + VarY;
+              }
+            TSolutionChain::sm_SolutionChain.AddExpr( new TBinar('=', Y, new TConstant(VarY)));
+            TSolutionChain::sm_SolutionChain.AddExpr( new TBinar('=', Variable("x"), new TConstant(X)));
+            MathExpr TestY;
+            if(VarY > 0)
+              {
+              bool OldFullReduce = TExpr::sm_FullReduce;
+              TExpr::sm_FullReduce = true;
+              TestY = op6.Substitute("x", new TConstant(X)).Reduce();
+              TExpr::sm_FullReduce = OldFullReduce;
+              }
+            int CalcY;
+            if( !TestY.IsEmpty() && TestY.Cons_int(CalcY) && CalcY == round(VarY) )
+              {
+              Result.Addexp(Constant(X));
+              TSolutionChain::sm_SolutionChain.AddExpr(new TBinar('=', op6, new TConstant(VarY)));
+              TSolutionChain::sm_SolutionChain.AddComment(X_Str( "MRoot", "root!" ));
+              }
+            else
+              {
+              TSolutionChain::sm_SolutionChain.AddExpr(new TBinar(msNotequal, op6, new TConstant(VarY)));
+              TSolutionChain::sm_SolutionChain.AddComment(X_Str( "MRootStranger", "false root!" ));
+              }
+            return Final();
+            }
+          throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
+          }
+        else
+          if(op2.Divis(op5, op6) && ARoots.count() > 1)
+            throw  ErrParser( X_Str("MCannotSolve", "Cannot solve, or the equation has no solutions!"), peCannotSolve );
+        }
     ex1 = ReduceFrac( ex );
     if( !ex1.Equal( ex ) )
       {
       TSolutionChain::sm_SolutionChain.AddExpr( ex1 );
       ex = ex1;
       eq = P.AnyExpr( ex.WriteE() );
+      }
+    if(ARoots.count() == 2 && ex.Binar('=', op1, op2) && IsType(TRoot, op1) &&
+      IsType(TMult, op2))
+      {
+      ex1 = new TBinar('=', (op1^2).Reduce(), (op2^2).Reduce() );
+      TSolutionChain::sm_SolutionChain.AddExpr( ex1 );
+      Result = CalcDetLinEqu( ex1.WriteE() );
+      if( !Result.IsEmpty() )
+        {
+        PExMemb pMemb = Result.First();
+        for( ; !pMemb->m_pNext.isNull(); pMemb = pMemb->m_pNext )
+          TSolutionChain::sm_SolutionChain.AddExpr( pMemb->m_Memb );
+        return Final();
+        }
       }
     ex1 = ExpandExpr( ex );
     MathExpr ex2, ex3;
@@ -1929,23 +2019,31 @@ Lexp CalcIrratEq( const QByteArray& Source, bool PutSource, bool Recurs )
             MathExpr left = op1 ^ Constant( CommonDeg );
             MathExpr right = op2 ^ Constant( CommonDeg );
             TSolutionChain::sm_SolutionChain.AddExpr( new TBinar( '=', left, right ) );
-            left = ExpandExpr( left );
-            right = ExpandExpr( right );
-            ex2 = new TBinar( '=', left, right );
-            ex1 = ex2.Reduce();
-            if( !ThereAreRadicals( P.AnyExpr( ex1.WriteE() ) ) )
+            try
               {
-              bOtherTask = true;
-              break;
-              }
-            TSolutionChain::sm_SolutionChain.AddExpr( ex2 );
-            if( ex1.Equal( ex2 ) )
-              {
-              ex2 = left - right;
-              ex3 = ex2.Reduce();
-              if( !ex3.Eq( ex2 ) )
-                ex1 = new TBinar( '=', ex3, Constant( 0 ) );
-              }
+              left = ExpandExpr( left );
+              right = ExpandExpr( right );
+              ex2 = new TBinar( '=', left, right );
+              ex1 = ex2.Reduce();
+              if( !ThereAreRadicals( P.AnyExpr( ex1.WriteE() ) ) )
+                {
+                bOtherTask = true;
+                break;
+                }
+              TSolutionChain::sm_SolutionChain.AddExpr( ex2 );
+              if( ex1.Equal( ex2 ) )
+                {
+                ex2 = left - right;
+                ex3 = ex2.Reduce();
+                if( !ex3.Eq( ex2 ) )
+                  ex1 = new TBinar( '=', ex3, Constant( 0 ) );
+                }
+            }
+          catch( int ix )
+            {
+            TSolutionChain::sm_SolutionChain.Delete();
+            throw  ErrParser( X_Str("MCanNotExpand", "I can`t expand it!" ), peCanNotExpand );
+            }
             eq = P.AnyExpr( ex1.WriteE() );
             if( DefDeg1( eq ) == 2 )
               {
@@ -2475,6 +2573,7 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
 
   auto CheckRoot = [&] ( double x )
     {
+    if(Points.IsEmpty()) return true;
     double v;
     PExMemb f;
     int n;
@@ -3242,6 +3341,13 @@ bool CalcLog1Eq( const QByteArray& Source, QByteArray VarName, int StartIndex )
         throw  ErrParser( X_Str( "MEnterEquat", "enter equation!" ), peNewErr );
       if( ex.Splitted() )
         ex = DelSplitted( ex );
+      QByteArray Fname;
+      MathExpr Arg;
+      if(op1.Funct(Fname, Arg) && Fname == "ln" )
+        {
+        ex = new TBinar( '=', new TLog(Variable("e"), Arg), op2);
+        TSolutionChain::sm_SolutionChain.AddExpr( ex );
+        }
       SystCount1 = 0;
       SystCount2 = 0;
       syst1 = new TL2exp;

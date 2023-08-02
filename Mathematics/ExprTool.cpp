@@ -688,7 +688,7 @@ QByteArray TExpr::HasUnknown( const QByteArray& Name ) const
     {
     if( VarName == "" )
       {
-      if( sV[0] >= 'e' && sV[0] <= 'z' ) Result = sV[0];
+      if( sV[0] >= 'a' && sV[0] <= 'z' ) Result = sV[0];
       }
     else
       if( VarName == sV[0] ) Result = VarName;
@@ -739,7 +739,8 @@ MathExpr TExpr::CancellationOfMultiNominals( MathExpr& exf )
     if( divisor == 1 )
       Result3 = dividend;
     else
-      Result3 = NegTExprs( dividend / divisor, SignOfDivision == -1 );
+      Result3 = dividend / divisor;
+    Result3 = NegTExprs( Result3, SignOfDivision == -1 );
     };
   exf.Clear();
   MathExpr Result = this;
@@ -762,10 +763,10 @@ MathExpr TExpr::CancellationOfMultiNominals( MathExpr& exf )
       }
     if( !Result2.Eq( Result3 ) )
       {
-//      exf = Result2;
+      exf = Result2;
       Result = Result3;
-//      TSolutionChain::sm_SolutionChain.AddExpr( exf, X_Str( "Mfactors", "factors" ) );
-//      TSolutionChain::sm_SolutionChain.AddExpr( Result, X_Str( "Mcancel", "cancellation!" ) );
+      TSolutionChain::sm_SolutionChain.AddExpr( exf, X_Str( "Mfactors", "factors" ) );
+      TSolutionChain::sm_SolutionChain.AddExpr( Result, X_Str( "Mcancel", "cancellation!" ) );
       }
     }
   return Result;

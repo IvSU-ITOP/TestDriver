@@ -550,6 +550,12 @@ void Thread::ReadyRead()
               }
             QByteArray Left = Formula.left(iEqPos);
             QByteArray Right = Formula.mid(iEqPos + 1);
+            if(Right == "y")
+              {
+              Right = Left;
+              Left = "y";
+              Formula = Left + "=" + Right;
+              }
             if(Left.count() == 1)
               {
               if(Left[0] == 'x') return Formula;
@@ -570,42 +576,66 @@ void Thread::ReadyRead()
           X_step = NumberX / 200.0;
           X_end += 0.001 * X_step;
           QByteArray Formula = Parms[1];
-          if(Formula.indexOf(';') == -1 )
-            {
-            Formula = TestFormula(Formula);
-            if( Formula.indexOf('=') != -1)
-              {
-              Formula = Parser::PreProcessor(Formula, "y");
-              MathExpr L = CalcDetQuEqu(Formula, "y");
-              if(!L.IsEmpty())
-                {
-                Formula = L.WriteE();
-                bSqEq = true;
-                Formula = Formula.mid(1, Formula.length() - 2);
-                int PosEq = Formula.indexOf('=');
-                if(PosEq != -1) Formula = Formula.mid(PosEq + 1);
-                }
-              }
-            }
           QByteArrayList Formuls(Formula.split(';'));
           int FCount = Formuls.count();
           TExprs Exprs;
           QVector<bool> Infinity(FCount);
           QVector<bool> IsEmpty(FCount);
           QVector<int> LastAsympt(FCount);
+          Formula = "";
           for(int i = 0; i < FCount; i++)
             {
             IsEmpty[i] = false;
             Infinity[i] = false;
             LastAsympt[i] = -1;
             Formuls[i] = TestFormula(Formuls[i]);
-//            int PosEq = Formuls[i].indexOf('=');
+            if( Formuls[i].indexOf('=') != -1)
+              {
+              if(Formuls[i].endsWith('@'))
+                Formuls[i] = Formuls[i].left(Formuls[i].length() - 1);
+              Formuls[i] = Parser::PreProcessor(Formuls[i], "y");
+              Lexp L = CalcDetQuEqu(Formuls[i], "y");
+              if(!L.IsEmpty())
+                {
+                Formuls[i] = L.First()->m_Memb.WriteE();
+                if(L.Count() == 2)
+                  {
+                  Formuls.insert(i+1, L.Last()->m_Memb.WriteE());
+                  Infinity.resize(++FCount);
+                  IsEmpty.resize(FCount);
+                  LastAsympt.resize(FCount);
+                  }
+                bSqEq = true;
+//                Formuls[i] = Formuls[i].mid(1, Formuls[i].length() - 2);
+                int PosEq = Formuls[i].indexOf('=');
+                if(PosEq != -1 && Formuls[i].left(PosEq) != "x")
+                  Formuls[i] = Formuls[i].mid(PosEq + 1);
+                }
+              }
+            //            int PosEq = Formuls[i].indexOf('=');
 //            if(PosEq != -1)
 //              Formuls[i] = Formuls[i].left(PosEq) + "-(" + Formuls[i].mid(PosEq + 1) + ')';
-            if(Formuls[i].indexOf('x') == -1 || Formuls[i].indexOf('=') != -1)
-              throw ErrParser( X_Str("MBadFormula", "Bad formula: ") + Formuls[i], ParserErr::peNewErr );
+            if(Formuls[i].left(2) == "x=")
+              {
+              MathExpr Value = MathExpr( Parser::StrToExpr( Formuls[i].mid(2)));
+              if(!(IsType( TConstant, Value )))
+                throw ErrParser( X_Str("MBadFormula", "Bad formula: ") + Formuls[i], ParserErr::peNewErr );
+              }
+            else
+              if(Formuls[i].indexOf('x') == -1 || Formuls[i].indexOf('=') != -1)
+                {
+                if(Formuls[i].endsWith('@'))
+                  Formuls[i] = Formuls[i].left(Formuls[i].length() - 1);
+                MathExpr Value = MathExpr( Parser::StrToExpr( Formuls[i]));
+                if(!(IsType( TConstant, Value )))
+                  throw ErrParser( X_Str("MBadFormula", "Bad formula: ") + Formuls[i], ParserErr::peNewErr );
+                }
             if(Formuls[i].endsWith('@'))
               Formuls[i] = Formuls[i].left(Formuls[i].length() - 1);
+            if(i == 0)
+               Formula = Formuls[0];
+            else
+              Formula += ";" + Formuls[i];
             if(Formuls[i] == "deriv")
               {
               if(i != 1)
@@ -913,6 +943,7 @@ void Thread::ReadyRead()
           sm_Buffer = Result.right(RestBuffer);
           Result = Result.left(N2);
           m_pSocket->write(Result + "\n\n");
+//          m_pSocket->write("aaaa" + Result + "\n\n");
           m_pSocket->flush();
           }
         if(CalcParms[0] == "Calc")
@@ -1173,7 +1204,7 @@ void Thread::ReadyRead()
           QString Comment;
           if( EResult.IsEmpty() )
             {
-            Result = X_Str("MNoSolutions", "No solutions exist!").toUtf8();
+            Result = X_Str("MCannotSolve", "Cannot solve, or the equation has no solutions!").toUtf8();
 //            Result = s_LastError.toUtf8();
             return Final();
             }

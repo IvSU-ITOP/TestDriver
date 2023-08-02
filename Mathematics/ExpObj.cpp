@@ -3624,6 +3624,14 @@ bool TPowr::Positive() const
   return false;
   }
 
+int TPowr::MaxPower(const QByteArray& sName) const
+  {
+  int Powr;
+  QByteArray Name;
+  if( m_Operand2.Cons_int( Powr ) && m_Operand1.Variab(Name) && Name == sName ) return Powr;
+  return 0;
+  }
+
 QByteArray TPowr::WriteE() const
   {
   return '(' + m_Operand1.WriteE() + ')' + m_Name + '(' + m_Operand2.WriteE() + ')';

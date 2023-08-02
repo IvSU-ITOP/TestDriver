@@ -747,7 +747,7 @@ MEnterAlgebEquat=רשום משוואה אלגברית
 MEnterEquat=רשום משוואה
 MEnterConst=רשמו מספר
 MEnterLinEquat=!רשום משוואה ממעלה ראשונה
-MNoSolutions=לא ניתן לפתור
+MNoSolutions=לא ניתן לפתור, או למשוואה אין פתרונות
 MNNoAlgSolutions=אין פתרון אלגברי
 MInfinSolutions=למשוואה אינסוף פתרונות
 MViettSolved=הפתרון בעזרת משפט וייט נמצא
@@ -762,7 +762,7 @@ MEnterBiQuEquat=רשום משוואה דו-ריבועית.‏
 MenterSinCosEquat=a*sinx+b*cosx=c :רשום משוואה מהסוג
 MenterTrigoQuEq=a*T(x)^2+b*T(x)+c=0 רשום משוואה מהסוג
 MInfiniteSetSol=אינסוף פתרונות
-MNoSolution=אין פיתרון
+MNoSolution=לא ניתן לפתור, או למשוואה אין פתרונות
 MInfOrNotSolRight1=,אם הביטוי בצד הימני שווה לאפס
 MinfOrNotSolRight2=למשוואה יש אינסוף פתרונות
 MinfOrNotSolRight3=אחרת למשוואה אין פתרון
@@ -887,6 +887,7 @@ MUnknwnMult=שגיאת כתיב
 MInadmOper=פעולה שגויה‏
 MInadmFunc=פונקציה שגויה‏
 MNoSolution=אין פתרון
+MCannotSolve=לא יכולים לפתור, או למשוואה אין פתרונות
 MNoSolvType=סוג המשוואה לא מתאים
 MNotSimpleExpr=בביטוי לא נמצא סימן פעולת חשבון‏
 MNotPercentExpr=סימן אחוזים אינו מצוי בביטוי‏

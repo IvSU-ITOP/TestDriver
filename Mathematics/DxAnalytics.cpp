@@ -943,7 +943,7 @@ TRealPoint DeterminBhv( DxExpressionValues& Vals, DxExpression& AExpression )
   return Result;
   }
 
-bool CalcAnyEquation( const QByteArray& Source )
+bool CalcAnyEquation( const QByteArray& Source, bool PutMessage = false  )
   {
   if( Source.isEmpty() ) return false;
   auto ExprValue = [] ( const MathExpr& ex1, double& x )
@@ -981,7 +981,7 @@ bool CalcAnyEquation( const QByteArray& Source )
 
   auto NoAlgResult = [&] ()
     {
-    TSolutionChain::sm_SolutionChain.AddExpr( new TStr( "" ), X_Str( "MNNoAlgSolutions", "No algebraic solutions!" ) );
+    if(PutMessage) TSolutionChain::sm_SolutionChain.AddExpr( new TStr( "" ), X_Str( "MNNoAlgSolutions", "No algebraic solutions!" ) );
     return Final(false);
     };
 

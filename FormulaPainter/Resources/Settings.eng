@@ -892,6 +892,7 @@ MUnknwnMult=Syntax error!
 MInadmOper=Wrong operation!
 MInadmFunc=Wrong function!
 MNoSolution=No solution!
+MCannotSolve=Cannot solve, or the equation has no solutions!
 MNoSolvType=Wrong type of equation!
 MNotSimpleExpr=Sign of operation is not found!
 MNotPercentExpr=Sign of percent is not found!

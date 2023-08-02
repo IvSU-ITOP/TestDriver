@@ -1203,10 +1203,10 @@ MathExpr SubtCube( const MathExpr& exi )
     }
   if( !WasReduced )
     {
-    throw ErrParser( X_Str("MCanNotFactor", "I can`t factor it!"), ParserErr::peNewErr );
-//    s_LastError = X_Str( "MCanNotFactor", "I can`t factor it!" );
-//    s_GlobalInvalid = true;
-//    Result = exi;
+//    throw ErrParser( X_Str("MCanNotFactor", "I can`t factor it!"), ParserErr::peNewErr );
+    s_LastError = X_Str( "MCanNotFactor", "I can`t factor it!" );
+    s_GlobalInvalid = true;
+    Result = exi;
     }
   s_NoRootReduce = OldNoRootReduce;
   return Result;
@@ -1648,6 +1648,7 @@ MathExpr RemDenominator( MathExpr ex, Lexp& Cond )
   {
   const char SetBinaries[] = { '+', '-', '=', '<', '>', (char) msMaxequal, (char) msMinequal, (char) msNotequal, 0 };
 
+  MathExpr ex0 = ex;
   std::function<bool( MathExpr, Lexp& )> SearchFractions = [&] ( MathExpr exp, Lexp& List )
     {
     MathExpr exL, exR;
@@ -1696,6 +1697,7 @@ MathExpr RemDenominator( MathExpr ex, Lexp& Cond )
   MathExpr Result = ex.Clone();
   MathExpr *pLeft;
   MathExpr *pRight;
+  QVector <const TExpr*> ListE;
   std::function<MathExpr( MathExpr&, PExMemb& )> GetNumerators = [&] ( MathExpr& ex, PExMemb& exMemb )
     {
     MathExpr exL, exR;
@@ -1712,13 +1714,18 @@ MathExpr RemDenominator( MathExpr ex, Lexp& Cond )
     if( In( cSign, SetBinaries ) )
       {
       pLeft = &CastPtr( TOper, ex )->Left();
-      MathExpr New = GetNumerators( exL, exMemb );
+      MathExpr New = GetNumerators( exL, exMemb ).Clone();
       if( pLeft == nullptr ) return ex;
-      ( *pLeft ) = New;
+      ListE.append((*pLeft)());
+//      ( *pLeft ) = New;
+      QByteArray S = ex0.WriteE();
       pLeft = nullptr;
       pRight = &CastPtr( TOper, ex )->Right();
-      New = GetNumerators( exR, exMemb );
-      ( *pRight ) = New;
+      New = GetNumerators( exR, exMemb ).Clone();
+      ListE.append((*pRight)());
+//      ( *pRight ) = New;
+//      if(exMemb == nullptr) return ex;
+      S = ex0.WriteE();
       ex.SetReduced( false );
       return ex;
       }
@@ -2437,7 +2444,8 @@ Lexp CalcDetLinEqu( const QByteArray& Source, const QByteArray& VarName )
     if( !( IsFuncEqu( eq ) || IsExpEqu( eq ) ) ) //{ Whether contains the equation }
       {
       MathExpr expr = Parser::StrToExpr( Source ), ex1, ex2;
-      if( !expr.Binar( '=', ex1, ex2 ) || !ex2.ConstExpr() && !ex2.IsLinear() || !ex1.ConstExpr() && !ex1.IsLinear() )
+      if( !expr.Binar( '=', ex1, ex2 ) || expr.MaxPower(VarName) > 1
+        || !ex2.ConstExpr() && !ex2.IsLinear() || !ex1.ConstExpr() && !ex1.IsLinear() )
         throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
       if( IsType( TVariable, ex1 ) && IsType( TConstant, ex2 ) )
         {
@@ -2525,12 +2533,14 @@ Lexp CalcDetLinEqu( const QByteArray& Source, const QByteArray& VarName )
             {
             ex = b / a;
             ex1 = ex.Reduce();
+            bool OldAccumulate = TSolutionChain::sm_SolutionChain.m_Accumulate;
+            TSolutionChain::sm_SolutionChain.m_Accumulate = false;
             ex = ex1.CancellationOfMultiNominals( ex2 );
+            TSolutionChain::sm_SolutionChain.m_Accumulate = OldAccumulate;
             Result = new TL2exp;
             Result.Addexp( ex );
             if( !ex1.Eq( ex ) ) ex = new TBinar( '=', ex1, ex );
-            else
-              ex = new TBinar( '=', Variable( VarName ), ex );
+            ex = new TBinar( '=', Variable( VarName ), ex );
             TSolutionChain::sm_SolutionChain.AddExpr( ex );
             q = P.GetExpression( a.WriteE() );
             if( !NIsConst( q ) )
@@ -2747,6 +2757,13 @@ Lexp CalcDetQuEqu( const QByteArray& Source, QByteArray VarName )
       throw  ErrParser( X_Str("MNoSolvType", "Wrong type of equation!"), peNoSolvType );
     TSolutionChain::sm_SolutionChain.AddExpr( Ex );
 //    TSolutionChain::sm_SolutionChain.AddExpr( ex );
+    QByteArray FName;
+    MathExpr FArg, Marg1, Marg2;
+    if(op2.Funct(FName, FArg) && FName == "exp" && op1.Multp(Marg1, Marg2) )
+      {
+      Ex = new TBinar('=', Marg2, new TDivi(op2, Marg1));
+      TSolutionChain::sm_SolutionChain.AddExpr( Ex );
+      }
     if( GetFactorCount( ex, VarName ) > 1 )
       {
       s_FinalComment = true;
@@ -3067,7 +3084,7 @@ Lexp CalcDetBiQuEqu( const QByteArray& Source, const QByteArray& VarName )
 
   try
     {
-    s_NoRootReduce = true;
+//    s_NoRootReduce = true;
     s_DegPoly = 5;
     if( s_PutAnswer )
       s_Answer = new TL2exp;
@@ -3732,7 +3749,18 @@ Lexp FractRatEq( const QByteArray& Source, const QByteArray& VarName, bool CalcB
           {
           case 0:
           case 1:
+            {
+            uchar Oper;
+            MathExpr Left, Right;
+            QByteArray Name;
+            if(ex.Oper_(Oper, Left, Right) && Oper == '=' && Left.Variab(Name) &&
+              Name == "x" && (IsType(TSimpleFrac, Right) || IsType(TConstant, Right)) )
+              {
+              Result.Addexp(Right);
+              break;
+              }
             Result = CalcDetLinEqu( NewSource, VarName );
+            }
             break;
           case 2:
             {
@@ -4822,7 +4850,7 @@ void TSolvCalcEquation::Solve()
   TConstant::sm_ConstToFraction = true;
 //  m_Expr = CalcAnyEquation( m_Expr->WriteE() );
 //  m_Expr = new TBool( CalcEquation( m_Expr->WriteE() ) );
-  m_Expr = new TBool( CalcAnyEquation( m_Expr->WriteE() ) );
+  m_Expr = new TBool( CalcAnyEquation( m_Expr->WriteE(), true ) );
   TConstant::sm_ConstToFraction = OldConstToFraction;
   }
 
@@ -6582,7 +6610,7 @@ bool CalcExchange( const QByteArray& Equation )
   return Result;
   }
 
-bool CalcRootsQuEqu( const QByteArray& Source )
+bool CalcRootsQuEqu( const QByteArray& Source, const QByteArray& VName )
   {
   if( Source.isEmpty() ) return false;
   double OldPrecision = s_Precision;
@@ -6609,9 +6637,9 @@ bool CalcRootsQuEqu( const QByteArray& Source )
     {
     TExpr::sm_FullReduce=true;
     s_NoRootReduce = true;
-    QByteArray VarName = "x";
     PNode eq;
     Parser P;
+    QByteArray VarName = VName;
     bool IsName, Mult;
     while( true )
       {
@@ -6656,7 +6684,7 @@ bool CalcRootsQuEqu( const QByteArray& Source )
       {
       MathExpr ex1 = ( op1 - op2 ).Reduce();
       TExprs a;
-      MathExpr ex2 = ex1.ReductionPoly( a, "x" );
+      MathExpr ex2 = ex1.ReductionPoly( a, VarName );
       double r;
       for( int i = s_DegPoly; i >= 3; i-- )
         if( !( a[i].Reduce().Constan( r ) && abs( r ) < 0.0000001 ) ) return BadEquation();
@@ -6895,6 +6923,17 @@ MathExpr DetVieEqu( const MathExpr& exi )
   if( !exi.EquaCh() )
     return BadEq( X_Str( "MEnterEquat", "Enter Equation!" ) );
 
+  Parser Ps;
+  bool IsName, Mult;
+  QByteArray VarName = "x", Source = exi.WriteE();
+  PNode eq;
+  while( true )
+    {
+    eq = Ps.Equation( Ps.FullPreProcessor( Source, VarName ), VarName, IsName, Mult );
+    if( IsName || VarName == "y" ) break;
+    VarName = "y";
+    }
+  if( IsFuncEqu( eq ) || TestFrac( eq ) || IsExpEqu( eq ) ) return BadEq(X_Str( "MEnterQuadrEquat", "Enter Quadratic Equation!" ));
   MathExpr a, b, c;
   bool check;
   exi.QuaEquCh( a, b, c, check );

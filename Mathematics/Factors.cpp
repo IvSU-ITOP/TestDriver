@@ -508,7 +508,7 @@ MathExpr ExpandOpRes( const MathExpr& exi )
 
   if( s_ExpandDetailed )
     {
-    if( !P.Eq( exi_E ) )
+    if( !P.Equal( exi_E ) )
       Result = new TBinar( '=', new TBinar( '=', Result, new TNewLin ), P.Reduce() );
     }
   else

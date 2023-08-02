@@ -772,7 +772,7 @@ bool TSubt::Subtr( MathExpr& op1, MathExpr& op2 ) const
 
 bool TSubt::IsLinear() const
   {
-  return true;
+  return m_Operand1.IsLinear() && m_Operand2.IsLinear();
   }
 
 MathExpr TSubt::TrigTerm( const QByteArray& sName, const MathExpr& exArg, const MathExpr& exPower )
@@ -918,8 +918,8 @@ MathExpr TMult::Reduce() const
     return result;
     }
 
-  opr1 = m_Operand1.Reduce();
-  opr2 = m_Operand2.Reduce();
+  opr1 = m_Operand1.Reduce(true);
+  opr2 = m_Operand2.Reduce(true);
 
   if( opr1.SimpleFrac_( N1, D1 ) && opr2.SimpleFrac_( N2, D2 ) )
     {
@@ -1284,22 +1284,22 @@ MathExpr TMult::Reduce() const
   if( opr2.Binar( '=', Op11, Op12 ) )
     return new TBinar( '=', ExpandExpr( Op11 * opr1 ), ExpandExpr( Op12 * opr1 ) );
 
-  if( opr1.Summa(Op11, Op12 ))
+  if( opr1.Summa(Op11, Op12 ) && !(IsType(TRoot, Op11)) && !(IsType(TRoot, Op12)))
     {
     P = new TSumm( ExpandExpr( Op11 * opr2 ), ExpandExpr( Op12 * opr2 ) );
     return P.Reduce();
     }
-  if( opr1.Subtr(Op11, Op12 ))
+  if( opr1.Subtr(Op11, Op12 ) && !(IsType(TRoot, Op11)) && !(IsType(TRoot, Op12)))
     {
     P = new TSubt( ExpandExpr( Op11 * opr2 ), ExpandExpr( Op12 * opr2 ) );
     return P.Reduce();
     }
-  if( opr2.Summa( Op11, Op12 ) )
+  if( opr2.Summa( Op11, Op12 ) && !(IsType(TRoot, Op11)) && !(IsType(TRoot, Op12)) )
     {
     P = new TSumm( ExpandExpr( Op11 * opr1 ), ExpandExpr( Op12 * opr1 ) );
     return P.Reduce();
     }
-  if( opr2.Subtr( Op11, Op12 ) )
+  if( opr2.Subtr( Op11, Op12 ) && !(IsType(TRoot, Op11)) && !(IsType(TRoot, Op12)) )
     {
     P = new TSubt( ExpandExpr( Op11 * opr1 ), ExpandExpr( Op12 * opr1 ) );
     return P.Reduce();
@@ -1866,12 +1866,10 @@ MathExpr TDivi::Reduce() const
     if( A2 > sm_Precision )
       return Constant( Value1 / Value2 );
     double A1 = fabs(Value1);
+    s_GlobalInvalid = true;
+    s_LastError="INFVAL";
     if(A1 < sm_Precision)
-       {
-       s_GlobalInvalid = true;
-       s_LastError="INFVAL";
        return MathExpr( new TConstant(1, true) );
-       }
     return Ethis;
     }
 
@@ -2370,7 +2368,8 @@ MathExpr TDivi::Reduce() const
   s_SummExpFactorize = false;
   try
     {
-    Result = Result.Reduce();
+    if(!exNom.Eq(m_Operand1) && !exDenom.Eq(m_Operand2))
+      Result = Result.Reduce();
     }
   catch( char * )
     {
@@ -2464,12 +2463,10 @@ MathExpr TDivi::Integral( const QByteArray& d )
 
   if( n == dpOk )
     {
-    TExpr::sm_IntegralError = true;
-    return Ethis;
-/*
+//    TExpr::sm_IntegralError = true;
+//    return Ethis;
     rd = ( op1 + op2 / m_Operand2 ).ReduceTExprs();
     return rd.Integral( d );
-*/
     }
 
   opr1 = Expand(m_Operand1);

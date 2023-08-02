@@ -70,7 +70,7 @@ ErrParser::ErrParser( const QString& Message, ParserErr Error ) : m_ErrStatus( E
   {
   QVector <QByteArray> MsgErrParserName = { "MsyntaxErr", "MIncrctName", "MNullPtr", "MNoOpnBrckt",
     "MNoClsBrckt", "MIncrctDegree", "MUnknwnMult",
-    "MInadmOper", "MInadmFunc", "MNoSolutions", "MNoSolvType", "MUnaptMethod", "MCanNotExpand", "MNewErr" };
+    "MInadmOper", "MInadmFunc", "MNoSolutions", "MCannotSolve", "MNoSolvType", "MUnaptMethod", "MCanNotExpand", "MNewErr" };
   s_TruePolynom = false;
   s_Precision = s_OldPrecision;
   if( s_bSuppressErrorMsg ) return;
@@ -103,6 +103,9 @@ QString ErrParser::WMessage()
       return X_Str("MInadmOper", "Wrong operation!");
     case peNoSolv:
       return X_Str("MNoSolution", "No solution!");
+    case peCannotSolve:
+      return X_Str("MCannotSolve", "Cannot solve, or the equation has no solutions!");
+
     }
   return m_Message;
   }

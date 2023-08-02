@@ -275,7 +275,7 @@ MathExpr CalcIntegralExpr(const MathExpr& e)
             if( exRight.Eq(v) || ( exRight.Multp( exL, exR ) && ( ( exL.Eq(v) && ( exR.HasUnknown(Name ) == "" ) )
               ||( exR.Eq(v) && ( exL.HasUnknown( Name ) == "" ) ) ) ) )
               {
-              exTmp = Function( "log", v );
+              exTmp = Function( "ln", v );
               if( exLeft.HasExpr( exTmp ) )
                 {
                 Result = Constant( 1 ) / v;
@@ -291,7 +291,7 @@ MathExpr CalcIntegralExpr(const MathExpr& e)
                   }
                 return Result;
                 }
-              exTmp = Function( "log", exRight );
+              exTmp = Function( "ln", exRight );
               if( exLeft.HasExpr( exTmp ) )
                 {
                 Result = Constant( 1 ) / exRight;
@@ -1731,12 +1731,12 @@ MathExpr TPowr::Integral(const QByteArray& d)
       if( IsConst(a1,0) )
         {
         if( s_NoAbsInLog && !(IsConstType( TSubt, m_Operand1 )) )
-          Result=( Constant(1)/b1 ) * Function( "log", m_Operand1.Clone());
+          Result=( Constant(1)/b1 ) * Function( "ln", m_Operand1.Clone());
         else
           if( TExpr::sm_IsAuxiliaryIntegral )
-             Result = (Constant(1)/b1) * Function("log", m_Operand1.Clone());
+             Result = (Constant(1)/b1) * Function("ln", m_Operand1.Clone());
           else
-             Result = (Constant(1)/b1 ) * Function( "log", new TAbs(false,m_Operand1.Clone()));
+             Result = (Constant(1)/b1 ) * Function( "ln", new TAbs(false,m_Operand1.Clone()));
         }
       else
         if( a1.Constan(a) && b1.Constan(b) && c1.Constan(c) )
@@ -1754,7 +1754,7 @@ MathExpr TPowr::Integral(const QByteArray& d)
                 a1 = (Constant( abs(a)).Root(2) * Variable(d) + Constant(abs(c)).Root(2)) /
                   (Constant( abs(a)).Root( 2 ) * Variable( d ) - Constant( abs(c)).Root( 2 ));
               Result = (Constant(1) / ( Constant(2) * (Constant( abs(a)) * Constant(abs(c)) ).Root(2))) *
-                  Function("log", new TAbs(false, a1) );
+                  Function("ln", new TAbs(false, a1) );
               }
             else
               {
@@ -1781,10 +1781,10 @@ MathExpr TPowr::Integral(const QByteArray& d)
              if( abs(b)<1E-6 )
                if( a>0 )
                  if( c >= 0 )
-                   Result = (Constant(1) / Constant(a).Root(2)) * Function("log",
+                   Result = (Constant(1) / Constant(a).Root(2)) * Function("ln",
                      (Constant(a) * Variable(d)^Constant(2) + Constant(c)).Root(2) + Variable(d) * Constant(a).Root(2));
                  else
-                   Result = (Constant(1) / Constant(a).Root(2)) * Function("log",
+                   Result = (Constant(1) / Constant(a).Root(2)) * Function("ln",
                      new TAbs( false, (Constant(a) * Variable(d)^Constant(2) +
                      Constant(c)).Root(2) + Variable(d) * Constant(a).Root(2) ) );
                else
@@ -1839,7 +1839,7 @@ MathExpr TPowr::Integral(const QByteArray& d)
        if( abs(c)<1E-6 )
          return Constant( 0 );
      }
-   Result = (Constant(1)/a2) * Clone() * ( Constant(1) / Function("log", c1 ) );
+   Result = (Constant(1)/a2) * Clone() * ( Constant(1) / Function("ln", c1 ) );
    }
  else
   {
@@ -1981,7 +1981,7 @@ MathExpr TPowr::Lim(const QByteArray& v, const MathExpr& lm) const
         }
   else
     if( nl2 )
-      Result = Function( "exp", (m_Operand2 * Function("log", m_Operand1 ) ).Lim( v, lm) );
+      Result = Function( "exp", (m_Operand2 * Function("ln", m_Operand1 ) ).Lim( v, lm) );
     else
       if( op2.Negative() )
         Result = Constant( 0 );

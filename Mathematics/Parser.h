@@ -27,7 +27,7 @@ struct TNode
   };
 
 enum ParserErr { peSyntacs, peName, peNullptr, peNoOpnBrckt, peNoClsBrckt,
-  peDegree, peMultipl, peOpertn, peFunctn, peNoSolv, peNoSolvType, peCanNotExpand, peUnaptMethod,  peNewErr, peInfinity };
+  peDegree, peMultipl, peOpertn, peFunctn, peNoSolv, peCannotSolve, peNoSolvType, peCanNotExpand, peUnaptMethod,  peNewErr, peInfinity };
 
 class Parser
   {

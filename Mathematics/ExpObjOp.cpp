@@ -259,7 +259,7 @@ MathExpr TSumm::Lim( const QByteArray& v, const MathExpr& lm ) const
 
   if( IsConstType( TDivi, m_Operand1 ) && IsConstType( TDivi, m_Operand2 ) )
     {
-    sm_pResultReceiver->Clear();
+//    sm_pResultReceiver->Clear();
     op1 = TExpr::CalcMulti( 1, MathExpr(this->Clone()), false );
     if( !op1.IsEmpty() && !( IsConstType ( TSumm, m_Operand1  ) ) ) return op1->Lim( v, lm );
     }
@@ -438,7 +438,7 @@ MathExpr TSubt::Reduce() const
   if( IsConstType( TIntegral, m_Operand1 ) )
     opr1r = opr1r.Calculate();
   if(s_GlobalInvalid)return Ethis;
-  opr2r = m_Operand2.Reduce();
+  opr2r = m_Operand2.Reduce(true);
   if( IsConstType( TIntegral, m_Operand2 ) )
     opr2r = opr2r.Calculate();
   else
@@ -671,7 +671,7 @@ MathExpr TSubt::Lim( const QByteArray& v, const MathExpr& lm ) const
             ex = new TRoot( lm, 6 );
             exL = ex.Reduce();
             ex = new TLimit( false, ex1, new TVariable( false, Name ), exL );
-            sm_pResultReceiver->AddExp( new TBinar( '=', new TLimit( false, Ethis, new TVariable( false, v ), lm ), ex ) );
+            TSolutionChain::sm_SolutionChain.AddExpr( new TBinar( '=', new TLimit( false, Ethis, new TVariable( false, v ), lm ), ex ) );
             ex1 = CalcMulti( 2, ex1, true );
             result = ex1.Lim( Name, exL );
             s_GlobalInvalid = result.IsEmpty();
@@ -680,7 +680,7 @@ MathExpr TSubt::Lim( const QByteArray& v, const MathExpr& lm ) const
             }
           else
             {
-            sm_pResultReceiver->AddExp( new TLimit( false, Ethis, new TVariable( false, v ), lm ) );
+            TSolutionChain::sm_SolutionChain.AddExpr( new TLimit( false, Ethis, new TVariable( false, v ), lm ) );
             ex = CalcMulti( 2, ex, true );
             return ex.Lim( v, lm );
             }
@@ -1432,7 +1432,6 @@ MathExpr TMult::Lim( const QByteArray& v, const MathExpr& lm ) const
       return new TConstant( 0 );
     else
       return nullptr;
-
   if( op2.IsEmpty() )
     if( nl1 )
       return new TConstant( 0 );

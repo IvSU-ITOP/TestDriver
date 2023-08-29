@@ -324,6 +324,24 @@ class Advanced : public CalcWidget
      void Present();
   };
 
+class AlgFrct : public CalcWidget
+  {
+  Q_OBJECT
+  public:
+     AlgFrct();
+     void AddButton( const QString& Icon, const QByteArray& Hint, const QByteArray& DefaultHint, void ( AlgFrct::*Slot )( ) );
+  public slots:
+     void Mltpl();
+     void Div();
+     void Calculator();
+     void DivPolynoms();
+     void Cancel();
+     void CmnDenom();
+     void Sum();
+     void Dif();
+     void Polynom();
+  };
+
 class ListCalculators : public QListWidget
   {
   public:

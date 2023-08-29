@@ -44,6 +44,7 @@ MathExpr GetPutRoot( const MathExpr& ex, const QByteArray& VarName );
 TL2exp* RootPolinom( MathExpr ex );
 bool IsMultiNominal( const MathExpr& exi );
 TL2exp* Eigen(const QByteArray& Source);
+MathExpr DiviExprs(const MathExpr& ExprX, const MathExpr& ExprY, int SignOfResult);
 
 class TCounter
   {

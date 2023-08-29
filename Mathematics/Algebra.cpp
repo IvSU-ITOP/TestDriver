@@ -1647,7 +1647,6 @@ MathExpr RightExpr( const MathExpr& E )
 MathExpr RemDenominator( MathExpr ex, Lexp& Cond )
   {
   const char SetBinaries[] = { '+', '-', '=', '<', '>', (char) msMaxequal, (char) msMinequal, (char) msNotequal, 0 };
-
   MathExpr ex0 = ex;
   std::function<bool( MathExpr, Lexp& )> SearchFractions = [&] ( MathExpr exp, Lexp& List )
     {
@@ -1945,7 +1944,7 @@ MathExpr TExpr::ReToMult()
             return CreateMultExp( ex1 );
           }
         else
-          {
+          {         
           ex2 = GetExponent( op2, false );
           if( !ex2.IsEmpty() )
             return CreateMultExp( ex2 );
@@ -3067,11 +3066,13 @@ Lexp CalcDetBiQuEqu( const QByteArray& Source, const QByteArray& VarName )
   double OldPrecision = s_Precision;
   bool OldRootReduce = s_NoRootReduce;
   s_Precision = 0.0000001;
+  int OldDegPoly = s_DegPoly;
 
   auto Final = [&] ()
     {
     s_Precision = OldPrecision;
     s_NoRootReduce = OldRootReduce;
+    s_DegPoly = OldDegPoly;
     return Result;
     };
 
@@ -3079,6 +3080,7 @@ Lexp CalcDetBiQuEqu( const QByteArray& Source, const QByteArray& VarName )
     {
     if( s_FinalComment )
       TSolutionChain::sm_SolutionChain.AddComment( X_Str( "MEnterBiQuEquat", "Enter biquadratic equation" ) );
+    s_DegPoly = OldDegPoly;
     return nullptr;
     };
 
@@ -3496,6 +3498,7 @@ Lexp CalcDetBiQuEqu( const QByteArray& Source, const QByteArray& VarName )
     }
   catch( ErrParser E )
     {
+    s_DegPoly = OldDegPoly;
     TSolutionChain::sm_SolutionChain.AddExpr( new TStr( "" ), X_Str( E.Name(), E.Message() ) );
     }
   return Final();
@@ -4730,7 +4733,7 @@ void TSolvCalcHomogenTrigoEqu::Solve()
 void TSolvQuaEqu::Solve()
   {
   bool OldConstToFraction = TConstant::sm_ConstToFraction;
-  TConstant::sm_ConstToFraction = true;
+//  TConstant::sm_ConstToFraction = true;
   m_Expr = new TBool( CalcRootsQuEqu( m_Expr->WriteE() ) );
   TConstant::sm_ConstToFraction = OldConstToFraction;
   }
@@ -4759,7 +4762,7 @@ void TSolvDetQuaEqu::Solve()
 void TSolvCalcDetBiQuEqu::Solve()
   {
   bool OldConstToFraction = TConstant::sm_ConstToFraction;
-  TConstant::sm_ConstToFraction = true;
+//  TConstant::sm_ConstToFraction = true;
   bool Result = true;
   try
     {
@@ -4819,7 +4822,7 @@ void TSolvCalcIrratEq::Solve()
 void TSolvCalcPolinomEqu::Solve()
   {
   bool OldConstToFraction = TConstant::sm_ConstToFraction;
-  TConstant::sm_ConstToFraction = true;
+//  TConstant::sm_ConstToFraction = true;
   bool Result = true;
   try
     {
@@ -7279,7 +7282,7 @@ bool CalcEquation( const QByteArray& Source )
         TSolutionChain::sm_SolutionChain.AddExpr( ex2, X_Str( "MRoot", "Roots are found!" ) );
         }
       else
-        TSolutionChain::sm_SolutionChain.AddComment( X_Str( "MNotFoundRoots", "Roots are ! found." ) );
+        TSolutionChain::sm_SolutionChain.AddComment( X_Str( "MNotFoundRoots", "Roots are not found." ) );
       }
     else
       return InvalidInput();
@@ -7293,7 +7296,114 @@ bool CalcEquation( const QByteArray& Source )
   s_Precision = OldPrecision;
   return true;
   }
+/*
+MathExpr SummSubtOper(int ssSign, const MathExpr& exi, const MathExpr& exi1, const MathExpr& exi2, bool IsDetails)
+  {
+  MathExpr dividend1, divisor1, dividend2, divisor2 ;
+  int SignOfDivision1, SignOfDivision2;
+  MathExpr exp, exp1, exp2;
+  MathExpr CommExp ;
+  MathExpr exm1,  exm3;
+  int cSign;
+  MathExpr Temp1, Temp2 ;
+  bool OldAccumulate ;
+  CheckDivision(exi1,dividend1,divisor1,SignOfDivision1);
+  CheckDivision(exi2,dividend2,divisor2,SignOfDivision2);
 
+  dividend1 = ToFactorsDel(dividend1);
+  divisor1 = ToFactorsDel(divisor1);
+  dividend2 = ToFactorsDel(dividend2);
+  divisor2 = ToFactorsDel(divisor2);
+
+  exp1 = DiviExprs(dividend1, divisor1, SignOfDivision1);
+  exp2 = DiviExprs(dividend2, divisor2, SignOfDivision2);
+  if( ssSign == 1 )
+    exp = exp1 + exp2;
+  else
+    exp = exp1 - exp2;
+   if( IsDetails && !exi.Eq(exp) )
+     {
+     TSolutionChain::sm_SolutionChain.AddExpr(exp);
+     TSolutionChain::sm_SolutionChain.AddComment(X_Str("Mfraction","fraction"));
+     }
+  exm1 = exp;
+
+  CommExp = GetCommon(divisor1, divisor2);
+  Temp1 = dividend1;
+  Temp2 = dividend2;
+  dividend1 = MultExprs(Temp1, divisor2);
+  dividend2 = MultExprs(Temp2, divisor1);
+  if( !CommExp.IsEmpty() )
+    {
+    Temp1 = MultExprs(divisor1, divisor2);
+    Temp2 = divisor2;
+    divisor1 = MultExprs(CommExp, Temp1);
+    divisor2 = divisor1;
+    }
+  else
+    {
+    Temp1 = divisor1;
+    Temp2 = divisor2;
+    divisor1 = MultExprs(divisor1, divisor2);
+    divisor2 = divisor1;
+    }
+
+  exp1 = DiviExprs(dividend1, divisor1, SignOfDivision1);
+  exp2 = DiviExprs(dividend2, divisor2, SignOfDivision2);
+  if( ssSign == 1 )
+    exp = exp1 + exp2;
+  else
+    exp = exp1 - exp2;
+  if( IsDetails && !exm1.Eq(exp) )
+    {
+    TSolutionChain::sm_SolutionChain.AddExpr( exp );
+    TSolutionChain::sm_SolutionChain.AddComment(X_Str("Mcom_div","common divisor"));
+    }
+
+  cSign = 1;
+  if( (SignOfDivision1 == -1 && SignOfDivision2 == -1 && ssSign == 1) ||
+     ( SignOfDivision1 == -1 && SignOfDivision2 == 1 && ssSign == -1) )
+  {
+  cSign=-1;
+  SignOfDivision1 = 1;
+  SignOfDivision2 = 1;
+  ssSign = 1;
+  }
+
+  dividend1 = NegTExprs(dividend1, SignOfDivision1 == -1);
+  dividend2 = NegTExprs(dividend2, SignOfDivision2 == -1);
+
+  if( ssSign == 1 )
+    exp1 = dividend1 + dividend2;
+  else
+    exp1 = dividend1 - dividend2;
+  exp = DiviExprs(exp1, divisor1, cSign);
+  if( IsDetails )
+    {
+    TSolutionChain::sm_SolutionChain.AddExpr(exp);
+    if( ssSign == 1 )
+      TSolutionChain::sm_SolutionChain.AddComment(X_Str("Msum","sum"));
+    else
+      TSolutionChain::sm_SolutionChain.AddComment(X_Str("Mdifference","difference"));
+    }
+  exm3 = exp;
+  exp1 = ExpandExpr(exp1);
+  exp =DiviExprs(exp1, ExpandExpr(divisor1), cSign);
+  if( IsDetails && !exm3.Eq(exp) )
+    {
+    TSolutionChain::sm_SolutionChain.AddExpr( exp );
+    TSolutionChain::sm_SolutionChain.AddComment(X_Str("Mexpand","expand"));
+    }
+  try
+    {
+    Result = CancellationOfMultiNominals(exp,exp1);
+    }
+  catch()
+    {
+    }
+  }
+
+*/
 void TMatrixOp::Solve()
   {
   if(!m_Expr.HasMatrix())
@@ -7309,6 +7419,10 @@ void TMatrixOp::Solve()
   m_Expr = new TBool(true);
   }
 
+void AlgFrctSum::Solve()
+  {
+  MathExpr Result = TExpr::CalcMulti(1, m_Expr, true);
+  }
 /*
 void TDerivative::Solve()
   {
@@ -7438,3 +7552,6 @@ TSciCalc::TSciCalc() : Solver() { m_Code = ESolvTestMode; m_Name = "MCalced"; m_
 
 TMatrixOp::TMatrixOp( const MathExpr Expr ) : Solver( Expr ) {}
 TMatrixOp::TMatrixOp() : Solver() { m_Code = EDeriv; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }
+
+AlgFrctSum::AlgFrctSum( const MathExpr Expr ) : Solver( Expr ) {}
+AlgFrctSum::AlgFrctSum() : Solver() { m_Code = EAlgFrctSum; m_Name = "MCalced"; m_DefaultName = "Calculated!"; }

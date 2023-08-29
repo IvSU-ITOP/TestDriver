@@ -3084,7 +3084,7 @@ MathExpr TPowr::Reduce() const
       OldCalcOnly = s_CalcOnly;
       s_CalcOnly = true;
       MathExpr Result;
-      if( CalcExpEq( P.WriteE(), sm_pResultReceiver ) )
+      if( CalcExpEq( P.WriteE()) )
         {
         Temp = s_Answer;
         if( IsConstType( TLexp, s_Answer ) )

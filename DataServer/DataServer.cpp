@@ -242,10 +242,11 @@ void Thread::SearchSolve(QByteArray& Formula)
     Solve( new TSolvDetQuaEqu );
     Solve( new TSolvDisQuaEqu );
     Solve( new TSolvDetVieEqu );
-    Solve( new TSolvQuaEqu );
-    if( m_SolvIndexes.count() > 0 ) return Final();
+//    if( m_SolvIndexes.count() > 0 ) return Final();
 
+    Solve( new TSolvCalcEquation );
     Solve( new TSolvCalcPolinomEqu );
+    if( m_SolvIndexes.count() > 0 ) return Final();
     Solve( new Log1Eq );
     Solve( new ExpEq );
     Solve( new TSolvCalcDetBiQuEqu );

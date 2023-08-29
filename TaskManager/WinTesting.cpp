@@ -82,6 +82,7 @@ DetailedCalculator::DetailedCalculator() : m_pCalculators( new ListCalculators )
   Calculus *pCalculus = new Calculus;
   Trigo *pTrigo = new Trigo;
   Advanced *pAdvanced = new Advanced;
+  AlgFrct *pAlgFrct = new AlgFrct;
   m_pCalcsLayout->addWidget( pAl1 );
   m_pCalcsLayout->addWidget( pAl2 );
   m_pCalcsLayout->addWidget( pE1 );
@@ -90,6 +91,7 @@ DetailedCalculator::DetailedCalculator() : m_pCalculators( new ListCalculators )
   m_pCalcsLayout->addWidget( pCalculus );
   m_pCalcsLayout->addWidget( pTrigo );
   m_pCalcsLayout->addWidget( pAdvanced );
+  m_pCalcsLayout->addWidget( pAlgFrct );
   QHBoxLayout *pHLayout = new QHBoxLayout;
   m_pCalculators->AddItem( "MAlgebra", "Algebra 1" );
   m_pCalculators->AddItem( "MAlgebra_2", "Algebra 2" );
@@ -99,6 +101,7 @@ DetailedCalculator::DetailedCalculator() : m_pCalculators( new ListCalculators )
   m_pCalculators->AddItem( "MCalculus", "Calculus" );
   m_pCalculators->AddItem( "MTrigo", "Trigo" );
   m_pCalculators->AddItem( "MAdvanced", "Advanced" );
+  m_pCalculators->AddItem( "MAlgFractLong", "Algebraic Fractions" );
   connect( m_pCalculators, SIGNAL( currentRowChanged( int ) ), SLOT( SelectPanel( int ) ) );
   pHLayout->addWidget( m_pCalculators );
   pHLayout->addLayout( m_pCalcsLayout );
@@ -3036,6 +3039,71 @@ void Advanced::Present()
   {
   Solve( new RatInEq );
   }
+
+AlgFrct::AlgFrct()
+  {
+  AddButton( ":/Resources/Calculator/BitBtnAlgFrSum.jpg", "MAlgFrSumHint", "Detailed Sum", &AlgFrct::Sum );
+  AddButton( ":/Resources/Calculator/BitBtnAlgFrDif.jpg", "MAlgFrDiffHint", "Detailed Difference", &AlgFrct::Dif );
+  AddButton( ":/Resources/Calculator/BitBtnAlgFrCancel.jpg", "MAlgFrCancelHint", "Cancelling Fraction", &AlgFrct::Cancel );
+  AddButton( ":/Resources/Calculator/BitBtnAlgFrMltpl.jpg", "MAlgFrMltplHint", "Detailed Multiplication", &AlgFrct::Mltpl );
+  AddButton( ":/Resources/Calculator/BitBtnAlgFrDiv.jpg", "MAlgFrDivHint", "Detailed Division", &AlgFrct::Div );
+  AddButton( ":/Resources/Calculator/BitBtnAlgFrCmnDenom.jpg", "MAlgFrCmnDenomHint", "Common Denominator", &AlgFrct::CmnDenom );
+  AddButton( ":/Resources/Calculator/BitBtnAlgFrPolynom.jpg", "MAlgFrEqPolynomHint", "Factoring Polynomial", &AlgFrct::Polynom );
+  AddButton( ":/Resources/Calculator/BitBtnAlgFrDivPolynoms.jpg", "MAlgFrDivPolynomsHint", "Dividing Polynomial by Polynomial", &AlgFrct::DivPolynoms );
+  AddButton( ":/Resources/Calculator/BitBtnAlgFrCalculator.jpg", "MAlgFrCalculatorHint", "Calculator", &AlgFrct::Calculator );
+  }
+
+void AlgFrct::AddButton( const QString& Icon, const QByteArray& Hint, const QByteArray& DefaultHint, void ( AlgFrct::*Slot )( ) )
+  {
+  CalcButton *pButton = CalcWidget::AddButton( Icon, Hint, DefaultHint );
+  QObject::connect( pButton, &CalcButton::clicked, this, Slot );
+  }
+
+void AlgFrct::Mltpl()
+  {
+
+  }
+
+void AlgFrct::Div()
+  {
+
+  }
+
+void AlgFrct::Calculator()
+  {
+
+  }
+
+void AlgFrct::DivPolynoms()
+  {
+
+  }
+
+void AlgFrct::Cancel()
+  {
+
+  }
+
+void AlgFrct::CmnDenom()
+  {
+
+  }
+
+void AlgFrct::Sum()
+  {
+  Solve( new AlgFrctSum );
+  }
+
+void AlgFrct::Dif()
+  {
+
+  }
+
+void AlgFrct::Polynom()
+  {
+
+  }
+
 
 CalcButton::CalcButton( const QByteArray& Hint, const QByteArray& DefaultHint, const QString& Icon, bool bToTitle ) : m_Hint( Hint ), m_DefaultHint( DefaultHint )
   {

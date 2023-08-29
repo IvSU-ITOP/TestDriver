@@ -104,5 +104,14 @@
         <file>Resources/Calculator/BinomCoeff.jpg</file>
         <file>Resources/Calculator/Permut.jpg</file>
         <file>Resources/GraphBtnDerive.png</file>
+        <file>Resources/Calculator/BitBtnAlgFrSum.jpg</file>
+        <file>Resources/Calculator/BitBtnAlgFrPolynom.jpg</file>
+        <file>Resources/Calculator/BitBtnAlgFrDivPolynoms.jpg</file>
+        <file>Resources/Calculator/BitBtnAlgFrDiv.jpg</file>
+        <file>Resources/Calculator/BitBtnAlgFrCmnDenom.jpg</file>
+        <file>Resources/Calculator/BitBtnAlgFrCalculator.jpg</file>
+        <file>Resources/Calculator/BitBtnAlgFrMltpl.jpg</file>
+        <file>Resources/Calculator/BitBtnAlgFrDif.jpg</file>
+        <file>Resources/Calculator/BitBtnAlgFrCancel.jpg</file>
     </qresource>
 </RCC>

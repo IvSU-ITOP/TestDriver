@@ -2772,7 +2772,8 @@ TL2exp* RootPolinom( MathExpr ex )
   ex = ExpandExpr( Left ).Reduce();
   N = 0;
   MaxPower( ex );
-  if( N < 1 || N >= 4) return pResult;
+//  if( N < 1 || N >= 4) return pResult;
+  if( N < 1 ) return pResult;
   int iOut;
   if( !ex.Oper_( Name, Left, Right ) )
     {

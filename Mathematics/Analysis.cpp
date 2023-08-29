@@ -671,7 +671,7 @@ void MakeCalcDefIntegral(const MathExpr& e, MathExpr& ex1, MathExpr& ex2, MathEx
     s_LastError=X_Str("XPAnalysisCalcMess","Cannot integrate!");
     return;
     }
-  s_GlobalInvalid = false;
+  s_GlobalInvalid = false; 
   rd = it.Reduce();
   while( IsThereIntegral(rd) )
     {
@@ -679,6 +679,7 @@ void MakeCalcDefIntegral(const MathExpr& e, MathExpr& ex1, MathExpr& ex2, MathEx
     rd = it;
     }
   ex1 = new TSubst(false, rd, ll, hl);
+
   if( ( IsConstType( TInfinity, ll ) ) || IsConst( ll, 0 ) )
     {
     ex =  new TLimit( false, rd, v, ll );
@@ -1979,26 +1980,26 @@ MathExpr TPowr::Lim(const QByteArray& v, const MathExpr& lm) const
         s_GlobalInvalid = true;
         Result = Clone();
         }
-  else
-    if( nl2 )
-      Result = Function( "exp", (m_Operand2 * Function("ln", m_Operand1 ) ).Lim( v, lm) );
     else
-      if( op2.Negative() )
-        Result = Constant( 0 );
+      if( nl2 )
+        Result = Function( "exp", (m_Operand2 * Function("ln", m_Operand1 ) ).Lim( v, lm) );
       else
-        if( in2 )
-          if( od2 )
-            Result = new TInfinity(ng1);
-          else
-            Result = new TInfinity(false);
+        if( op2.Negative() )
+          Result = Constant( 0 );
         else
-          if( ng1 )
-            {
-            s_GlobalInvalid = true;
-            Result = Clone();
-            }
+          if( in2 )
+            if( od2 )
+              Result = new TInfinity(ng1);
+            else
+              Result = new TInfinity(false);
           else
-            Result= new TInfinity(false);
+            if( ng1 )
+              {
+              s_GlobalInvalid = true;
+              Result = Clone();
+              }
+            else
+              Result= new TInfinity(false);
   else
     if( op2.Infinity(ng2) )
       if( op1.Negative() )
@@ -2028,6 +2029,7 @@ MathExpr TPowr::Lim(const QByteArray& v, const MathExpr& lm) const
         Result = new TInfinity(false);
       else
         Result = op1^op2;
+  return Result;
   }
 
 MathExpr TFunc::Integral(const QByteArray& d)

@@ -52,8 +52,8 @@ MathExpr TExpr::SummSubtOper(int ssSign, const MathExpr& exi, const MathExpr& ex
     exp = exp1 - exp2;
   if (IsDetails && exi.WriteE() != exp.WriteE())
     {
-    sm_pResultReceiver->AddExp(exp);
-    sm_pResultReceiver->AddComm(X_Str("Mfraction", "fraction"));
+    TSolutionChain::sm_SolutionChain.AddExpr(exp);
+    TSolutionChain::sm_SolutionChain.AddComment(X_Str("Mfraction", "fraction"));
     }
   exm1 = exp;
 
@@ -83,8 +83,8 @@ MathExpr TExpr::SummSubtOper(int ssSign, const MathExpr& exi, const MathExpr& ex
   else exp = exp1 - exp2;
   if (IsDetails && exm1.WriteE() != exp.WriteE() )
     {
-    sm_pResultReceiver->AddExp(exp);
-    sm_pResultReceiver->AddComm(X_Str("Mcom_div", "common divisor"));
+    TSolutionChain::sm_SolutionChain.AddExpr(exp);
+    TSolutionChain::sm_SolutionChain.AddComment(X_Str("Mcom_div", "common divisor"));
     }
   cSign = +1;
   if (SignOfDivision1 == -1 && SignOfDivision2 == -1 && ssSign == +1 || (SignOfDivision1 == -1 && SignOfDivision2 == +1 && ssSign == -1))
@@ -103,19 +103,19 @@ MathExpr TExpr::SummSubtOper(int ssSign, const MathExpr& exi, const MathExpr& ex
   exp = DiviExprs(exp1, divisor1, cSign);
   if (IsDetails)
     {
-    sm_pResultReceiver->AddExp(exp);
+    TSolutionChain::sm_SolutionChain.AddExpr(exp);
     if (ssSign == +1)
-      sm_pResultReceiver->AddComm(X_Str("Msum", "sum"));
+      TSolutionChain::sm_SolutionChain.AddComment(X_Str("Msum", "sum"));
     else
-      sm_pResultReceiver->AddComm(X_Str("Mdifference", "difference"));
+      TSolutionChain::sm_SolutionChain.AddComment(X_Str("Mdifference", "difference"));
     }
   exm3 = exp;
   exp1 = ExpandExpr(exp1);
   exp = DiviExprs(exp1, ExpandExpr(divisor1), cSign);
   if (IsDetails && exm3.WriteE() != exp.WriteE())
     {
-    sm_pResultReceiver->AddExp(exp);
-    sm_pResultReceiver->AddComm(X_Str("Mexpand", "expand"));
+    TSolutionChain::sm_SolutionChain.AddExpr(exp);
+    TSolutionChain::sm_SolutionChain.AddComment(X_Str("Mexpand", "expand"));
     }
   MathExpr Result;
   try
@@ -151,8 +151,8 @@ MathExpr TExpr::MultOper(const MathExpr& exi, const MathExpr& exi1, const MathEx
   exm1 = exp;
   if (IsDetails)
     {
-    sm_pResultReceiver->AddExp(exp);
-    sm_pResultReceiver->AddComm(X_Str("Mproduct", "product"));
+    TSolutionChain::sm_SolutionChain.AddExpr(exp);
+    TSolutionChain::sm_SolutionChain.AddComment(X_Str("Mproduct", "product"));
     }
   exp = GetCommon(exp1, exp2);
   exp = DiviExprs(exp1, exp2, SignOfDivision1*SignOfDivision2);
@@ -161,8 +161,8 @@ MathExpr TExpr::MultOper(const MathExpr& exi, const MathExpr& exi1, const MathEx
   if (IsDetails && Sign)
     {
     exp = DiviExprsS(exp1, exp2, SignOfDivision1*SignOfDivision2);
-    sm_pResultReceiver->AddExp(exp);
-    sm_pResultReceiver->AddComm(X_Str("MCancelInfo", "Canceling algebraic fraction"));
+    TSolutionChain::sm_SolutionChain.AddExpr(exp);
+    TSolutionChain::sm_SolutionChain.AddComment(X_Str("MCancelInfo", "Canceling algebraic fraction"));
     }
   texp = exp1;
   exp1 = ExpandExpr(texp);
@@ -171,8 +171,8 @@ MathExpr TExpr::MultOper(const MathExpr& exi, const MathExpr& exi1, const MathEx
   if (IsDetails && Sign)
     {
     exp = DiviExprsS(exp1, ExpandExpr(exp2), SignOfDivision1*SignOfDivision2).Reduce();
-    sm_pResultReceiver->AddExp(exp);
-    sm_pResultReceiver->AddComm(X_Str("Mexpand", "expand"));
+    TSolutionChain::sm_SolutionChain.AddExpr(exp);
+    TSolutionChain::sm_SolutionChain.AddComment(X_Str("Mexpand", "expand"));
     }
   return exp;
   }
@@ -190,8 +190,8 @@ MathExpr TExpr::DivvOper(const MathExpr& exi, const MathExpr& exi1, const MathEx
   exp = exp1 * exp2;
   if (IsDetails)
     {
-    sm_pResultReceiver->AddExp(exp);
-    sm_pResultReceiver->AddComm(X_Str("M2product", "to product"));
+    TSolutionChain::sm_SolutionChain.AddExpr(exp);
+    TSolutionChain::sm_SolutionChain.AddComment(X_Str("M2product", "to product"));
     }
   SwapExpr(dividend2, divisor2);
   exp1 = dividend1 / divisor1;
@@ -211,31 +211,33 @@ int TExpr::WhatIsIt( const MathExpr& exi, MathExpr& arg1, MathExpr& arg2 ) // De
   return 0;
   }
 
-bool TExpr::CheckDivision( MathExpr Exp, MathExpr& Dividend, MathExpr& Divisor, int& SignOfDivision )
+bool TExpr::CheckDivision(MathExpr exp, MathExpr& dividend, MathExpr& divisor, int& SignOfDivision)
   {
+  MathExpr ext, Exp = exp;
+  int N,D;
   SignOfDivision = 1;
-  MathExpr ext;
-  if( Exp.Unarminus( ext ) )
+  if( Exp.Unarminus(ext) )
     {
     Exp = ext;
     SignOfDivision = -1;
     }
-  if( Exp.Divis( Dividend, Divisor ) )
+
+  bool Result = Exp.Divis(dividend,divisor);
+  if( !Result && Exp.SimpleFrac_(N,D) )
     {
-    Dividend = Dividend;
-    Divisor = Divisor;
-    return true;
+    Result = true;
+    dividend = Constant( N );
+    divisor = Constant( D );
     }
-  int N, D;
-  if( Exp.SimpleFrac_( N, D ) )
+/*
+  if( !Result && IsMultiNominal(Exp) )
     {
-    Dividend = new TConstant( N );
-    Divisor = new TConstant( D );
-    return true;
+    Result = true;
+    dividend = Exp;
+    divisor = Constant( 1 );
     }
-  Dividend = Exp;
-  Divisor = new TConstant( 1 );
-  return true;
+*/
+   return Result;
   }
 
 MathExpr TExpr::CalcMulti( int OperDef, const MathExpr& exi, bool IsDetails )
@@ -249,17 +251,16 @@ MathExpr TExpr::CalcMulti( int OperDef, const MathExpr& exi, bool IsDetails )
     arg2 = CalcMulti( 0, arg2, false );
     SignOkIn = ( ( IsType( TDivi, arg1 ) || IsType( TDivi, arg2 ) ) && !arg1.IsEmpty() && !arg2.IsEmpty() );
     if( SignOkIn && IsDetails )
-      sm_pResultReceiver->AddExp( arg1 / arg2 );
+      TSolutionChain::sm_SolutionChain.AddExpr( arg1 / arg2 );
     }
   if( !SignOkIn )
     {
-    if( sm_pResultReceiver != nullptr )
-      sm_pResultReceiver->AddComm( X_Str( "XPAlgCalcMess", "Different operations!" ) );
+     TSolutionChain::sm_SolutionChain.AddComment( X_Str( "XPAlgCalcMess", "Different operations!" ) );
     }
   else
     {
-    if( IsDetails && sm_pResultReceiver != nullptr )
-      sm_pResultReceiver->AddComm( X_Str( "XPAlgCalcMess", "Show operation in details." ) );
+    if( IsDetails )
+      TSolutionChain::sm_SolutionChain.AddComment( X_Str( "XPAlgCalcMess", "Show operation in details." ) );
     SignOkIn = Operation != 0;
     // first item it is division
     MathExpr dividend1, dividend2, divisor1, divisor2;
@@ -270,8 +271,8 @@ MathExpr TExpr::CalcMulti( int OperDef, const MathExpr& exi, bool IsDetails )
     SignOkIn = SignOkIn && CheckDivision( arg2, dividend2, divisor2, SignOfDivision2 );
     if( !SignOkIn )
       {
-      if( IsDetails && sm_pResultReceiver != nullptr )
-        sm_pResultReceiver->AddComm( X_Str( "XPAlgCalcMess", "Expression it is!correct operation of two divisions!" ) );
+      if( IsDetails )
+        TSolutionChain::sm_SolutionChain.AddComment( X_Str( "XPAlgCalcMess", "Expression it is!correct operation of two divisions!" ) );
       return nullptr;
       }
     MathExpr exs( exi );
@@ -291,8 +292,7 @@ MathExpr TExpr::CalcMulti( int OperDef, const MathExpr& exi, bool IsDetails )
       }
     catch( ErrParser E )
       {
-      if( sm_pResultReceiver != nullptr )
-        sm_pResultReceiver->AddComm( X_Str( "XPAlgCalcMess", "Expression it is not correct operation of two divisions! " ) + E.Name() );
+      TSolutionChain::sm_SolutionChain.AddComment( X_Str( "XPAlgCalcMess", "Expression it is not correct operation of two divisions! " ) + E.Name() );
       }    
     }
   return nullptr;

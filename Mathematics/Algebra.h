@@ -62,7 +62,6 @@ Lexp CalcPolinomEqu( const QByteArray& Source, const QByteArray&& VarName = "x" 
 bool CalcEquation( const QByteArray& Source );
 bool CalcAnyEquation( const QByteArray& Source, bool PutMessage = false );
 bool IsConst(const MathExpr& Ex, int val);
-
 class TNodes : public PascArray<PNode>
   {
   public:
@@ -195,7 +194,7 @@ enum Solvers { ESolvTestMode, ESolvReToMult, ESolvSubSqr, ESolvExpand, ESolvSqrS
   ESin, ECos, ETan, ELn, EDegRad, ERadDeg, ECotan, ESciCalc,
   EDeriv, EIndefInt, ELimit, EMatrOp, EDefInt, EEigenVals, EDeterminant, ETranspose, EMatrixInv, EAngle2, EAngle3, ETan2,
   EAlpha2, EPriv, ETrigoOfSumma, ESumm_Mult, ETrigo_Summ, EPermutations, EBinomCoeff,
-  EAccomodations, EStatistics, ECorrelation, ELineProg, EAlgToTrigo, EComplexOper };
+  EAccomodations, EStatistics, ECorrelation, ELineProg, EAlgToTrigo, EComplexOper, EAlgFrctSum };
 
 class Solver
   {
@@ -557,6 +556,14 @@ class TMatrixOp : public Solver
   public:
     TMatrixOp( const MathExpr Expr );
     MATHEMATICS_EXPORT TMatrixOp();
+  };
+
+class AlgFrctSum : public Solver
+  {
+  MATHEMATICS_EXPORT virtual void Solve();
+  public:
+    AlgFrctSum( const MathExpr Expr );
+    MATHEMATICS_EXPORT AlgFrctSum();
   };
 
 #endif
